@@ -3,7 +3,7 @@
 // ========================================================
 
 import { getWatchedShows } from "../api.js";
-import { getToken } from "./auth.js";
+import { getToken } from "../auth.js";
 
 /**
  * Renders quick statistics on the user's watched shows.
