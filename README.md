@@ -45,10 +45,28 @@ nextup-show-tracker/
 1. Clone the repository:
 
 ```
-git clone https://github.com/yourusername/nextup-show-tracker.git
+git clone git@github.com:AntonioSertic23/NextUp.git
 ```
 
-2. Open `index.html` in your browser (or use a local server like `live-server`).
+2. Add your Trakt Client ID to a `.env` file:
+
+```
+TRAKT_CLIENT_ID="your_client_id_here"
+```
+
+3. Install dependencies:
+
+```
+npm install
+```
+
+4. Run the project locally with Netlify Dev:
+
+```
+netlify dev
+```
+
+5. Open your browser at the URL shown by Netlify (usually \`http://localhost:8888\`) and start using the app.
 
 ---
 

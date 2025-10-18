@@ -3,6 +3,7 @@
 // ========================================================
 
 import { getWatchedShows } from "../api.js";
+import { getToken } from "./auth.js";
 
 /**
  * Renders quick statistics on the user's watched shows.
@@ -12,7 +13,7 @@ import { getWatchedShows } from "../api.js";
  * @returns {void}
  */
 export async function renderStats(main) {
-  const token = localStorage.getItem("trakt_token"); // Get Trakt token from localStorage
+  const token = getToken();
 
   // Fetch watched shows from Trakt API
   const shows = await getWatchedShows(token);

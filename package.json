@@ -1,0 +1,24 @@
+{
+  "name": "nextup",
+  "version": "1.0.0",
+  "description": "NextUp is a simple Vanilla JavaScript web app to track your watched TV shows using the Trakt.tv API.   You can track episodes, mark seasons as watched, view statistics, and see upcoming episodes — all in a modern, responsive interface.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AntonioSertic23/NextUp.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/AntonioSertic23/NextUp/issues"
+  },
+  "homepage": "https://github.com/AntonioSertic23/NextUp#readme",
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
+}
