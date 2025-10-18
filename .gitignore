@@ -1,0 +1,14 @@
+# Node modules
+node_modules/
+
+# Netlify local dev folder
+.netlify/
+
+# Environment variables (sensitive)
+.env
+
+# Local test files
+test.json
+
+# Optional: VSCode settings
+.vscode/

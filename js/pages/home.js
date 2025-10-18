@@ -3,6 +3,7 @@
 // ========================================================
 
 import { getWatchedShows } from "../api.js";
+import { getToken } from "../auth.js";
 import { renderShowsList } from "../ui.js";
 
 /**
@@ -11,7 +12,7 @@ import { renderShowsList } from "../ui.js";
  * @returns {Promise<void>}
  */
 export async function renderHome(main) {
-  const token = localStorage.getItem("trakt_token"); // Get Trakt token from localStorage
+  const token = getToken();
 
   // Fetch watched shows from Trakt API
   const shows = await getWatchedShows(token);

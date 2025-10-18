@@ -1,14 +1,34 @@
 // ========================================================
-// app.js - Main router and component loader
+// app.js - Main router, authentication, and component loader
 // ========================================================
 
+import { getToken, login, handleAuthRedirect, logout } from "./auth.js";
+import { updateActiveNav } from "./ui.js";
 import { renderHome } from "./pages/home.js";
 import { renderShow } from "./pages/show.js";
 import { renderStats } from "./pages/stats.js";
 import { renderUpcoming } from "./pages/upcoming.js";
-import { updateActiveNav } from "./ui.js";
 
-// Define routes: mapping of hash routes to rendering functions
+// ========================================================
+// AUTHENTICATION
+// ========================================================
+
+// Handle redirect from Trakt and store token
+handleAuthRedirect();
+
+// Check if user is logged in
+const token = getToken();
+if (!token) {
+  // No token → redirect to Trakt login
+  login();
+} else {
+  console.log("User logged in.");
+}
+
+// ========================================================
+// ROUTER CONFIGURATION
+// ========================================================
+
 const routes = {
   home: renderHome,
   show: renderShow,
@@ -17,45 +37,57 @@ const routes = {
 };
 
 /**
- * Router function - loads the correct page based on URL hash
- * @returns {Promise<void>}
+ * Router - Loads the correct page based on hash route.
+ * Example: #show/123 → route='show', param='123'
  */
 async function router() {
   const main = document.querySelector("main");
-  const hash = location.hash.slice(1) || "home"; // Default to 'home'
-  const [route, param] = hash.split("/"); // e.g., 'show/123' -> route='show', param='123'
+  const hash = location.hash.slice(1) || "home";
+  const [route, param] = hash.split("/");
 
   main.innerHTML = "";
+
   if (routes[route]) {
-    await routes[route](main, param); // Call page render function with main container and optional param
+    await routes[route](main, param);
   } else {
     main.innerHTML = "<p>404 - Page not found.</p>";
   }
 }
 
-// Update page and active navbar on hash change
+// Update page and navbar on hash change
 window.addEventListener("hashchange", () => {
   router();
   updateActiveNav();
 });
 
-// Initial page load
+// Initial load
 window.addEventListener("load", () => {
   router();
   updateActiveNav();
 });
 
+// ========================================================
+// COMPONENT LOADER
+// ========================================================
+
 /**
- * Dynamically load HTML components into a selector
- * @param {string} selector - DOM selector where component will be inserted
- * @param {string} path - Path to the HTML component file
- * @returns {Promise<void>}
+ * Dynamically loads HTML component into a given selector.
+ * @param {string} selector - Target DOM selector
+ * @param {string} path - Path to HTML component file
  */
 async function loadComponent(selector, path) {
   const container = document.querySelector(selector);
   const res = await fetch(path);
   const html = await res.text();
   container.innerHTML = html;
+
+  // After header loads, attach logout button listener
+  if (selector === "header") {
+    const logoutBtn = container.querySelector("#logout-btn");
+    if (logoutBtn) {
+      logoutBtn.addEventListener("click", () => logout());
+    }
+  }
 }
 
 // Load header and footer components
