@@ -1,0 +1,172 @@
+/* ========================================================
+   Global Styles
+   ======================================================== */
+
+* {
+  font-family: Arial, sans-serif; /* Default font for the app */
+  box-sizing: border-box;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  margin: 0;
+  color: #222;
+}
+
+/* ========================================================
+   Navbar Styles
+   ======================================================== */
+
+/* Main container */
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #222;
+  color: #222;
+  padding: 0.5rem 1rem;
+}
+
+/* Left section (logo or empty) */
+.nav-left {
+  flex: 1;
+}
+
+/* Center section: navigation links */
+.nav-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  gap: 2rem; /* space between links */
+}
+
+/* Right section: user actions (logout button) */
+.nav-right {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Navigation links */
+.nav-link {
+  color: #222;
+  text-decoration: none;
+  font-weight: bold;
+  transition: color 0.2s;
+}
+
+.nav-link:hover {
+  color: #00bfff;
+}
+
+/* Active link highlight */
+.nav-link.active {
+  color: #00bfff;
+  border-bottom: 2px solid #00bfff;
+  font-weight: bold;
+}
+
+/* Logout button */
+#logout-btn {
+  background-color: #ff4d4d;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  color: #fff;
+  font-weight: bold;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+#logout-btn:hover {
+  background-color: #ff1a1a;
+}
+
+/* ========================================================
+   Main Styles
+   ======================================================== */
+
+main {
+  flex: 1;
+}
+
+/* ========================================================
+   Show Card Styles
+   ======================================================== */
+
+.show-card {
+  background-color: #ccc;
+  padding: 1rem;
+  margin: 0.5rem 0;
+  border-radius: 6px;
+  transition: transform 0.2s, background-color 0.2s;
+}
+
+.show-card:hover {
+  cursor: pointer;
+  transform: translateY(-2px);
+  background-color: #bbb;
+}
+
+/* ========================================================
+   Show Styles
+   ======================================================== */
+
+.back-btn {
+  background-color: transparent;
+  border: none;
+  color: #00bfff;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-bottom: 1rem;
+  transition: color 0.2s;
+}
+
+.back-btn:hover {
+  color: #007acc;
+}
+
+.show-details {
+  padding: 1rem;
+}
+
+.season {
+  margin-bottom: 1rem;
+}
+
+.episode {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.3rem 0;
+}
+
+.mark-watched {
+  background-color: #00bfff;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+}
+
+.mark-watched:disabled {
+  background-color: #ccc;
+  cursor: default;
+}
+
+/* ========================================================
+   Footer Styles
+   ======================================================== */
+
+footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-top: 1px solid #222;
+  color: #222;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+}
