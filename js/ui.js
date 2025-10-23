@@ -32,7 +32,7 @@ export function renderWatchlist(container, shows) {
       (show) => `
     <div class="show-card" data-id="${show.ids.trakt}">
       <div class="poster-container">
-        <img class="poster" src="https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fimages-wixmp-ed30a86b8c4ca887773594c2.wixmp.com%2Ff%2F95cc4845-3bd2-4603-8780-de44e21af018%2Fdgfrspv-fc06b204-150c-429b-aae5-78659d7b7389.png%2Fv1%2Ffill%2Fw_1280%2Ch_1920%2Cq_80%2Cstrp%2Famerican_dad_poster_by_bautisworld_dgfrspv-fullview.jpg%3Ftoken%3DeyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9MTkyMCIsInBhdGgiOiJcL2ZcLzk1Y2M0ODQ1LTNiZDItNDYwMy04NzgwLWRlNDRlMjFhZjAxOFwvZGdmcnNwdi1mYzA2YjIwNC0xNTBjLTQyOWItYWFlNS03ODY1OWQ3YjczODkucG5nIiwid2lkdGgiOiI8PTEyODAifV1dLCJhdWQiOlsidXJuOnNlcnZpY2U6aW1hZ2Uub3BlcmF0aW9ucyJdfQ.fN5ExDX5bFgXQSkoAea9Byvm49tbmZRFETHETAe6X6Y&f=1&nofb=1&ipt=cdcf1b2c04d441bb044a661caf34c0e00ca14b0e44629cac9045df2472412e7a"></img>
+        <img class="poster" src="http:\\\\${show.images.poster}"></img>
       </div>
       <div class="info-container">
       <p class="title">${show.title}</p>
@@ -79,7 +79,16 @@ export function renderShowDetails(show) {
   div.classList.add("show-details");
   div.innerHTML = `
     <h2>${show.title} (${show.year})</h2>
-    <p>${show.overview || "No description available."}</p>
+    <p class="tagline">${show.tagline}</p>
+    <br>
+    <p class="overview">${show.overview}</p>
+    <br>
+    <p class="rating">Rating: ${show.rating}</p>
+    <p class="runtime">Runtime: ${show.runtime}</p>
+    <p class="status">Status: ${show.status}</p>
+    <p class="network">Network: ${show.network}</p>
+    <p class="genres">Genres: ${show.genres.join(", ")}</p>
+    <a class="homepage" href="${show.homepage}" target="_blank">Homepage</a>
     <div id="seasons"></div>
   `;
   return div;
@@ -93,30 +102,99 @@ export function renderShowDetails(show) {
 export function renderSeasons(container, seasons) {
   const seasonsContainer = container.querySelector("#seasons");
 
+  const seasonTitle = document.createElement("p");
+  seasonTitle.classList.add("seasons_title");
+  seasonTitle.textContent = "Seasons";
+  seasonsContainer.appendChild(seasonTitle);
+
   seasons.forEach((season) => {
     const seasonDiv = document.createElement("div");
     seasonDiv.classList.add("season");
 
-    const episodesHTML = season.episodes
-      .map(
-        (ep) => `
-        <div class="episode" data-season="${season.number}" data-episode="${ep.number}">
-          ${ep.number}. ${ep.title}
-          <button class="mark-watched">Mark as watched</button>
-        </div>`
-      )
-      .join("");
+    const episodesHTML = `
+      <div class="episodes">
+        ${season.episodes
+          .map(
+            (ep) => `
+            <div class="episode" data-season="${season.number}" data-episode="${
+              ep.number
+            }">
+              <div class="episode_info-container">
+                <p class="episode_title">${ep.title}</p>
+                <p class="episode_info">S${String(season.number).padStart(
+                  2,
+                  "0"
+                )}E${String(ep.number).padStart(2, "0")} - ${ep.aired}</p>
+              </div>
 
-    seasonDiv.innerHTML = `<h3>Season ${season.number}</h3>${episodesHTML}`;
+              <button class="${
+                ep.completed ? "unmark-watched" : "mark-watched"
+              }">
+                ${ep.completed ? "Watched" : "Mark as watched"}
+              </button>
+            </div>`
+          )
+          .join("")}
+      </div>
+    `;
+
+    const progress_bar_percent =
+      (parseInt(season.completed) / parseInt(season.aired)) * 100;
+    const progress_text = `${season.completed}/${season.aired}`;
+
+    seasonDiv.innerHTML = `
+      <div class="season-container">
+        <p class="season_number">Season ${season.number}</p>
+        <div class="progress-container">
+          <div class="progress-bar">
+            <div class="progress-bar-fill" style="width: ${progress_bar_percent}%;"></div>
+          </div>
+          <p class="progress_text">${progress_text}</p>
+        </div>
+        <button class="expand_btn">
+          <svg class="icon" width="14" height="14" viewBox="0 0 24 24">
+            <path d="M8 9l4 4 4-4" stroke="currentColor" stroke-width="2" fill="none" />
+          </svg>
+        </button>
+      </div>
+      ${episodesHTML}
+    `;
+
     seasonsContainer.appendChild(seasonDiv);
   });
 
-  // Add "Mark as watched" button logic
-  seasonsContainer.querySelectorAll(".mark-watched").forEach((btn) => {
+  // Expand/collapse seasons
+  seasonsContainer.querySelectorAll(".expand_btn").forEach((btn) => {
     btn.addEventListener("click", () => {
-      btn.textContent = "Watched";
-      btn.disabled = true;
-      // TODO: Save watched state (localStorage or API)
+      const seasonDiv = btn.closest(".season");
+      const episodesDiv = seasonDiv.querySelector(".episodes");
+
+      episodesDiv.classList.toggle("open");
+      btn.classList.toggle("open");
     });
   });
+
+  // Add event listeners to all buttons (both watched and not watched)
+  seasonsContainer
+    .querySelectorAll(".mark-watched, .unmark-watched")
+    .forEach((btn) => {
+      btn.addEventListener("click", () => {
+        // Check the current state
+        if (btn.classList.contains("mark-watched")) {
+          // Mark as watched
+          btn.textContent = "Watched";
+          btn.classList.remove("mark-watched");
+          btn.classList.add("unmark-watched");
+
+          // TODO: Save watched state (localStorage and API)
+        } else {
+          // Mark as not watched
+          btn.textContent = "Mark as watched";
+          btn.classList.remove("unmark-watched");
+          btn.classList.add("mark-watched");
+
+          // TODO: Save watched state (localStorage and API)
+        }
+      });
+    });
 }

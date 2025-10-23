@@ -2,7 +2,12 @@
 // api.js - Handles all API communication with Trakt and caching logic
 // ========================================================
 
-import { loadCache, saveCache, clearCache } from "./local_storage.js";
+import {
+  loadCache,
+  saveCache,
+  updateCache,
+  clearCache,
+} from "./local_storage.js";
 
 /**
  * Formats raw Trakt API watchlist data into a simplified
@@ -42,10 +47,42 @@ export function formatWatchlistData(data) {
       next_episode: `S${String(nextEpisodeSeason).padStart(2, "0")}E${String(
         nextEpisodeEpisode
       ).padStart(2, "0")} - ${nextEpisodeTitle}`,
+      images: item.show.images,
+      tagline: item.show.tagline,
+      overview: item.show.overview,
+      rating: item.show.rating,
+      runtime: item.show.runtime,
+      genres: item.show.genres,
+      status: item.show.status,
+      homepage: item.show.homepage,
+      network: item.show.network,
     };
   });
 
   return formatted;
+}
+
+export function formatEpisodesData(seasons, show) {
+  // Loop through each season in the fetched data
+  seasons.forEach((fSeason) => {
+    // Find the corresponding season in the cached show
+    const cSeason = show.seasons.find((s) => s.number === fSeason.number);
+    if (!cSeason) return; // skip if season doesn't exist in cache
+
+    // Loop through episodes in the fetched season
+    fSeason.episodes.forEach((fEp) => {
+      // Find the corresponding episode in the cached season
+      const cEp = cSeason.episodes.find((ep) => ep.number === fEp.number);
+      if (cEp) {
+        // Update title if missing
+        if (!cEp.title && fEp.title) {
+          cEp.title = fEp.title;
+        }
+      }
+    });
+  });
+
+  return show;
 }
 
 /**
@@ -84,42 +121,48 @@ export async function getWatchlist(token, forceRefresh = false) {
 
   const data = await res.json();
 
-  console.log("data", data);
-
   // Format and store data in cache
   const formatted = formatWatchlistData(data);
   saveCache(formatted);
-
-  console.log("formatted", formatted);
 
   return Object.values(formatted);
 }
 
 /**
- * Dummy data fetcher for testing
+ * Retrieves show details from the local cache based on the provided show ID.
+ * @param {string} showId - The unique identifier of the show.
+ * @returns {Object} The cached show details.
  */
-export async function getShowDetails(showId) {
-  return {
-    id: showId,
-    title: "Breaking Bad",
-    year: 2008,
-    overview:
-      "A high school chemistry teacher turns to making methamphetamine...",
-    seasons: [
-      {
-        number: 1,
-        episodes: [
-          { number: 1, title: "Pilot" },
-          { number: 2, title: "Cat's in the Bag..." },
-        ],
-      },
-      {
-        number: 2,
-        episodes: [
-          { number: 1, title: "Seven Thirty-Seven" },
-          { number: 2, title: "Grilled" },
-        ],
-      },
-    ],
-  };
+export async function getShowDetails(token, showId) {
+  const cache = loadCache();
+  const show = cache[showId];
+
+  // Check if at least one episode has title or aired
+  const hasSomeData = show.seasons.some((season) =>
+    season.episodes.some((ep) => ep.title || ep.aired != null)
+  );
+
+  if (hasSomeData) {
+    console.log("Using cached episodes");
+
+    return show;
+  }
+
+  console.log("Fetching episodes from Trakt API...");
+
+  const res = await fetch("/.netlify/functions/getEpisodes", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ token, showId }),
+  });
+
+  const seasons = await res.json();
+
+  // Format and store data in cache
+  const formattedShow = formatEpisodesData(seasons, show);
+  updateCache(showId, formattedShow);
+
+  return formattedShow;
 }

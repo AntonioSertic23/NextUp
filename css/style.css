@@ -70,6 +70,21 @@ body {
   font-weight: bold;
 }
 
+#refresh-btn {
+  background-color: #0e90e6;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  color: #fff;
+  font-weight: bold;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+#refresh-btn:hover {
+  background-color: #0b7eca;
+}
+
 /* Logout button */
 #logout-btn {
   background-color: #ff4d4d;
@@ -221,29 +236,95 @@ main {
   padding: 1rem;
 }
 
+.seasons_title {
+  font-size: 1.6rem;
+  font-weight: bold;
+  margin: 1rem 0;
+}
+
+.season-container {
+  display: flex;
+  gap: 1rem;
+}
+
+.season-container .season_number {
+  font-size: 1.2rem;
+}
+
+.season-container .progress-container {
+  flex: 1;
+}
+
+.season-container .progress-container .progress_text {
+  text-align: center;
+  font-size: 1.2rem;
+}
+
 .season {
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .episode {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.3rem 0;
+  padding: 0.5rem 0;
+  margin: 0.5rem 0;
+  border-bottom: 1px solid #4d4e53;
+}
+
+.season .episode:last-child {
+  border-bottom: none;
+}
+
+.episode_title {
+  font-size: 1rem;
+  font-weight: bold;
 }
 
 .mark-watched {
   background-color: #00bfff;
-  color: #fff;
+  color: #222;
   border: none;
   border-radius: 3px;
   padding: 0.2rem 0.5rem;
   cursor: pointer;
 }
 
-.mark-watched:disabled {
-  background-color: #ccc;
-  cursor: default;
+.unmark-watched {
+  background-color: #00ff00;
+  color: #222;
+  border: none;
+  border-radius: 3px;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+}
+
+.expand_btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+}
+
+.expand_btn .icon {
+  transition: transform 0.3s ease;
+  width: 1.6rem;
+  height: 1.6rem;
+}
+
+.expand_btn.open .icon {
+  transform: rotate(180deg);
+}
+
+.episodes {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.episodes.open {
+  max-height: 5000px;
 }
 
 /* ========================================================

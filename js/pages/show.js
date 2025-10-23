@@ -2,6 +2,7 @@
 // pages/show.js - Render Single Show Details Page
 // ========================================================
 
+import { getToken } from "../auth.js";
 import { getShowDetails } from "../api.js";
 import { createBackButton, renderShowDetails, renderSeasons } from "../ui.js";
 
@@ -12,8 +13,10 @@ import { createBackButton, renderShowDetails, renderSeasons } from "../ui.js";
  * @returns {Promise<void>}
  */
 export async function renderShow(main, showId) {
+  const token = getToken();
+
   // Fetch show details
-  const show = await getShowDetails(showId);
+  const show = await getShowDetails(token, showId);
 
   // Clear previous content
   main.innerHTML = "";
