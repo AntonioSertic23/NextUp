@@ -41,7 +41,7 @@ export async function handler(event) {
   try {
     // Fetch user's watchlist
     const watchlistRes = await fetch(
-      `${BASE_URL}/users/me/watchlist/shows/watched/asc?extended=images`,
+      `${BASE_URL}/users/me/watchlist/shows?extended=images,full`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
