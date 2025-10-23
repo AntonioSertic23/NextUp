@@ -26,13 +26,29 @@ export function updateActiveNav() {
  * @param {Array} shows - Array of show objects from Trakt API or dummy data.
  * @returns {void}
  */
-export function renderShowsList(container, shows) {
+export function renderWatchlist(container, shows) {
   container.innerHTML = shows
     .map(
       (show) => `
-    <div class="show-card" data-id="${show.show.ids.trakt}">
-      <h3>${show.show.title}</h3>
-      <p>${show.show.year}</p>
+    <div class="show-card" data-id="${show.ids.trakt}">
+      <div class="poster-container">
+        <img class="poster" src="https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fimages-wixmp-ed30a86b8c4ca887773594c2.wixmp.com%2Ff%2F95cc4845-3bd2-4603-8780-de44e21af018%2Fdgfrspv-fc06b204-150c-429b-aae5-78659d7b7389.png%2Fv1%2Ffill%2Fw_1280%2Ch_1920%2Cq_80%2Cstrp%2Famerican_dad_poster_by_bautisworld_dgfrspv-fullview.jpg%3Ftoken%3DeyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9MTkyMCIsInBhdGgiOiJcL2ZcLzk1Y2M0ODQ1LTNiZDItNDYwMy04NzgwLWRlNDRlMjFhZjAxOFwvZGdmcnNwdi1mYzA2YjIwNC0xNTBjLTQyOWItYWFlNS03ODY1OWQ3YjczODkucG5nIiwid2lkdGgiOiI8PTEyODAifV1dLCJhdWQiOlsidXJuOnNlcnZpY2U6aW1hZ2Uub3BlcmF0aW9ucyJdfQ.fN5ExDX5bFgXQSkoAea9Byvm49tbmZRFETHETAe6X6Y&f=1&nofb=1&ipt=cdcf1b2c04d441bb044a661caf34c0e00ca14b0e44629cac9045df2472412e7a"></img>
+      </div>
+      <div class="info-container">
+      <p class="title">${show.title}</p>
+      <p class="next_episode">${show.next_episode}</p>
+      <div class="progress-container">
+        <div class="progress-bar">
+           <div class="progress-bar-fill" style="width: ${show.progress_bar_percent}%;"></div>
+        </div>
+        <p class="progress_text">${show.progress_text}</p>
+      </div>
+      <div class="next_episode_info_container">
+        <button class="episode_info_btn">Episode info</button>
+        <p class="episodes_left">${show.episodes_left} left</p>
+      </div>
+
+      </div>
     </div>
   `
     )

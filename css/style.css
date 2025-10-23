@@ -3,16 +3,21 @@
    ======================================================== */
 
 * {
-  font-family: Arial, sans-serif; /* Default font for the app */
+  margin: 0;
+  padding: 0;
   box-sizing: border-box;
 }
 
 body {
+  font-family: Arial, sans-serif;
+  background-color: #15161b;
+  color: #fff;
+  line-height: 1.6;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  margin: 0;
-  color: #222;
+  width: 50%;
+  margin: 0 auto;
 }
 
 /* ========================================================
@@ -24,9 +29,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #222;
-  color: #222;
-  padding: 0.5rem 1rem;
+  padding: 1rem 1.5rem;
 }
 
 /* Left section (logo or empty) */
@@ -36,10 +39,10 @@ body {
 
 /* Center section: navigation links */
 .nav-center {
-  flex: 1;
+  flex: 2;
   display: flex;
   justify-content: center;
-  gap: 2rem; /* space between links */
+  gap: 2rem;
 }
 
 /* Right section: user actions (logout button) */
@@ -51,20 +54,19 @@ body {
 
 /* Navigation links */
 .nav-link {
-  color: #222;
+  color: #4d4e53;
   text-decoration: none;
   font-weight: bold;
   transition: color 0.2s;
 }
 
 .nav-link:hover {
-  color: #00bfff;
+  color: #fff;
 }
 
 /* Active link highlight */
 .nav-link.active {
-  color: #00bfff;
-  border-bottom: 2px solid #00bfff;
+  color: #fff;
   font-weight: bold;
 }
 
@@ -97,17 +99,104 @@ main {
    ======================================================== */
 
 .show-card {
-  background-color: #ccc;
-  padding: 1rem;
-  margin: 0.5rem 0;
-  border-radius: 6px;
+  background-color: transparent;
+  margin-bottom: 2rem;
   transition: transform 0.2s, background-color 0.2s;
+  display: flex;
+  flex-direction: row;
+  width: 100%;
 }
 
 .show-card:hover {
   cursor: pointer;
-  transform: translateY(-2px);
-  background-color: #bbb;
+}
+
+.show-card:hover .poster-container img.poster {
+  scale: 1.1;
+  transition: scale 0.2s;
+}
+
+.poster-container {
+  flex: 1;
+  height: 270px;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.poster-container img.poster {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.info-container {
+  flex: 3;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 2rem;
+  gap: 1rem;
+}
+
+.info-container .title {
+  font-size: 1.6rem;
+  font-weight: bold;
+}
+
+.info-container .next_episode {
+  font-size: 1.2rem;
+}
+
+.progress-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 1rem;
+  background-color: #27272b;
+  border-radius: 15px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  width: 0%;
+  height: 100%;
+  background-image: linear-gradient(to right, #857aff, #ef6bf3);
+  border-radius: 5px;
+}
+
+.progress_text {
+  color: #4d4e53;
+  font-size: 1.2rem;
+}
+
+.next_episode_info_container {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.episode_info_btn {
+  padding: 1rem 1.5rem;
+  font-size: 1rem;
+  border: none;
+  background-color: #4d4e53;
+  color: #fff;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.episode_info_btn:hover {
+  background-color: #4d4e53;
+}
+
+.episodes_left {
+  color: #4d4e53;
+  font-size: 1.2rem;
 }
 
 /* ========================================================
@@ -145,7 +234,7 @@ main {
 
 .mark-watched {
   background-color: #00bfff;
-  color: white;
+  color: #fff;
   border: none;
   border-radius: 3px;
   padding: 0.2rem 0.5rem;
@@ -165,8 +254,7 @@ footer {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-top: 1px solid #222;
-  color: #222;
+  color: #fff;
   padding: 0.5rem 1rem;
-  font-size: 0.9rem;
+  font-size: 1rem;
 }

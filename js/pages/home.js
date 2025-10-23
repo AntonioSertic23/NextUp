@@ -2,9 +2,9 @@
 // pages/home.js - Render Home Page
 // ========================================================
 
-import { getWatchedShows } from "../api.js";
 import { getToken } from "../auth.js";
-import { renderShowsList } from "../ui.js";
+import { getWatchlist } from "../api.js";
+import { renderWatchlist } from "../ui.js";
 
 /**
  * Renders the home page with the list of watched shows.
@@ -14,11 +14,11 @@ import { renderShowsList } from "../ui.js";
 export async function renderHome(main) {
   const token = getToken();
 
-  // Fetch watched shows from Trakt API
-  const shows = await getWatchedShows(token);
+  // Fetch watchlist from Trakt API
+  const shows = await getWatchlist(token);
 
   // Render the shows list in the main container
-  renderShowsList(main, shows);
+  renderWatchlist(main, shows);
 
   // Add click event to each show card to navigate to its details page
   main.querySelectorAll(".show-card").forEach((card) => {
