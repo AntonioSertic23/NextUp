@@ -3,6 +3,7 @@
 // ========================================================
 
 import { getToken, login, handleAuthRedirect, logout } from "./auth.js";
+import { clearCache } from "./local_storage.js";
 import { updateActiveNav } from "./ui.js";
 import { renderHome } from "./pages/home.js";
 import { renderShow } from "./pages/show.js";
@@ -84,6 +85,14 @@ async function loadComponent(selector, path) {
     const logoutBtn = container.querySelector("#logout-btn");
     if (logoutBtn) {
       logoutBtn.addEventListener("click", () => logout());
+    }
+
+    const refreshBtn = container.querySelector("#refresh-btn");
+    if (refreshBtn) {
+      refreshBtn.addEventListener("click", () => {
+        clearCache();
+        window.location.reload();
+      });
     }
   }
 }

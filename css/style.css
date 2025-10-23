@@ -70,6 +70,21 @@ body {
   font-weight: bold;
 }
 
+#refresh-btn {
+  background-color: #0e90e6;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  color: #fff;
+  font-weight: bold;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+#refresh-btn:hover {
+  background-color: #0b7eca;
+}
+
 /* Logout button */
 #logout-btn {
   background-color: #ff4d4d;
