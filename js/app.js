@@ -7,7 +7,6 @@ import { updateActiveNav } from "./ui.js";
 import { renderHome } from "./pages/home.js";
 import { renderShow } from "./pages/show.js";
 import { renderStats } from "./pages/stats.js";
-import { renderUpcoming } from "./pages/upcoming.js";
 
 // ========================================================
 // AUTHENTICATION
@@ -33,7 +32,6 @@ const routes = {
   home: renderHome,
   show: renderShow,
   stats: renderStats,
-  upcoming: renderUpcoming,
 };
 
 /**

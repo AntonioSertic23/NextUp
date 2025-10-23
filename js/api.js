@@ -25,14 +25,23 @@ export function formatWatchlistData(data) {
   const formatted = {};
 
   data.forEach((item) => {
+    const total = parseInt(item.progress.total);
+    const watched = parseInt(item.progress.watched);
+    const nextEpisodeSeason = item.progress.nextEpisode.season;
+    const nextEpisodeEpisode = item.progress.nextEpisode.number;
+    const nextEpisodeTitle = item.progress.nextEpisode.title;
+
     formatted[item.show.ids.trakt] = {
       title: item.show.title,
       ids: item.show.ids,
       year: item.show.year,
-      watched: item.progress.watched,
-      total: item.progress.total,
-      nextEpisode: item.progress.nextEpisode,
       seasons: item.progress.seasons,
+      progress_text: `${watched}/${total}`,
+      episodes_left: total - watched,
+      progress_bar_percent: (watched / total) * 100,
+      next_episode: `S${String(nextEpisodeSeason).padStart(2, "0")}E${String(
+        nextEpisodeEpisode
+      ).padStart(2, "0")} - ${nextEpisodeTitle}`,
     };
   });
 
@@ -84,17 +93,6 @@ export async function getWatchlist(token, forceRefresh = false) {
   console.log("formatted", formatted);
 
   return Object.values(formatted);
-}
-
-/**
- * Dummy function to simulate fetching upcoming shows from API
- */
-export async function getUpcomingShows() {
-  return [
-    { show: { ids: { trakt: 1 }, title: "Breaking Bad", year: 2008 } },
-    { show: { ids: { trakt: 2 }, title: "Stranger Things", year: 2016 } },
-    { show: { ids: { trakt: 3 }, title: "Game of Thrones", year: 2011 } },
-  ];
 }
 
 /**
