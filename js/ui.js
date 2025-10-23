@@ -26,13 +26,13 @@ export function updateActiveNav() {
  * @param {Array} shows - Array of show objects from Trakt API or dummy data.
  * @returns {void}
  */
-export function renderShowsList(container, shows) {
+export function renderWatchlist(container, shows) {
   container.innerHTML = shows
     .map(
       (show) => `
-    <div class="show-card" data-id="${show.show.ids.trakt}">
-      <h3>${show.show.title}</h3>
-      <p>${show.show.year}</p>
+    <div class="show-card" data-id="${show.ids.trakt}">
+      <h3>${show.title}</h3>
+      <p>${show.year}</p>
     </div>
   `
     )

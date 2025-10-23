@@ -2,9 +2,6 @@
 // pages/upcoming.js - Render Upcoming Episodes Page
 // ========================================================
 
-import { getUpcomingShows } from "../api.js";
-import { renderShowsList } from "../ui.js";
-
 /**
  * Renders the upcoming episodes page.
  * Fetches a list of upcoming shows (currently dummy data) and displays them.
@@ -14,17 +11,13 @@ import { renderShowsList } from "../ui.js";
  * @returns {Promise<void>}
  */
 export async function renderUpcoming(main) {
-  // Fetch shows from API (currently dummy data)
-  const shows = await getUpcomingShows();
+  // Create upcoming container
+  const upcomingDiv = document.createElement("div");
+  upcomingDiv.classList.add("quick-upcoming");
+  upcomingDiv.innerHTML = `
+    <h3>Upcoming...</h3>
+  `;
 
-  // Render the shows list in the main container
-  renderShowsList(main, shows);
-
-  // Add click event to each show card for navigation
-  main.querySelectorAll(".show-card").forEach((card) => {
-    card.addEventListener("click", () => {
-      const id = card.dataset.id;
-      location.hash = `show/${id}`; // Update hash to trigger router
-    });
-  });
+  // Append to main container
+  main.appendChild(upcomingDiv);
 }
