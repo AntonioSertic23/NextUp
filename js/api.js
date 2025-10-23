@@ -24,6 +24,8 @@ import { loadCache, saveCache, clearCache } from "./local_storage.js";
 export function formatWatchlistData(data) {
   const formatted = {};
 
+  console.log("data", data);
+
   data.forEach((item) => {
     const total = parseInt(item.progress.total);
     const watched = parseInt(item.progress.watched);
@@ -42,6 +44,7 @@ export function formatWatchlistData(data) {
       next_episode: `S${String(nextEpisodeSeason).padStart(2, "0")}E${String(
         nextEpisodeEpisode
       ).padStart(2, "0")} - ${nextEpisodeTitle}`,
+      images: item.show.images,
     };
   });
 
@@ -66,6 +69,7 @@ export async function getWatchlist(token, forceRefresh = false) {
 
   if (hasCache && !forceRefresh) {
     console.log("Using cached watchlist");
+    console.log("cache", cache);
 
     return Object.values(cache);
   }

@@ -40,15 +40,18 @@ export async function handler(event) {
 
   try {
     // Fetch user's watchlist
-    const watchlistRes = await fetch(`${BASE_URL}/users/me/watchlist/shows`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "trakt-api-version": "2",
-        "trakt-api-key": process.env.TRAKT_CLIENT_ID,
-        "Content-Type": "application/json",
-        "User-Agent": "NextUp/1.0.0",
-      },
-    });
+    const watchlistRes = await fetch(
+      `${BASE_URL}/users/me/watchlist/shows/watched/asc?extended=images`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "trakt-api-version": "2",
+          "trakt-api-key": process.env.TRAKT_CLIENT_ID,
+          "Content-Type": "application/json",
+          "User-Agent": "NextUp/1.0.0",
+        },
+      }
+    );
 
     if (!watchlistRes.ok) {
       const text = await watchlistRes.text();
