@@ -32,7 +32,7 @@ export function renderWatchlist(container, shows) {
       (show) => `
     <div class="show-card" data-id="${show.ids.trakt}">
       <div class="poster-container">
-        <img class="poster" src="http:\\\\${show.images.poster}"></img>
+        <img class="poster" src="https:\\\\${show.images.poster}"></img>
       </div>
       <div class="info-container">
       <p class="title">${show.title}</p>
@@ -78,17 +78,31 @@ export function renderShowDetails(show) {
   const div = document.createElement("div");
   div.classList.add("show-details");
   div.innerHTML = `
-    <h2>${show.title} (${show.year})</h2>
-    <p class="tagline">${show.tagline}</p>
-    <br>
-    <p class="overview">${show.overview}</p>
-    <br>
-    <p class="rating">Rating: ${show.rating}</p>
-    <p class="runtime">Runtime: ${show.runtime}</p>
-    <p class="status">Status: ${show.status}</p>
-    <p class="network">Network: ${show.network}</p>
-    <p class="genres">Genres: ${show.genres.join(", ")}</p>
-    <a class="homepage" href="${show.homepage}" target="_blank">Homepage</a>
+    <div class="show_banner-container">
+      <img class="show_banner-img" src="https:\\\\${show.images.fanart}">
+    </div>
+    <div class="show_poster-container">
+      <img class="show_poster-img" src="https:\\\\${show.images.poster}">
+      <div class="show-top-container">
+        <h2>${show.title} (${show.year})</h2>
+        <p class="status">Status: ${show.status}</p>
+      </div>
+    </div>
+    <div class="show_other_info-container">
+      <p class="tagline">${show.tagline}</p>
+      <br>
+      <p class="overview">${show.overview}</p>
+      <br>
+      <div class="more_info-row">
+        <p class="rating">⭐ ${parseFloat(show.rating).toFixed(1)}</p>
+        -
+        <p class="genres">${show.genres.join(", ")}</p>
+        -
+        <p class="runtime">${show.runtime} min</p>
+        -
+        <p class="network">${show.network}</p>
+      </div>
+    </div>
     <div id="seasons"></div>
   `;
   return div;
