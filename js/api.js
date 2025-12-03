@@ -30,32 +30,69 @@ export function formatWatchlistData(data) {
   const formatted = {};
 
   data.forEach((item) => {
-    const total = parseInt(item.progress.total);
-    const watched = parseInt(item.progress.watched);
-    const nextEpisodeSeason = item.progress.nextEpisode.season;
-    const nextEpisodeEpisode = item.progress.nextEpisode.number;
-    const nextEpisodeTitle = item.progress.nextEpisode.title;
+    // Use seasons from item.show if present (server may have enriched), otherwise fall back to progress.seasons
+    const seasons = Array.isArray(item.show && item.show.seasons)
+      ? item.show.seasons
+      : Array.isArray(item.progress && item.progress.seasons)
+      ? item.progress.seasons
+      : [];
+
+    // Compute totals and watched counts from per-episode watched flags if available
+    let totalEpisodes = 0;
+    let watchedEpisodes = 0;
+    let foundNextEpisode = null;
+
+    seasons.forEach((s) => {
+      if (!Array.isArray(s.episodes)) return;
+      s.episodes.forEach((ep) => {
+        totalEpisodes += 1;
+        const isWatched = !!ep.watched || (ep.plays != null && ep.plays > 0) || !!ep.completed;
+        if (isWatched) watchedEpisodes += 1;
+        if (!foundNextEpisode && !isWatched) {
+          foundNextEpisode = { season: s.number, number: ep.number, title: ep.title || "" };
+        }
+      });
+    });
+
+    // Fallback to totals from progress raw if seasons don't provide counts
+    const progressRaw = item.progress || {};
+    const total = totalEpisodes > 0 ? totalEpisodes : (progressRaw.aired || progressRaw.total || null);
+    const watched = totalEpisodes > 0 ? watchedEpisodes : (progressRaw.completed || progressRaw.watched || null);
+
+    // Determine next episode: prefer progress.nextEpisode, otherwise first un-watched ep
+    let nextEpisodeObj = null;
+    if (progressRaw.nextEpisode) {
+      nextEpisodeObj = progressRaw.nextEpisode;
+    } else if (foundNextEpisode) {
+      nextEpisodeObj = foundNextEpisode;
+    }
+
+    const progressText = total != null && watched != null ? `${watched}/${total}` : watched != null ? `${watched}` : null;
+    const episodesLeft = total != null && watched != null ? total - watched : null;
+    const progressBarPercent = total != null && watched != null && total > 0 ? (watched / total) * 100 : 0;
+    const nextEpisodeStr =
+      nextEpisodeObj && nextEpisodeObj.season != null && nextEpisodeObj.number != null
+        ? `S${String(nextEpisodeObj.season).padStart(2, "0")}E${String(nextEpisodeObj.number).padStart(2, "0")} - ${nextEpisodeObj.title || ""}`
+        : null;
 
     formatted[item.show.ids.trakt] = {
-      title: item.show.title,
-      ids: item.show.ids,
-      year: item.show.year,
-      seasons: item.progress.seasons,
-      progress_text: `${watched}/${total}`,
-      episodes_left: total - watched,
-      progress_bar_percent: (watched / total) * 100,
-      next_episode: `S${String(nextEpisodeSeason).padStart(2, "0")}E${String(
-        nextEpisodeEpisode
-      ).padStart(2, "0")} - ${nextEpisodeTitle}`,
-      images: item.show.images,
-      tagline: item.show.tagline,
-      overview: item.show.overview,
-      rating: item.show.rating,
-      runtime: item.show.runtime,
-      genres: item.show.genres,
-      status: item.show.status,
-      homepage: item.show.homepage,
-      network: item.show.network,
+      title: item.show.title || "",
+      ids: item.show.ids || {},
+      year: item.show.year || 0,
+      seasons: seasons || [],
+      progress_text: progressText,
+      episodes_left: episodesLeft,
+      progress_bar_percent: progressBarPercent,
+      next_episode: nextEpisodeStr,
+      images: item.show.images || {},
+      tagline: item.show.tagline || "",
+      overview: item.show.overview || "No overview available",
+      rating: item.show.rating || 0,
+      runtime: item.show.runtime || 0,
+      genres: item.show.genres || ["No genres available"],
+      status: item.show.status || "No status available",
+      homepage: item.show.homepage || "No homepage available",
+      network: item.show.network || "No network available",
     };
   });
 
@@ -63,20 +100,63 @@ export function formatWatchlistData(data) {
 }
 
 export function formatEpisodesData(seasons, show) {
-  // Loop through each season in the fetched data
-  seasons.forEach((fSeason) => {
-    // Find the corresponding season in the cached show
-    const cSeason = show.seasons.find((s) => s.number === fSeason.number);
-    if (!cSeason) return; // skip if season doesn't exist in cache
+  // Ensure show.seasons exists
+  show.seasons = show.seasons || [];
 
-    // Loop through episodes in the fetched season
+  // Helper to find watched info in show.progress (raw watched object)
+  const watchedRaw = show.progress || null;
+
+  // Loop through each fetched season and merge into cached show
+  seasons.forEach((fSeason) => {
+    // Find or create the corresponding season in the cached show
+    let cSeason = show.seasons.find((s) => s.number === fSeason.number);
+    if (!cSeason) {
+      // push a copy of fetched season
+      cSeason = {
+        ...fSeason,
+      };
+      show.seasons.push(cSeason);
+    } else {
+      // merge basic fields from fetched season
+      cSeason.title = cSeason.title || fSeason.title;
+      cSeason.episode_count = cSeason.episode_count || fSeason.episode_count;
+      cSeason.episodes = cSeason.episodes || [];
+    }
+
+    // Ensure episodes array exists on fetched season
+    if (!Array.isArray(fSeason.episodes)) return;
+
+    // For each fetched episode, find or add to cached season and merge details
     fSeason.episodes.forEach((fEp) => {
-      // Find the corresponding episode in the cached season
-      const cEp = cSeason.episodes.find((ep) => ep.number === fEp.number);
-      if (cEp) {
-        // Update title if missing
-        if (!cEp.title && fEp.title) {
-          cEp.title = fEp.title;
+      let cEp = cSeason.episodes.find((ep) => ep.number === fEp.number);
+      if (!cEp) {
+        cEp = { ...fEp };
+        cSeason.episodes.push(cEp);
+      } else {
+        // Merge title and other missing fields
+        cEp.title = cEp.title || fEp.title;
+        cEp.first_aired = cEp.first_aired || fEp.first_aired;
+        cEp.overview = cEp.overview || fEp.overview;
+        cEp.images = cEp.images || fEp.images;
+      }
+
+      // Attach watched metadata from watchedRaw if available
+      if (watchedRaw && Array.isArray(watchedRaw.seasons)) {
+        const wSeason = watchedRaw.seasons.find((ws) => ws.number === fSeason.number);
+        if (wSeason && Array.isArray(wSeason.episodes)) {
+          const wEp = wSeason.episodes.find((we) => we.number === fEp.number);
+          if (wEp) {
+            cEp.watched = !!(wEp.plays != null ? wEp.plays > 0 : wEp.completed);
+            if (wEp.plays != null) cEp.plays = wEp.plays;
+            if (wEp.last_watched) cEp.last_watched = wEp.last_watched;
+          }
+        }
+      } else {
+        // If fetched season/episode already contains 'watched' flag, preserve it
+        if (typeof fEp.watched === "boolean") {
+          cEp.watched = fEp.watched;
+        } else if (cEp.watched == null) {
+          cEp.watched = false;
         }
       }
     });
@@ -119,7 +199,24 @@ export async function getWatchlist(token, forceRefresh = false) {
     body: JSON.stringify({ token }),
   });
 
-  const data = await res.json();
+  const raw = await res.json();
+
+  // Normalize Netlify function envelope { statusCode, body } -> array
+  let data = raw;
+  if (!Array.isArray(data)) {
+    if (data && typeof data.body === "string") {
+      try {
+        data = JSON.parse(data.body);
+      } catch (err) {
+        console.error("Failed to parse function body as JSON:", err, data.body);
+        data = [];
+      }
+    } else {
+      data = Array.isArray(data) ? data : [];
+    }
+  }
+
+  console.log("res", data);
 
   // Format and store data in cache
   const formatted = formatWatchlistData(data);
@@ -136,33 +233,21 @@ export async function getWatchlist(token, forceRefresh = false) {
 export async function getShowDetails(token, showId) {
   const cache = loadCache();
   const show = cache[showId];
+  console.log("show", show);
 
-  // Check if at least one episode has title or aired
-  const hasSomeData = show.seasons.some((season) =>
-    season.episodes.some((ep) => ep.title || ep.aired != null)
-  );
-
-  if (hasSomeData) {
-    console.log("Using cached episodes");
-
-    return show;
+  if (!show) {
+    console.warn(`Show ${showId} not found in cache`);
+    return null;
   }
 
-  console.log("Fetching episodes from Trakt API...");
-
-  const res = await fetch("/.netlify/functions/getEpisodes", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ token, showId }),
+  // Ensure seasons and episodes arrays exist and normalize watched flags
+  show.seasons = show.seasons || [];
+  show.seasons.forEach((season) => {
+    season.episodes = season.episodes || [];
+    season.episodes.forEach((ep) => {
+      if (ep.watched == null) ep.watched = false;
+    });
   });
 
-  const seasons = await res.json();
-
-  // Format and store data in cache
-  const formattedShow = formatEpisodesData(seasons, show);
-  updateCache(showId, formattedShow);
-
-  return formattedShow;
+  return show;
 }
