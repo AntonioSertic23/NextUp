@@ -32,7 +32,7 @@ export function renderWatchlist(container, shows) {
       (show) => `
     <div class="show-card" data-id="${show.ids.trakt}">
       <div class="poster-container">
-        <img class="poster" src="http:\\\\${show.images.poster}"></img>
+        <img class="poster" src="https:\\\\${show.images.poster}"></img>
       </div>
       <div class="info-container">
       <p class="title">${show.title}</p>
@@ -78,17 +78,31 @@ export function renderShowDetails(show) {
   const div = document.createElement("div");
   div.classList.add("show-details");
   div.innerHTML = `
-    <h2>${show.title} (${show.year})</h2>
-    <p class="tagline">${show.tagline}</p>
-    <br>
-    <p class="overview">${show.overview}</p>
-    <br>
-    <p class="rating">Rating: ${show.rating}</p>
-    <p class="runtime">Runtime: ${show.runtime}</p>
-    <p class="status">Status: ${show.status}</p>
-    <p class="network">Network: ${show.network}</p>
-    <p class="genres">Genres: ${show.genres.join(", ")}</p>
-    <a class="homepage" href="${show.homepage}" target="_blank">Homepage</a>
+    <div class="show_banner-container">
+      <img class="show_banner-img" src="https:\\\\${show.images.fanart}">
+    </div>
+    <div class="show_poster-container">
+      <img class="show_poster-img" src="https:\\\\${show.images.poster}">
+      <div class="show-top-container">
+        <h2>${show.title} (${show.year})</h2>
+        <p class="status">Status: ${show.status}</p>
+      </div>
+    </div>
+    <div class="show_other_info-container">
+      <p class="tagline">${show.tagline}</p>
+      <br>
+      <p class="overview">${show.overview}</p>
+      <br>
+      <div class="more_info-row">
+        <p class="rating">⭐ ${parseFloat(show.rating).toFixed(1)}</p>
+        -
+        <p class="genres">${show.genres.join(", ")}</p>
+        -
+        <p class="runtime">${show.runtime} min</p>
+        -
+        <p class="network">${show.network}</p>
+      </div>
+    </div>
     <div id="seasons"></div>
   `;
   return div;
@@ -111,36 +125,41 @@ export function renderSeasons(container, seasons) {
     const seasonDiv = document.createElement("div");
     seasonDiv.classList.add("season");
 
+    // compute totals for the season
+    const episodesArray = Array.isArray(season.episodes) ? season.episodes : [];
+    const total = episodesArray.length > 0 ? episodesArray.length : (season.episode_count || season.aired_episodes || 0);
+    let completed = 0;
+    episodesArray.forEach((ep) => {
+      const watched = !!ep.watched || (ep.plays != null && ep.plays > 0) || !!ep.completed;
+      if (watched) completed += 1;
+    });
+
+    const progress_bar_percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+    const progress_text = `${completed}/${total}`;
+
     const episodesHTML = `
       <div class="episodes">
-        ${season.episodes
-          .map(
-            (ep) => `
-            <div class="episode" data-season="${season.number}" data-episode="${
-              ep.number
-            }">
+        ${episodesArray
+          .map((ep) => {
+            const epWatched = !!ep.watched || (ep.plays != null && ep.plays > 0) || !!ep.completed;
+            const btnClass = epWatched ? "unmark-watched" : "mark-watched";
+            const btnText = epWatched ? "Watched" : "Mark as watched";
+            const aired = ep.first_aired || ep.aired || "";
+            const airedStr = aired ? ` - ${aired}` : "";
+
+            return `
+            <div class="episode" data-season="${season.number}" data-episode="${ep.number}">
               <div class="episode_info-container">
-                <p class="episode_title">${ep.title}</p>
-                <p class="episode_info">S${String(season.number).padStart(
-                  2,
-                  "0"
-                )}E${String(ep.number).padStart(2, "0")} - ${ep.aired}</p>
+                <p class="episode_title">${ep.title || "Untitled"}</p>
+                <p class="episode_info">S${String(season.number).padStart(2, "0")}E${String(ep.number).padStart(2, "0")}${airedStr}</p>
               </div>
 
-              <button class="${
-                ep.completed ? "unmark-watched" : "mark-watched"
-              }">
-                ${ep.completed ? "Watched" : "Mark as watched"}
-              </button>
-            </div>`
-          )
+              <button class="${btnClass}">${btnText}</button>
+            </div>`;
+          })
           .join("")}
       </div>
     `;
-
-    const progress_bar_percent =
-      (parseInt(season.completed) / parseInt(season.aired)) * 100;
-    const progress_text = `${season.completed}/${season.aired}`;
 
     seasonDiv.innerHTML = `
       <div class="season-container">
