@@ -330,7 +330,8 @@ main {
   font-weight: bold;
 }
 
-.mark-watched {
+.mark-watched,
+.mark-season {
   background-color: #00bfff;
   color: #222;
   border: none;
@@ -339,7 +340,8 @@ main {
   cursor: pointer;
 }
 
-.unmark-watched {
+.unmark-watched,
+.unmark-season {
   background-color: #00ff00;
   color: #222;
   border: none;

@@ -19,20 +19,6 @@ export async function handler(event) {
   }
 
   const { token, action, traktId } = body;
-  if (!token || !action) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: "Missing token or action" }),
-    };
-  }
-  if (!traktId) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({
-        error: "Missing traktId (episode id) - required",
-      }),
-    };
-  }
 
   try {
     if (action === "mark") {
