@@ -10,7 +10,7 @@ import {
 } from "./local_storage.js";
 
 /**
- * Formats raw Trakt API watchlist data into a simplified
+ * Formats raw Trakt API collection data into a simplified
  * object structure optimized for localStorage caching.
  *
  * @param {Array} data - Raw data array returned from Trakt API.
@@ -26,7 +26,7 @@ import {
  *   ...
  * }
  */
-export function formatWatchlistData(data) {
+export function formatCollectionData(data) {
   const formatted = {};
 
   data.forEach((item) => {
@@ -126,32 +126,32 @@ export function formatEpisodesData(seasons, show) {
 }
 
 /**
- * Fetches the user's Trakt watchlist.
+ * Fetches the user's Trakt collection (persistent list, not auto-removed as with collection).
  *
  * - Checks if a cached version exists in localStorage.
  * - If it exists and `forceRefresh` is false, returns the cached data immediately.
- * - Otherwise, fetches the latest data from the Netlify serverless function (`/.netlify/functions/getWatchlist`),
+ * - Otherwise, fetches the latest data from the Netlify serverless function (`/.netlify/functions/getCollection`, which now proxies /collection),
  *   formats it for local storage, saves it, and then returns it.
  *
  * @param {string} token - The user's Trakt OAuth token for authentication.
  * @param {boolean} [forceRefresh=false] - If true, bypasses cache and fetches the latest data from the API.
- * @returns {Promise<Array>} A list (array) of shows from the user's watchlist.
+ * @returns {Promise<Array>} A list (array) of shows from the user's collection.
  */
-export async function getWatchlist(token, forceRefresh = false) {
+export async function getCollection(token, forceRefresh = false) {
   const cache = loadCache();
   const hasCache = Object.keys(cache).length > 0;
 
   if (hasCache && !forceRefresh) {
-    console.log("Using cached watchlist");
+    console.log("Using cached collection");
 
     return Object.values(cache);
   }
 
   clearCache();
 
-  console.log("Fetching watchlist from Trakt API...");
+  console.log("Fetching collection from Trakt API...");
 
-  const res = await fetch("/.netlify/functions/getWatchlist", {
+  const res = await fetch("/.netlify/functions/getCollection", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -177,7 +177,7 @@ export async function getWatchlist(token, forceRefresh = false) {
   }
 
   // Format and store data in cache
-  const formatted = formatWatchlistData(data);
+  const formatted = formatCollectionData(data);
   saveCache(formatted);
 
   return Object.values(formatted);

@@ -1,9 +1,10 @@
 // ========================================================
-// getWatchlist.js - Netlify serverless function
+// getCollection.js - Netlify serverless function for user's collection
+// (previously getCollection.js, kept for backward compatibility)
 // ========================================================
 
 /**
- * Netlify serverless function to fetch the current user's watchlist from the Trakt API.
+ * Netlify serverless function to fetch the current user's collection from the Trakt API.
  *
  * @async
  * @function handler
@@ -15,7 +16,6 @@
  * - Expects a JSON body with a `token` field (user's Trakt access token).
  * - Uses `process.env.TRAKT_CLIENT_ID` for API authentication.
  * - Returns 500 with an error message if a network or API issue occurs.
- * - Future upgrade: loop through watchlist to fetch watched progress per show.
  */
 
 import fetch from "node-fetch";
@@ -39,9 +39,9 @@ export async function handler(event) {
   }
 
   try {
-    // Fetch user's watchlist
-    const watchlistRes = await fetch(
-      `${BASE_URL}/users/me/watchlist/shows?extended=images,full`,
+    // Fetch user's collection (NOT auto-removed like collection)
+    const collectionRes = await fetch(
+      `${BASE_URL}/users/me/collection/shows?extended=images,full`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -53,17 +53,17 @@ export async function handler(event) {
       }
     );
 
-    if (!watchlistRes.ok) {
-      const text = await watchlistRes.text();
+    if (!collectionRes.ok) {
+      const text = await collectionRes.text();
       return {
-        statusCode: watchlistRes.status,
+        statusCode: collectionRes.status,
         body: JSON.stringify({ error: text }),
       };
     }
 
-    const watchlist = await watchlistRes.json();
+    const collection = await collectionRes.json();
 
-    // 1) Bulk watched data
+    // Bulk watched data (as before)
     const watchedRes = await fetch(`${BASE_URL}/users/me/watched/shows`, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -104,10 +104,10 @@ export async function handler(event) {
       });
     }
 
-    // 2) For each show, fetch seasons?extended=episodes (limited concurrency)
+    // For each show, fetch seasons?extended=episodes (limited concurrency)
     const concurrency = 4;
     const results = [];
-    const shows = watchlist.slice(); // array of items { show, ... }
+    const shows = collection.slice(); // array of items { show, ... }
 
     async function fetchSeasonsForShow(item) {
       const showId = item.show && item.show.ids && item.show.ids.trakt;
@@ -129,7 +129,11 @@ export async function handler(event) {
 
         if (!seasonsRes.ok) {
           const text = await seasonsRes.text().catch(() => "");
-          console.warn(`Seasons fetch failed for show ${showId}:`, seasonsRes.status, text);
+          console.warn(
+            `Seasons fetch failed for show ${showId}:`,
+            seasonsRes.status,
+            text
+          );
           return { item, seasons: null };
         }
 
@@ -154,19 +158,16 @@ export async function handler(event) {
     for (let i = 0; i < shows.length; i += concurrency) {
       const batch = shows.slice(i, i + concurrency);
       const promises = batch.map((it) => fetchSeasonsForShow(it));
-      // wait for batch to finish
       /* eslint-disable no-await-in-loop */
-      // eslint comments are for style; Netlify environment may ignore eslint
       const batchResults = await Promise.all(promises);
       results.push(...batchResults);
       /* eslint-enable no-await-in-loop */
     }
 
-    // 3) Merge seasons + watched info into enriched watchlist
-    const enrichedWatchlist = results.map(({ item, seasons }) => {
+    // Merge seasons + watched info into enriched collection
+    const enrichedCollection = results.map(({ item, seasons }) => {
       const showId = item.show && item.show.ids && item.show.ids.trakt;
       const watched = watchedMap[showId] || null;
-
       // If seasons fetched, annotate episodes with watched info using watchedMap
       if (Array.isArray(seasons)) {
         seasons.forEach((s) => {
@@ -181,43 +182,39 @@ export async function handler(event) {
               if (ws && Array.isArray(ws.episodes)) {
                 const wep = ws.episodes.find((we) => we.number === ep.number);
                 if (wep) {
-                  // Trakt's watched episode entry may have 'plays' or 'completed' boolean
-                  plays = wep.plays != null ? wep.plays : wep.completed != null ? (wep.completed ? 1 : 0) : null;
-                  watchedFlag = Boolean(plays && plays > 0) || Boolean(wep.completed);
+                  plays =
+                    wep.plays != null
+                      ? wep.plays
+                      : wep.completed != null
+                      ? wep.completed
+                        ? 1
+                        : 0
+                      : null;
+                  watchedFlag =
+                    Boolean(plays && plays > 0) || Boolean(wep.completed);
                   lastWatched = wep.last_watched || null;
                 }
               }
             }
-
-            // Attach watched metadata to episode
             ep.watched = watchedFlag;
             if (plays != null) ep.plays = plays;
             if (lastWatched) ep.last_watched = lastWatched;
           });
         });
-      } else {
-        // No seasons fetched; try to reuse item.show.seasons if present (shallow)
-        if (Array.isArray(item.show && item.show.seasons)) {
-          // keep as-is; we won't annotate per-episode watched flags here
-        }
       }
-
-      // Return object shaped like original watchlist item but with enriched seasons and progress
+      // Return object shaped like original collection item but with enriched seasons and progress
       const enrichedItem = {
         ...item,
-        // if seasons fetched, replace item.show.seasons with that data (keeping shape)
         show: {
           ...item.show,
           seasons: Array.isArray(seasons) ? seasons : item.show.seasons || [],
         },
-        // attach raw watched info so frontend can compute totals if needed
         progress: watched,
       };
-
       return enrichedItem;
     });
 
-    return { statusCode: 200, body: JSON.stringify(enrichedWatchlist) };
+    return { statusCode: 200, body: JSON.stringify(enrichedCollection) };
   } catch (err) {
     return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }

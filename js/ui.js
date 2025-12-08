@@ -85,7 +85,7 @@ function computeShowProgress(show) {
  * @param {Array} shows - Array of show objects from Trakt API or dummy data.
  * @returns {void}
  */
-export function renderWatchlist(container, shows) {
+export function renderCollection(container, shows) {
   container.innerHTML = shows
     .map((show) => {
       const p = computeShowProgress(show);

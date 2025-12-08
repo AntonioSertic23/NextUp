@@ -3,8 +3,8 @@
 // ========================================================
 
 import { getToken } from "../auth.js";
-import { getWatchlist } from "../api.js";
-import { renderWatchlist } from "../ui.js";
+import { getCollection } from "../api.js";
+import { renderCollection } from "../ui.js";
 
 /**
  * Renders the home page with the list of watched shows.
@@ -14,11 +14,11 @@ import { renderWatchlist } from "../ui.js";
 export async function renderHome(main) {
   const token = getToken();
 
-  // Fetch watchlist from Trakt API
-  const shows = await getWatchlist(token);
+  // Fetch collection from Trakt API
+  const shows = await getCollection(token);
 
   // Render the shows list in the main container
-  renderWatchlist(main, shows);
+  renderCollection(main, shows);
 
   // Add click event to each show card to navigate to its details page
   main.querySelectorAll(".show-card").forEach((card) => {
