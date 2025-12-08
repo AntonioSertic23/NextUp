@@ -218,20 +218,6 @@ main {
    Show Styles
    ======================================================== */
 
-.back-btn {
-  background-color: transparent;
-  border: none;
-  color: #00bfff;
-  font-size: 1rem;
-  cursor: pointer;
-  margin-bottom: 1rem;
-  transition: color 0.2s;
-}
-
-.back-btn:hover {
-  color: #007acc;
-}
-
 .show-details {
   padding: 1rem;
   position: relative;
@@ -330,7 +316,8 @@ main {
   font-weight: bold;
 }
 
-.mark-watched {
+.mark-watched,
+.mark-season {
   background-color: #00bfff;
   color: #222;
   border: none;
@@ -339,7 +326,8 @@ main {
   cursor: pointer;
 }
 
-.unmark-watched {
+.unmark-watched,
+.unmark-season {
   background-color: #00ff00;
   color: #222;
   border: none;

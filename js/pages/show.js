@@ -4,7 +4,7 @@
 
 import { getToken } from "../auth.js";
 import { getShowDetails } from "../api.js";
-import { createBackButton, renderShowDetails, renderSeasons } from "../ui.js";
+import { renderShowDetails, renderSeasons } from "../ui.js";
 
 /**
  * Renders the details page for a single show.
@@ -21,13 +21,10 @@ export async function renderShow(main, showId) {
   // Clear previous content
   main.innerHTML = "";
 
-  // Add back button
-  main.appendChild(createBackButton());
-
   // Render show info
   const showDiv = renderShowDetails(show);
   main.appendChild(showDiv);
 
   // Render seasons
-  renderSeasons(showDiv, show.seasons);
+  renderSeasons(showDiv, show);
 }

@@ -2,7 +2,7 @@
 // local_storage.js - Local caching for Trakt API data
 // ========================================================
 
-const STORAGE_KEY = "watchlist";
+const STORAGE_KEY = "collection";
 
 /**
  * Load the entire localStorage cache object.
@@ -65,7 +65,7 @@ export function removeShowFromCache(id) {
 }
 
 /**
- * Completely clear the watchlist cache from localStorage.
+ * Completely clear the collection cache from localStorage.
  */
 export function clearCache() {
   localStorage.removeItem(STORAGE_KEY);
