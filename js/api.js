@@ -46,18 +46,29 @@ export function formatWatchlistData(data) {
       if (!Array.isArray(s.episodes)) return;
       s.episodes.forEach((ep) => {
         totalEpisodes += 1;
-        const isWatched = !!ep.watched || (ep.plays != null && ep.plays > 0) || !!ep.completed;
+        const isWatched =
+          !!ep.watched || (ep.plays != null && ep.plays > 0) || !!ep.completed;
         if (isWatched) watchedEpisodes += 1;
         if (!foundNextEpisode && !isWatched) {
-          foundNextEpisode = { season: s.number, number: ep.number, title: ep.title || "" };
+          foundNextEpisode = {
+            season: s.number,
+            number: ep.number,
+            title: ep.title || "",
+          };
         }
       });
     });
 
     // Fallback to totals from progress raw if seasons don't provide counts
     const progressRaw = item.progress || {};
-    const total = totalEpisodes > 0 ? totalEpisodes : (progressRaw.aired || progressRaw.total || null);
-    const watched = totalEpisodes > 0 ? watchedEpisodes : (progressRaw.completed || progressRaw.watched || null);
+    const total =
+      totalEpisodes > 0
+        ? totalEpisodes
+        : progressRaw.aired || progressRaw.total || null;
+    const watched =
+      totalEpisodes > 0
+        ? watchedEpisodes
+        : progressRaw.completed || progressRaw.watched || null;
 
     // Determine next episode: prefer progress.nextEpisode, otherwise first un-watched ep
     let nextEpisodeObj = null;
@@ -67,12 +78,25 @@ export function formatWatchlistData(data) {
       nextEpisodeObj = foundNextEpisode;
     }
 
-    const progressText = total != null && watched != null ? `${watched}/${total}` : watched != null ? `${watched}` : null;
-    const episodesLeft = total != null && watched != null ? total - watched : null;
-    const progressBarPercent = total != null && watched != null && total > 0 ? (watched / total) * 100 : 0;
+    const progressText =
+      total != null && watched != null
+        ? `${watched}/${total}`
+        : watched != null
+        ? `${watched}`
+        : null;
+    const episodesLeft =
+      total != null && watched != null ? total - watched : null;
+    const progressBarPercent =
+      total != null && watched != null && total > 0
+        ? (watched / total) * 100
+        : 0;
     const nextEpisodeStr =
-      nextEpisodeObj && nextEpisodeObj.season != null && nextEpisodeObj.number != null
-        ? `S${String(nextEpisodeObj.season).padStart(2, "0")}E${String(nextEpisodeObj.number).padStart(2, "0")} - ${nextEpisodeObj.title || ""}`
+      nextEpisodeObj &&
+      nextEpisodeObj.season != null &&
+      nextEpisodeObj.number != null
+        ? `S${String(nextEpisodeObj.season).padStart(2, "0")}E${String(
+            nextEpisodeObj.number
+          ).padStart(2, "0")} - ${nextEpisodeObj.title || ""}`
         : null;
 
     formatted[item.show.ids.trakt] = {
@@ -142,7 +166,9 @@ export function formatEpisodesData(seasons, show) {
 
       // Attach watched metadata from watchedRaw if available
       if (watchedRaw && Array.isArray(watchedRaw.seasons)) {
-        const wSeason = watchedRaw.seasons.find((ws) => ws.number === fSeason.number);
+        const wSeason = watchedRaw.seasons.find(
+          (ws) => ws.number === fSeason.number
+        );
         if (wSeason && Array.isArray(wSeason.episodes)) {
           const wEp = wSeason.episodes.find((we) => we.number === fEp.number);
           if (wEp) {
@@ -216,8 +242,6 @@ export async function getWatchlist(token, forceRefresh = false) {
     }
   }
 
-  console.log("res", data);
-
   // Format and store data in cache
   const formatted = formatWatchlistData(data);
   saveCache(formatted);
@@ -233,7 +257,6 @@ export async function getWatchlist(token, forceRefresh = false) {
 export async function getShowDetails(token, showId) {
   const cache = loadCache();
   const show = cache[showId];
-  console.log("show", show);
 
   if (!show) {
     console.warn(`Show ${showId} not found in cache`);
@@ -249,5 +272,59 @@ export async function getShowDetails(token, showId) {
     });
   });
 
+  return show;
+}
+
+/**
+ * Mark or unmark an episode as watched via Netlify function + Trakt sync.
+ * Updates local cache on success and returns the updated show object.
+ *
+ * @param {string} token - Trakt access token
+ * @param {number|string} [showId] - Trakt show id
+ * @param {number} [seasonNumber] - season number
+ * @param {number} [episodeNumber] - episode number within season
+ * @param {number|string} episodeTraktId - Trakt episode id
+ * @param {boolean} mark - true = mark watched, false = unmark
+ * @returns {Object|null} updated show object or null on failure
+ */
+export async function markEpisodeWatched(
+  token,
+  showId,
+  seasonNumber,
+  episodeNumber,
+  episodeTraktId,
+  mark
+) {
+  const res = await fetch("/.netlify/functions/markEpisode", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      token,
+      action: mark ? "mark" : "unmark",
+      traktId: episodeTraktId,
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`markEpisode failed: ${res.status} ${text}`);
+  }
+
+  // Update local cache: prefer direct update by showId + seasonNumber + episodeNumber
+  const cache = loadCache();
+  const show = cache[showId];
+  const season = show.seasons.find((s) => s.number === seasonNumber);
+  const ep = season.episodes.find((e) => e.number === episodeNumber);
+
+  ep.watched = !!mark;
+  if (mark) {
+    ep.plays = (ep.plays ?? 0) + 1;
+    ep.last_watched = new Date().toISOString();
+  } else {
+    ep.plays = 0;
+    delete ep.last_watched;
+  }
+
+  updateCache(showId, show);
   return show;
 }

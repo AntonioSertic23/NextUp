@@ -29,5 +29,5 @@ export async function renderShow(main, showId) {
   main.appendChild(showDiv);
 
   // Render seasons
-  renderSeasons(showDiv, show.seasons);
+  renderSeasons(showDiv, show);
 }
