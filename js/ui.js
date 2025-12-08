@@ -120,20 +120,6 @@ export function renderWatchlist(container, shows) {
 }
 
 /**
- * Creates and returns a back button.
- * @returns {HTMLButtonElement}
- */
-export function createBackButton() {
-  const btn = document.createElement("button");
-  btn.textContent = "← Back";
-  btn.classList.add("back-btn");
-  btn.addEventListener("click", () => {
-    history.back(); // Go back to previous hash (e.g. #home)
-  });
-  return btn;
-}
-
-/**
  * Renders show details (title, overview, etc.)
  * @param {Object} show - Show object from API
  * @returns {HTMLElement} - The show details element
