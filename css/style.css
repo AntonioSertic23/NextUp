@@ -375,3 +375,59 @@ footer {
   padding: 0.5rem 1rem;
   font-size: 1rem;
 }
+
+/* ========================================================
+   Modal overlay and modal for episode info
+   ======================================================== */
+
+#episode-info-modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  align-items: flex-end;
+  justify-content: center;
+}
+#episode-info-modal {
+  display: none;
+  position: relative;
+  width: 100vw;
+  max-height: 50vh;
+  background: #222;
+  color: #fff;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.25);
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  padding: 32px 24px 24px 24px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: modalSlideUp 0.16s cubic-bezier(0.4, 1.6, 0.63, 1.01);
+  overflow: auto;
+}
+@keyframes modalSlideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.episode-info-modal h2 {
+  font-size: 1.4rem;
+  margin-bottom: 1rem;
+}
+.episode-info-modal button {
+  position: absolute;
+  top: 8px;
+  right: 16px;
+  font-size: 2rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  line-height: 1;
+}

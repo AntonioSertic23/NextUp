@@ -41,7 +41,6 @@ function computeShowProgress(show) {
 
   let total = 0;
   let watched = 0;
-  let nextEp = null;
 
   effectiveSeasons.forEach((s) => {
     const eps = Array.isArray(s.episodes) ? s.episodes : [];
@@ -50,13 +49,6 @@ function computeShowProgress(show) {
       const isWatched =
         !!ep.watched || (ep.plays != null && ep.plays > 0) || !!ep.completed;
       if (isWatched) watched += 1;
-      if (!nextEp && !isWatched) {
-        nextEp = {
-          season: s.number,
-          number: ep.number,
-          title: ep.title || "",
-        };
-      }
     });
     // if no episodes array, try to use episode_count as fallback (counts only)
     if (!Array.isArray(s.episodes) && typeof s.episode_count === "number") {
@@ -69,14 +61,8 @@ function computeShowProgress(show) {
   const episodes_left = total > 0 ? Math.max(total - watched, 0) : null;
   const progress_bar_percent =
     total > 0 ? Math.round((watched / total) * 100) : 0;
-  const next_episode =
-    nextEp && nextEp.season != null && nextEp.number != null
-      ? `S${String(nextEp.season).padStart(2, "0")}E${String(
-          nextEp.number
-        ).padStart(2, "0")} - ${nextEp.title}`
-      : null;
 
-  return { progress_text, episodes_left, progress_bar_percent, next_episode };
+  return { progress_text, episodes_left, progress_bar_percent };
 }
 
 /**
@@ -89,14 +75,34 @@ export function renderCollection(container, shows) {
   container.innerHTML = shows
     .map((show) => {
       const p = computeShowProgress(show);
+      // Find the first unwatched episode
+      let nextEpObj = null;
+
+      for (const s of show.seasons) {
+        for (const ep of s.episodes) {
+          if (!ep.watched && !(ep.plays > 0) && !ep.completed) {
+            const nextInfo =
+              "S" +
+              String(s.number).padStart(2, "0") +
+              "E" +
+              String(ep.number).padStart(2, "0") +
+              " - " +
+              ep.title;
+            nextEpObj = { ...ep, season: s.number, info: nextInfo || {} };
+            break;
+          }
+        }
+        if (nextEpObj) break;
+      }
+
       return `
     <div class="show-card" data-id="${show.ids.trakt}">
       <div class="poster-container">
-        <img class="poster" src="https:\\\\${show.images.poster}"></img>
+        <img class="poster" src="https:\\${show.images.poster}"></img>
       </div>
       <div class="info-container">
       <p class="title">${show.title}</p>
-      <p class="next_episode">${p.next_episode || ""}</p>
+      <p class="next_episode">${nextEpObj?.info || ""}</p>
       <div class="progress-container">
         <div class="progress-bar">
            <div class="progress-bar-fill" style="width: ${
@@ -106,17 +112,29 @@ export function renderCollection(container, shows) {
         <p class="progress_text">${p.progress_text || ""}</p>
       </div>
       <div class="next_episode_info_container">
-        <button class="episode_info_btn">Episode info</button>
+        <button class="episode_info_btn" data-next='${JSON.stringify(
+          nextEpObj
+        )}'>Episode info</button>
         <p class="episodes_left">${
           p.episodes_left != null ? p.episodes_left : ""
         } left</p>
       </div>
-
       </div>
     </div>
   `;
     })
     .join("");
+
+  // Attach event listeners for modal open
+  container.querySelectorAll(".episode_info_btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+
+      const nextEp = JSON.parse(btn.getAttribute("data-next")) || {};
+
+      showEpisodeInfoModal(nextEp);
+    });
+  });
 }
 
 /**
@@ -466,4 +484,27 @@ export function renderSeasons(container, show) {
       }
     });
   });
+}
+
+export function showEpisodeInfoModal(episode) {
+  const overlay = document.getElementById("episode-info-modal-overlay");
+  const modal = document.getElementById("episode-info-modal");
+
+  overlay.style.display = "flex";
+  modal.style.display = "flex";
+
+  // Fill modal
+  const title = modal.querySelector(".episode-info-title");
+  title.textContent = episode?.title;
+
+  const content = modal.querySelector(".episode-info-content");
+  content.textContent = episode && episode.info ? episode.info : "";
+
+  // Close action
+  const close = () => {
+    overlay.style.display = "none";
+  };
+  overlay.onclick = (e) => {
+    if (e.target === overlay) close();
+  };
 }
