@@ -493,18 +493,33 @@ export function showEpisodeInfoModal(episode) {
   overlay.style.display = "flex";
   modal.style.display = "flex";
 
-  // Fill modal
-  const title = modal.querySelector(".episode-info-title");
-  title.textContent = episode?.title;
+  // Fill data into modal fields
+  const info = modal.querySelector(".episode-info-info");
+  const date = modal.querySelector(".episode-info-date");
+  const overviewEl = modal.querySelector(".episode-info-overview");
+  const imgTag = modal.querySelector(".modal-img-tag");
 
-  const content = modal.querySelector(".episode-info-content");
-  content.textContent = episode && episode.info ? episode.info : "";
+  // SxxExx code from info attribute
+  info.textContent = episode.info || "";
+
+  // Date
+  const d = new Date(episode.first_aired);
+  const formattedDate = `${String(d.getDate()).padStart(2, "0")}/${String(
+    d.getMonth() + 1
+  ).padStart(2, "0")}/${d.getFullYear()}`;
+  date.textContent = `Aired on ${formattedDate}`;
+
+  // Overview
+  overviewEl.textContent = episode.overview || "";
+
+  // Image
+  if (episode.images?.screenshot[0]) {
+    imgTag.src = `https://${episode.images.screenshot[0]}`;
+    imgTag.style.display = "block";
+  }
 
   // Close action
-  const close = () => {
-    overlay.style.display = "none";
-  };
   overlay.onclick = (e) => {
-    if (e.target === overlay) close();
+    if (e.target === overlay) overlay.style.display = "none";
   };
 }
