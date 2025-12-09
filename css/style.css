@@ -298,13 +298,30 @@ main {
   margin-bottom: 1.5rem;
 }
 
+.episodes {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.episodes.open {
+  max-height: 5000px;
+}
+
+.episode:first-child {
+  margin-top: 1.5rem;
+}
+
 .episode {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.5rem 0;
-  margin: 0.5rem 0;
+  padding: 0.5rem;
   border-bottom: 1px solid #4d4e53;
+  cursor: pointer;
+}
+.episode:hover {
+  background-color: #23242d;
 }
 
 .season .episode:last-child {
@@ -351,16 +368,6 @@ main {
 
 .expand_btn.open .icon {
   transform: rotate(180deg);
-}
-
-.episodes {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.3s ease;
-}
-
-.episodes.open {
-  max-height: 5000px;
 }
 
 /* ========================================================
