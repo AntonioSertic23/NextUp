@@ -486,6 +486,10 @@ export function renderSeasons(container, show) {
   });
 }
 
+/**
+ * Shows the episode info modal and fills it with the provided episode's details.
+ * @param {Object} episode - Episode object with info, title, date, overview, and images.
+ */
 export function showEpisodeInfoModal(episode) {
   const overlay = document.getElementById("episode-info-modal-overlay");
   const modal = document.getElementById("episode-info-modal");
