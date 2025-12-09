@@ -298,13 +298,30 @@ main {
   margin-bottom: 1.5rem;
 }
 
+.episodes {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.episodes.open {
+  max-height: 5000px;
+}
+
+.episode:first-child {
+  margin-top: 1.5rem;
+}
+
 .episode {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.5rem 0;
-  margin: 0.5rem 0;
+  padding: 0.5rem;
   border-bottom: 1px solid #4d4e53;
+  cursor: pointer;
+}
+.episode:hover {
+  background-color: #23242d;
 }
 
 .season .episode:last-child {
@@ -353,16 +370,6 @@ main {
   transform: rotate(180deg);
 }
 
-.episodes {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.3s ease;
-}
-
-.episodes.open {
-  max-height: 5000px;
-}
-
 /* ========================================================
    Footer Styles
    ======================================================== */
@@ -374,4 +381,101 @@ footer {
   color: #fff;
   padding: 0.5rem 1rem;
   font-size: 1rem;
+}
+
+/* ========================================================
+   Modal overlay and modal for episode info
+   ======================================================== */
+
+#episode-info-modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  align-items: flex-end;
+  justify-content: center;
+}
+#episode-info-modal {
+  display: none;
+  position: relative;
+  width: 100vw;
+  max-height: 60vh;
+  background: #222;
+  color: #fff;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.25);
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  padding: 32px 24px 24px 24px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: modalSlideUp 0.16s cubic-bezier(0.4, 1.6, 0.63, 1.01);
+  overflow: auto;
+}
+@keyframes modalSlideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.episode-info-modal button {
+  position: absolute;
+  top: 8px;
+  right: 16px;
+  font-size: 2rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  line-height: 1;
+}
+
+/* ----- Episode Info Modal Classes ----- */
+.modal-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 50vw;
+  gap: 1rem;
+}
+.modal-img {
+  width: 100%;
+}
+.modal-img-tag {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  background: #f5f5f5;
+  object-fit: cover;
+  display: none;
+}
+.modal-details {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+}
+.episode-info-info {
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+.modal-mark-btn {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+.episode-info-date {
+  margin: 1rem 0;
+}
+.episode-info-overview {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

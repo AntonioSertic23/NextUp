@@ -126,6 +126,34 @@ export function formatEpisodesData(seasons, show) {
 }
 
 /**
+ * Returns only shows that have at least one unwatched episode.
+ * @param {Array} shows - Array of show objects (from cache or API)
+ * @returns {Array}
+ */
+function filterUnwatchedShows(shows) {
+  return shows.filter((show) => {
+    if (!Array.isArray(show.seasons)) return false;
+    // For each non-specials season, check if any episode is unwatched
+    for (const season of show.seasons) {
+      if (
+        !season ||
+        season.number === 0 ||
+        (season.title && /special/i.test(season.title))
+      )
+        continue;
+      if (!Array.isArray(season.episodes)) continue;
+      for (const ep of season.episodes) {
+        // Accept all variants: watched===false, watched==null, played==0/null, !completed, etc.
+        if (!ep.watched && !(ep.plays > 0) && !ep.completed) {
+          return true;
+        }
+      }
+    }
+    return false;
+  });
+}
+
+/**
  * Fetches the user's Trakt collection (persistent list, not auto-removed as with collection).
  *
  * - Checks if a cached version exists in localStorage.
@@ -143,8 +171,7 @@ export async function getCollection(token, forceRefresh = false) {
 
   if (hasCache && !forceRefresh) {
     console.log("Using cached collection");
-
-    return Object.values(cache);
+    return filterUnwatchedShows(Object.values(cache));
   }
 
   clearCache();
@@ -180,7 +207,7 @@ export async function getCollection(token, forceRefresh = false) {
   const formatted = formatCollectionData(data);
   saveCache(formatted);
 
-  return Object.values(formatted);
+  return filterUnwatchedShows(Object.values(formatted));
 }
 
 /**

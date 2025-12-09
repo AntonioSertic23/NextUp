@@ -99,7 +99,6 @@ export async function handler(event) {
             return true;
           });
         }
-        filteredWatched.nextEpisode = w.next_episode || null;
         watchedMap[id] = filteredWatched;
       });
     }

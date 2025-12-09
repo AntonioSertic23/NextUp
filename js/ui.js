@@ -3,6 +3,7 @@
 // ========================================================
 
 import { markEpisodeWatched, markSeasonWatched } from "./api.js";
+import { loadCache } from "./local_storage.js";
 
 /**
  * Highlights the active navbar link based on the URL hash.
@@ -41,7 +42,7 @@ function computeShowProgress(show) {
 
   let total = 0;
   let watched = 0;
-  let nextEp = null;
+  let nextEpObj = null;
 
   effectiveSeasons.forEach((s) => {
     const eps = Array.isArray(s.episodes) ? s.episodes : [];
@@ -50,11 +51,20 @@ function computeShowProgress(show) {
       const isWatched =
         !!ep.watched || (ep.plays != null && ep.plays > 0) || !!ep.completed;
       if (isWatched) watched += 1;
-      if (!nextEp && !isWatched) {
-        nextEp = {
-          season: s.number,
-          number: ep.number,
-          title: ep.title || "",
+      // Find first unwatched episode
+      if (!nextEpObj && !isWatched) {
+        const nextInfo =
+          "S" +
+          String(s.number).padStart(2, "0") +
+          "E" +
+          String(ep.number).padStart(2, "0") +
+          " - " +
+          ep.title;
+        nextEpObj = {
+          showId: show.ids.trakt,
+          seasonNumber: s.number,
+          episodeNumber: ep.number,
+          info: nextInfo,
         };
       }
     });
@@ -69,14 +79,41 @@ function computeShowProgress(show) {
   const episodes_left = total > 0 ? Math.max(total - watched, 0) : null;
   const progress_bar_percent =
     total > 0 ? Math.round((watched / total) * 100) : 0;
-  const next_episode =
-    nextEp && nextEp.season != null && nextEp.number != null
-      ? `S${String(nextEp.season).padStart(2, "0")}E${String(
-          nextEp.number
-        ).padStart(2, "0")} - ${nextEp.title}`
-      : null;
 
-  return { progress_text, episodes_left, progress_bar_percent, next_episode };
+  return { progress_text, episodes_left, progress_bar_percent, nextEpObj };
+}
+
+// Attach click handler for episode info buttons (opens modal with cached episode data)
+function attachEpisodeInfoHandler(btn) {
+  if (!btn) return;
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const episodeData = JSON.parse(btn.getAttribute("data-episode")) || {};
+    const { showId, seasonNumber, episodeNumber } = episodeData;
+    if (!showId || seasonNumber == null || episodeNumber == null) return;
+
+    const cache = loadCache();
+    const show = cache[showId];
+    if (!show || !Array.isArray(show.seasons)) return;
+
+    const season = show.seasons.find((s) => s.number === seasonNumber);
+    if (!season || !Array.isArray(season.episodes)) return;
+
+    const episode = season.episodes.find((ep) => ep.number === episodeNumber);
+    if (!episode) return;
+
+    const nextEp = {
+      ...episode,
+      season: seasonNumber,
+      info:
+        episodeData.info ||
+        `S${String(seasonNumber).padStart(2, "0")}E${String(
+          episodeNumber
+        ).padStart(2, "0")} - ${episode.title || ""}`,
+    };
+
+    showEpisodeInfoModal(nextEp, showId, "collection");
+  });
 }
 
 /**
@@ -89,14 +126,15 @@ export function renderCollection(container, shows) {
   container.innerHTML = shows
     .map((show) => {
       const p = computeShowProgress(show);
+
       return `
     <div class="show-card" data-id="${show.ids.trakt}">
       <div class="poster-container">
-        <img class="poster" src="https:\\\\${show.images.poster}"></img>
+        <img class="poster" src="https:\\${show.images.poster}"></img>
       </div>
       <div class="info-container">
       <p class="title">${show.title}</p>
-      <p class="next_episode">${p.next_episode || ""}</p>
+      <p class="next_episode">${p.nextEpObj?.info || ""}</p>
       <div class="progress-container">
         <div class="progress-bar">
            <div class="progress-bar-fill" style="width: ${
@@ -106,17 +144,23 @@ export function renderCollection(container, shows) {
         <p class="progress_text">${p.progress_text || ""}</p>
       </div>
       <div class="next_episode_info_container">
-        <button class="episode_info_btn">Episode info</button>
+        <button class="episode_info_btn" data-episode='${JSON.stringify(
+          p.nextEpObj
+        )}'>Episode info</button>
         <p class="episodes_left">${
           p.episodes_left != null ? p.episodes_left : ""
         } left</p>
       </div>
-
       </div>
     </div>
   `;
     })
     .join("");
+
+  // Attach event listeners for modal open
+  container.querySelectorAll(".episode_info_btn").forEach((btn) => {
+    attachEpisodeInfoHandler(btn);
+  });
 }
 
 /**
@@ -161,18 +205,13 @@ export function renderShowDetails(show) {
 /**
  * Update a single episode button and its season progress in-place.
  * @param {HTMLElement} episodeDiv - The episode DOM element
- * @param {HTMLButtonElement} btn - The button element clicked
  * @param {Object} updatedShow - The updated show object returned from API
  * @param {number} seasonNumber
  * @param {boolean} mark
  */
-function updateEpisodeAndSeasonUI(
-  episodeDiv,
-  btn,
-  updatedShow,
-  seasonNumber,
-  mark
-) {
+function updateEpisodeAndSeasonUI(episodeDiv, updatedShow, seasonNumber, mark) {
+  const btn = episodeDiv.querySelector("button");
+
   // Update button state
   const epWatchedNow = !!mark;
   btn.textContent = epWatchedNow ? "Watched" : "Mark as watched";
@@ -356,7 +395,6 @@ export function renderSeasons(container, show) {
           if (updatedShow) {
             updateEpisodeAndSeasonUI(
               episodeDiv,
-              btn,
               updatedShow,
               seasonNumber,
               mark
@@ -466,4 +504,163 @@ export function renderSeasons(container, show) {
       }
     });
   });
+
+  // Open modal on episode click (excluding the mark/unmark buttons)
+  seasonsContainer.querySelectorAll(".episode").forEach((epDiv) => {
+    epDiv.addEventListener("click", (e) => {
+      if (e.target.tagName === "BUTTON") return; // ignore clicks on mark/unmark
+      const seasonNumber = parseInt(epDiv.dataset.season, 10);
+      const episodeNumber = parseInt(epDiv.dataset.episode, 10);
+      const showId = show.ids?.trakt;
+
+      const cache = loadCache();
+      const cachedShow = cache[showId];
+      if (!cachedShow) return;
+      const season = (cachedShow.seasons || []).find(
+        (s) => s.number === seasonNumber
+      );
+      if (!season || !Array.isArray(season.episodes)) return;
+      const episode = season.episodes.find((ep) => ep.number === episodeNumber);
+      if (!episode) return;
+
+      const info = `S${String(seasonNumber).padStart(2, "0")}E${String(
+        episodeNumber
+      ).padStart(2, "0")} - ${episode.title || ""}`;
+      const nextEp = { ...episode, season: seasonNumber, info };
+
+      showEpisodeInfoModal(nextEp, showId, "show", epDiv);
+    });
+  });
+}
+
+/**
+ * Updates a single show card on the UI with fresh data from cache.
+ * @param {string|number} showId - Trakt show ID to update.
+ */
+export function updateShowCard(showId) {
+  const showCard = document.querySelector(`.show-card[data-id="${showId}"]`);
+  if (!showCard) return;
+
+  const cache = loadCache();
+  const show = cache[showId];
+  if (!show) return;
+
+  // Recompute progress
+  const p = computeShowProgress(show);
+
+  // Update DOM elements
+  const nextEpisodeEl = showCard.querySelector(".next_episode");
+  const progressBarFill = showCard.querySelector(".progress-bar-fill");
+  const progressText = showCard.querySelector(".progress_text");
+  const episodesLeft = showCard.querySelector(".episodes_left");
+  const episodeInfoBtn = showCard.querySelector(".episode_info_btn");
+
+  if (nextEpisodeEl) nextEpisodeEl.textContent = p.nextEpObj?.info || "";
+  if (progressBarFill)
+    progressBarFill.style.width = `${p.progress_bar_percent}%`;
+  if (progressText) progressText.textContent = p.progress_text || "";
+  if (episodesLeft)
+    episodesLeft.textContent =
+      p.episodes_left != null ? `${p.episodes_left} left` : "";
+
+  // Update episode info button data and reattach listener
+  if (episodeInfoBtn) {
+    episodeInfoBtn.setAttribute(
+      "data-episode",
+      JSON.stringify(p.nextEpObj || {})
+    );
+    // Remove old listener and add new one
+    const newBtn = episodeInfoBtn.cloneNode(true);
+    episodeInfoBtn.parentNode.replaceChild(newBtn, episodeInfoBtn);
+    attachEpisodeInfoHandler(newBtn);
+  }
+}
+
+/**
+ * Updates the mark/unmark button text and classes based on watched status.
+ * @param {HTMLElement} markBtn - The button element to update.
+ * @param {boolean} watched - Whether the episode is marked as watched.
+ */
+function updateMarkButton(markBtn, watched) {
+  markBtn.textContent = watched ? "Watched" : "Mark as watched";
+  markBtn.classList.toggle("mark-watched", !watched);
+  markBtn.classList.toggle("unmark-watched", watched);
+}
+
+/**
+ * Shows the episode info modal and fills it with the provided episode's details.
+ * @param {Object} episode - Episode object with info, title, date, overview, and images.
+ * @param {string|number} showId - Trakt show ID for marking episodes
+ * @param {string} context
+ * @param {HTMLElement} episodeDiv - The episode DOM element
+ */
+export function showEpisodeInfoModal(episode, showId, context, episodeDiv) {
+  const overlay = document.getElementById("episode-info-modal-overlay");
+  const modal = document.getElementById("episode-info-modal");
+
+  overlay.style.display = "flex";
+  modal.style.display = "flex";
+
+  const info = modal.querySelector(".episode-info-info");
+  const date = modal.querySelector(".episode-info-date");
+  const overviewEl = modal.querySelector(".episode-info-overview");
+  const imgTag = modal.querySelector(".modal-img-tag");
+  const markBtn = modal.querySelector(".modal-mark-btn");
+
+  info.textContent = episode.info || "";
+  // Date
+  const d = new Date(episode.first_aired);
+  const formattedDate = `${String(d.getDate()).padStart(2, "0")}/${String(
+    d.getMonth() + 1
+  ).padStart(2, "0")}/${d.getFullYear()}`;
+  date.textContent = `Aired on ${formattedDate}`;
+  overviewEl.textContent = episode.overview || "";
+
+  // Image
+  if (episode.images?.screenshot && episode.images.screenshot[0]) {
+    imgTag.src = `https://${episode.images.screenshot[0]}`;
+    imgTag.style.display = "block";
+  }
+
+  updateMarkButton(markBtn, !!episode.watched);
+
+  // Use showId directly as argument
+  const seasonNumber = episode.season;
+  const episodeNumber = episode.number;
+  const episodeTraktId =
+    episode.ids?.trakt || episode.trakt || episode.trakt_id;
+  const token = window.localStorage.getItem("trakt_token");
+
+  let mark = !episode.watched;
+
+  markBtn.onclick = async () => {
+    try {
+      const updatedShow = await markEpisodeWatched(
+        token,
+        showId,
+        seasonNumber,
+        episodeNumber,
+        episodeTraktId,
+        mark
+      );
+
+      if (updatedShow) {
+        updateMarkButton(markBtn, mark);
+
+        if (context === "collection") {
+          updateShowCard(showId);
+        } else if (context === "show") {
+          updateEpisodeAndSeasonUI(episodeDiv, updatedShow, seasonNumber, mark);
+        }
+      }
+
+      mark = !mark;
+    } catch (err) {
+      console.error("Failed to mark episode:", err && err.message);
+    }
+  };
+
+  overlay.onclick = (e) => {
+    if (e.target === overlay) overlay.style.display = "none";
+  };
 }

@@ -19,6 +19,23 @@
     <!-- Footer section: can contain footer info, loaded dynamically -->
     <footer></footer>
 
+    <!-- Episode Info Modal: exists in DOM, hidden by default -->
+    <div id="episode-info-modal-overlay">
+      <div id="episode-info-modal">
+        <div class="modal-row">
+          <div class="modal-img">
+            <img src="" alt="Episode screenshot" class="modal-img-tag" />
+          </div>
+          <div class="modal-details">
+            <div class="episode-info-info"></div>
+            <button class="modal-mark-btn mark-watched"></button>
+            <div class="episode-info-date"></div>
+            <div class="episode-info-overview"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Main JS module: handles routing, page rendering, API calls -->
     <script type="module" src="./js/app.js"></script>
   </body>
