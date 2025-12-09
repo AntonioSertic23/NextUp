@@ -448,6 +448,7 @@ footer {
   display: none;
 }
 .modal-details {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -457,6 +458,11 @@ footer {
 .episode-info-info {
   font-size: 1.2rem;
   font-weight: bold;
+}
+.modal-mark-btn {
+  position: absolute;
+  top: 0;
+  right: 0;
 }
 .episode-info-date {
   margin: 1rem 0;
