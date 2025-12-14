@@ -130,7 +130,7 @@ export function renderCollection(container, shows) {
       return `
     <div class="show-card" data-id="${show.ids.trakt}">
       <div class="poster-container">
-        <img class="poster" src="https:\\${show.images.poster}"></img>
+        <img class="poster" src="https:\\\\${show.images.poster}"></img>
       </div>
       <div class="info-container">
       <p class="title">${show.title}</p>
