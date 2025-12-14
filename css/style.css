@@ -479,3 +479,30 @@ footer {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ========================================================
+   Sort Collection Styles
+   ======================================================== */
+
+.sort-controls {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  align-items: center;
+}
+
+.sort-controls label {
+  font-size: 1rem;
+  font-weight: bold;
+  color: #bbb;
+}
+
+.sort-controls select {
+  background: #23242d;
+  color: #fff;
+  border: 1px solid #4d4e53;
+  border-radius: 4px;
+  font-size: 1rem;
+  margin-left: 0.5rem;
+  padding: 0.2rem 0.8rem;
+}
