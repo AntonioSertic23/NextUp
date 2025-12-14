@@ -38,19 +38,28 @@ export function formatCollectionData(data) {
       : [];
 
     formatted[item.show.ids.trakt] = {
+      last_collected_at: item.last_collected_at || null,
+      last_updated_at: item.last_updated_at || null,
       title: item.show.title || "",
-      ids: item.show.ids || {},
       year: item.show.year || 0,
-      seasons: seasons || [],
-      images: item.show.images || {},
+      ids: item.show.ids || {},
       tagline: item.show.tagline || "",
-      overview: item.show.overview || "No overview available",
-      rating: item.show.rating || 0,
+      overview: item.show.overview || "",
+      first_aired: item.show.first_aired || "",
+      airs: item.show.airs || {},
       runtime: item.show.runtime || 0,
-      genres: item.show.genres || ["No genres available"],
-      status: item.show.status || "No status available",
-      homepage: item.show.homepage || "No homepage available",
-      network: item.show.network || "No network available",
+      certification: item.show.certification || "",
+      country: item.show.country || "",
+      status: item.show.status || "",
+      rating: item.show.rating || 0,
+      trailer: item.show.trailer || "",
+      homepage: item.show.homepage || "",
+      network: item.show.network || "",
+      updated_at: item.show.updated_at || "",
+      language: item.show.language || "",
+      genres: item.show.genres || [],
+      images: item.show.images || {},
+      seasons: seasons || [],
     };
   });
 
@@ -126,6 +135,60 @@ export function formatEpisodesData(seasons, show) {
 }
 
 /**
+ * Sorts an array of shows based on the specified sort criteria.
+ * @param {Array} shows - Array of show objects to sort
+ * @param {string} [sortBy='title'] - Sort criteria: 'title', 'year', 'rating', 'top_rated', 'episodes_left', 'last_collected_at', 'last_updated_at'
+ * @returns {Array} Sorted array of shows
+ */
+function sortShows(shows, sortBy = "title") {
+  if (!Array.isArray(shows) || shows.length === 0) return shows;
+
+  const sorted = [...shows];
+
+  switch (sortBy) {
+    case "title":
+      sorted.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+      break;
+    case "year":
+      sorted.sort((a, b) => (b.year || 0) - (a.year || 0));
+      break;
+    case "top_rated":
+      sorted.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+      break;
+    case "episodes_left":
+      // TODO
+      break;
+    case "last_collected_at":
+      sorted.sort((a, b) => {
+        const aDate = a.last_collected_at
+          ? new Date(a.last_collected_at).getTime()
+          : 0;
+        const bDate = b.last_collected_at
+          ? new Date(b.last_collected_at).getTime()
+          : 0;
+        return bDate - aDate; // Most recently collected first
+      });
+      break;
+    case "last_updated_at":
+      sorted.sort((a, b) => {
+        const aDate = a.last_updated_at
+          ? new Date(a.last_updated_at).getTime()
+          : 0;
+        const bDate = b.last_updated_at
+          ? new Date(b.last_updated_at).getTime()
+          : 0;
+        return bDate - aDate; // Most recently updated first
+      });
+      break;
+    default:
+      // Default: no sorting (return as-is)
+      break;
+  }
+
+  return sorted;
+}
+
+/**
  * Returns only shows that have at least one unwatched episode.
  * @param {Array} shows - Array of show objects (from cache or API)
  * @returns {Array}
@@ -162,16 +225,20 @@ function filterUnwatchedShows(shows) {
  *   formats it for local storage, saves it, and then returns it.
  *
  * @param {string} token - The user's Trakt OAuth token for authentication.
+ * @param {string} [sortBy] - Optional sort criteria: 'title', 'year', 'rating', etc.
  * @param {boolean} [forceRefresh=false] - If true, bypasses cache and fetches the latest data from the API.
  * @returns {Promise<Array>} A list (array) of shows from the user's collection.
  */
-export async function getCollection(token, forceRefresh = false) {
+export async function getCollection(token, sortBy, forceRefresh = false) {
   const cache = loadCache();
   const hasCache = Object.keys(cache).length > 0;
 
   if (hasCache && !forceRefresh) {
     console.log("Using cached collection");
-    return filterUnwatchedShows(Object.values(cache));
+
+    const filtered = filterUnwatchedShows(Object.values(cache));
+
+    return sortBy ? sortShows(filtered, sortBy) : filtered;
   }
 
   clearCache();
@@ -186,28 +253,15 @@ export async function getCollection(token, forceRefresh = false) {
     body: JSON.stringify({ token }),
   });
 
-  const raw = await res.json();
-
-  // Normalize Netlify function envelope { statusCode, body } -> array
-  let data = raw;
-  if (!Array.isArray(data)) {
-    if (data && typeof data.body === "string") {
-      try {
-        data = JSON.parse(data.body);
-      } catch (err) {
-        console.error("Failed to parse function body as JSON:", err, data.body);
-        data = [];
-      }
-    } else {
-      data = Array.isArray(data) ? data : [];
-    }
-  }
+  const data = await res.json();
 
   // Format and store data in cache
   const formatted = formatCollectionData(data);
   saveCache(formatted);
 
-  return filterUnwatchedShows(Object.values(formatted));
+  const filtered = filterUnwatchedShows(Object.values(formatted));
+
+  return sortBy ? sortShows(filtered, sortBy) : filtered;
 }
 
 /**
