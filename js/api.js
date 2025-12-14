@@ -38,19 +38,28 @@ export function formatCollectionData(data) {
       : [];
 
     formatted[item.show.ids.trakt] = {
+      last_collected_at: item.last_collected_at || null,
+      last_updated_at: item.last_updated_at || null,
       title: item.show.title || "",
-      ids: item.show.ids || {},
       year: item.show.year || 0,
-      seasons: seasons || [],
-      images: item.show.images || {},
+      ids: item.show.ids || {},
       tagline: item.show.tagline || "",
-      overview: item.show.overview || "No overview available",
-      rating: item.show.rating || 0,
+      overview: item.show.overview || "",
+      first_aired: item.show.first_aired || "",
+      airs: item.show.airs || {},
       runtime: item.show.runtime || 0,
-      genres: item.show.genres || ["No genres available"],
-      status: item.show.status || "No status available",
-      homepage: item.show.homepage || "No homepage available",
-      network: item.show.network || "No network available",
+      certification: item.show.certification || "",
+      country: item.show.country || "",
+      status: item.show.status || "",
+      rating: item.show.rating || 0,
+      trailer: item.show.trailer || "",
+      homepage: item.show.homepage || "",
+      network: item.show.network || "",
+      updated_at: item.show.updated_at || "",
+      language: item.show.language || "",
+      genres: item.show.genres || [],
+      images: item.show.images || {},
+      seasons: seasons || [],
     };
   });
 
