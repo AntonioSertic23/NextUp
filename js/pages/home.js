@@ -14,8 +14,10 @@ import { renderCollection } from "../ui.js";
 export async function renderHome(main) {
   const token = getToken();
 
+  const sortBy = "title";
+
   // Fetch collection from Trakt API
-  const shows = await getCollection(token);
+  const shows = await getCollection(token, sortBy);
 
   // Render the shows list in the main container
   renderCollection(main, shows);
