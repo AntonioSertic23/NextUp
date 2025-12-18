@@ -10,11 +10,68 @@ import {
 } from "./local_storage.js";
 
 /**
+ * Formats a raw Trakt show object into a standardized format for caching.
+ *
+ * @param {Object} rawShow - Raw show object from Trakt API
+ * @param {Array} seasons - Array of seasons (optional, defaults to rawShow.seasons)
+ * @param {string|null} lastCollectedAt - Last collected timestamp (optional)
+ * @param {string|null} lastUpdatedAt - Last updated timestamp (optional)
+ * @returns {Object} Formatted show object
+ */
+function formatShowObject(
+  rawShow,
+  seasons = null,
+  lastCollectedAt = null,
+  lastUpdatedAt = null
+) {
+  // Use provided seasons or fall back to rawShow.seasons
+  const showSeasons =
+    seasons !== null
+      ? seasons
+      : Array.isArray(rawShow.seasons)
+      ? rawShow.seasons
+      : [];
+
+  // Transform images from Trakt format (images.poster.full) to expected format (images.poster)
+  const images = rawShow.images || {};
+  const formattedImages = {
+    poster: images.poster?.full || images.poster || "",
+    fanart: images.fanart?.full || images.fanart || "",
+  };
+
+  return {
+    last_collected_at: lastCollectedAt || null,
+    last_updated_at:
+      lastUpdatedAt || rawShow.last_updated_at || rawShow.updated_at || null,
+    title: rawShow.title || "",
+    year: rawShow.year || 0,
+    ids: rawShow.ids || {},
+    tagline: rawShow.tagline || "",
+    overview: rawShow.overview || "",
+    first_aired: rawShow.first_aired || "",
+    airs: rawShow.airs || {},
+    runtime: rawShow.runtime || 0,
+    certification: rawShow.certification || "",
+    country: rawShow.country || "",
+    status: rawShow.status || "",
+    rating: rawShow.rating || 0,
+    trailer: rawShow.trailer || "",
+    homepage: rawShow.homepage || "",
+    network: rawShow.network || "",
+    updated_at: rawShow.updated_at || "",
+    language: rawShow.language || "",
+    genres: rawShow.genres || [],
+    images: formattedImages,
+    seasons: showSeasons,
+  };
+}
+
+/**
  * Formats raw Trakt API collection data into a simplified
  * object structure optimized for localStorage caching.
  *
  * @param {Array} data - Raw data array returned from Trakt API.
- * @returns {Object} Formatted object where each key is a show’s Trakt ID.
+ * @returns {Object} Formatted object where each key is a show's Trakt ID.
  *
  * Example return format:
  * {
@@ -37,30 +94,12 @@ export function formatCollectionData(data) {
       ? item.progress.seasons
       : [];
 
-    formatted[item.show.ids.trakt] = {
-      last_collected_at: item.last_collected_at || null,
-      last_updated_at: item.last_updated_at || null,
-      title: item.show.title || "",
-      year: item.show.year || 0,
-      ids: item.show.ids || {},
-      tagline: item.show.tagline || "",
-      overview: item.show.overview || "",
-      first_aired: item.show.first_aired || "",
-      airs: item.show.airs || {},
-      runtime: item.show.runtime || 0,
-      certification: item.show.certification || "",
-      country: item.show.country || "",
-      status: item.show.status || "",
-      rating: item.show.rating || 0,
-      trailer: item.show.trailer || "",
-      homepage: item.show.homepage || "",
-      network: item.show.network || "",
-      updated_at: item.show.updated_at || "",
-      language: item.show.language || "",
-      genres: item.show.genres || [],
-      images: item.show.images || {},
-      seasons: seasons || [],
-    };
+    formatted[item.show.ids.trakt] = formatShowObject(
+      item.show,
+      seasons,
+      item.last_collected_at,
+      item.last_updated_at
+    );
   });
 
   return formatted;
@@ -265,29 +304,119 @@ export async function getCollection(token, sortBy, forceRefresh = false) {
 }
 
 /**
- * Retrieves show details from the local cache based on the provided show ID.
+ * Retrieves show details from cache or fetches from Trakt API if not cached.
+ * If show is not in cache, it will be fetched, formatted, and added to cache.
+ *
+ * @param {string} token - The user's Trakt OAuth token for authentication.
  * @param {string} showId - The unique identifier of the show.
- * @returns {Object} The cached show details.
+ * @returns {Promise<Object|null>} The show details, or null if not found.
  */
 export async function getShowDetails(token, showId) {
   const cache = loadCache();
-  const show = cache[showId];
+  let show = cache[showId];
 
-  if (!show) {
-    console.warn(`Show ${showId} not found in cache`);
-    return null;
+  // If show is in cache, return it
+  if (show) {
+    // Ensure seasons and episodes arrays exist and normalize watched flags
+    show.seasons = show.seasons || [];
+    show.seasons.forEach((season) => {
+      season.episodes = season.episodes || [];
+      season.episodes.forEach((ep) => {
+        if (ep.watched == null) ep.watched = false;
+      });
+    });
+    return show;
   }
 
-  // Ensure seasons and episodes arrays exist and normalize watched flags
-  show.seasons = show.seasons || [];
-  show.seasons.forEach((season) => {
-    season.episodes = season.episodes || [];
-    season.episodes.forEach((ep) => {
-      if (ep.watched == null) ep.watched = false;
+  // Show not in cache, fetch from Trakt API
+  console.log(`Show ${showId} not in cache, fetching from Trakt API...`);
+
+  try {
+    const res = await fetch("/.netlify/functions/getShowDetails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ token, showId }),
     });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`getShowDetails failed: ${res.status} ${text}`);
+    }
+
+    const data = await res.json();
+    const rawShow = data.show;
+
+    // Format show data to match cache structure
+    const formattedShow = formatShowObject(
+      rawShow,
+      Array.isArray(rawShow.seasons) ? rawShow.seasons : [],
+      null,
+      null
+    );
+
+    // Ensure watched flags are normalized
+    formattedShow.seasons.forEach((season) => {
+      season.episodes = season.episodes || [];
+      season.episodes.forEach((ep) => {
+        if (ep.watched == null) ep.watched = false;
+      });
+    });
+
+    // Only save to cache if show is already in user's collection
+    // Check if show exists in collection by checking if it has last_collected_at
+    // or by checking if it's in the collection cache
+    const existingCache = loadCache();
+    const isInCollection = existingCache[showId]?.last_collected_at != null;
+
+    if (isInCollection) {
+      // Show is in collection, update cache
+      updateCache(showId, formattedShow);
+    }
+    // If not in collection, don't save to cache (fixes auto-add issue)
+
+    return formattedShow;
+  } catch (error) {
+    console.error("Error fetching show details:", error);
+    return null;
+  }
+}
+
+/**
+ * Searches for TV shows on Trakt API using a query string.
+ *
+ * @param {string} token - The user's Trakt OAuth token for authentication.
+ * @param {string} query - Search query (show name).
+ * @param {number} [page=1] - Page number for pagination (default: 1).
+ * @param {number} [limit=10] - Number of results per page (default: 10).
+ * @returns {Promise<Object>} Object with `results` array and `pagination` info.
+ */
+export async function searchShows(token, query, page = 1, limit = 10) {
+  if (!token || !query || !query.trim()) {
+    throw new Error("Token and query are required");
+  }
+
+  const res = await fetch("/.netlify/functions/searchShows", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      token,
+      query: query.trim(),
+      page,
+      limit,
+    }),
   });
 
-  return show;
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Search failed: ${res.status} ${text}`);
+  }
+
+  const data = await res.json();
+  return data;
 }
 
 /**
@@ -415,4 +544,32 @@ export async function markSeasonWatched(
 
   updateCache(showId, show);
   return show;
+}
+
+/**
+ * Add or remove a show from user's Trakt collection.
+ *
+ * @param {string} token - Trakt access token
+ * @param {string|number} showId - Trakt show ID
+ * @param {boolean} add - true to add, false to remove
+ * @returns {Promise<Object>} Response from Trakt API
+ */
+export async function manageCollection(token, showId, add) {
+  const res = await fetch("/.netlify/functions/manageCollection", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      token,
+      showId,
+      action: add ? "add" : "remove",
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`manageCollection failed: ${res.status} ${text}`);
+  }
+
+  const data = await res.json();
+  return data;
 }

@@ -21,6 +21,11 @@ export async function renderShow(main, showId) {
   // Clear previous content
   main.innerHTML = "";
 
+  if (!show) {
+    main.innerHTML = "<p>Show not found or error loading show details.</p>";
+    return;
+  }
+
   // Render show info
   const showDiv = renderShowDetails(show);
   main.appendChild(showDiv);

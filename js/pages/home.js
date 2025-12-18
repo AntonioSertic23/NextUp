@@ -67,8 +67,6 @@ async function renderList(listContainer, token) {
   const sortBy = sortDiv.querySelector("#sort-by").value;
   const order = sortDiv.querySelector("#sort-order").value;
 
-  console.log(sortBy, order);
-
   let shows = await getCollection(token, sortBy);
 
   if (order === "asc") {

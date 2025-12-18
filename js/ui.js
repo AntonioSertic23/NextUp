@@ -2,8 +2,16 @@
 // ui.js - UI helper functions
 // ========================================================
 
-import { markEpisodeWatched, markSeasonWatched } from "./api.js";
-import { loadCache } from "./local_storage.js";
+import {
+  markEpisodeWatched,
+  markSeasonWatched,
+  manageCollection,
+} from "./api.js";
+import {
+  loadCache,
+  updateCache,
+  removeShowFromCache,
+} from "./local_storage.js";
 
 /**
  * Highlights the active navbar link based on the URL hash.
@@ -130,7 +138,7 @@ export function renderCollection(container, shows) {
       return `
     <div class="show-card" data-id="${show.ids.trakt}">
       <div class="poster-container">
-        <img class="poster" src="https:\\\\${show.images.poster}"></img>
+        <img class="poster" src="https://${show.images.poster}"></img>
       </div>
       <div class="info-container">
       <p class="title">${show.title}</p>
@@ -171,34 +179,99 @@ export function renderCollection(container, shows) {
 export function renderShowDetails(show) {
   const div = document.createElement("div");
   div.classList.add("show-details");
+
+  // Check if show is in collection
+  const cache = loadCache();
+  const isInCollection = cache[show.ids?.trakt]?.last_collected_at != null;
+  const collectionBtnClass = isInCollection
+    ? "collection-btn in-collection"
+    : "collection-btn";
+  const collectionBtnText = isInCollection
+    ? "In Collection"
+    : "Add to Collection";
+
   div.innerHTML = `
     <div class="show_banner-container">
-      <img class="show_banner-img" src="https:\\\\${show.images.fanart}">
+      <img class="show_banner-img" src="https://${show.images.fanart}">
     </div>
     <div class="show_poster-container">
-      <img class="show_poster-img" src="https:\\\\${show.images.poster}">
+      <img class="show_poster-img" src="https://${show.images.poster}">
       <div class="show-top-container">
         <h2>${show.title} (${show.year})</h2>
         <p class="status">Status: ${show.status}</p>
       </div>
     </div>
+    <button class="${collectionBtnClass}" id="collection-btn" data-show-id="${
+    show.ids?.trakt || ""
+  }">${collectionBtnText}</button>
     <div class="show_other_info-container">
       <p class="tagline">${show.tagline}</p>
       <br>
       <p class="overview">${show.overview}</p>
       <br>
       <div class="more_info-row">
-        <p class="rating">⭐ ${parseFloat(show.rating).toFixed(1)}</p>
+        <p class="rating">⭐ ${parseFloat(show.rating || 0).toFixed(1)}</p>
         -
-        <p class="genres">${show.genres.join(", ")}</p>
+        <p class="genres">${(show.genres || []).join(", ")}</p>
         -
-        <p class="runtime">${show.runtime} min</p>
+        <p class="runtime">${show.runtime || 0} min</p>
         -
-        <p class="network">${show.network}</p>
+        <p class="network">${show.network || ""}</p>
       </div>
     </div>
     <div id="seasons"></div>
   `;
+
+  // Add event listener for collection button
+  const collectionBtn = div.querySelector("#collection-btn");
+  if (collectionBtn) {
+    collectionBtn.addEventListener("click", async () => {
+      const btnShowId = collectionBtn.dataset.showId;
+      if (!btnShowId) return;
+
+      const token = window.localStorage.getItem("trakt_token");
+      if (!token) {
+        console.warn("Missing token for managing collection");
+        return;
+      }
+
+      const currentlyInCollection =
+        collectionBtn.classList.contains("in-collection");
+      const addToCollection = !currentlyInCollection;
+
+      try {
+        // Optimistically update UI
+        collectionBtn.textContent = addToCollection
+          ? "In Collection"
+          : "Add to Collection";
+        collectionBtn.classList.toggle("in-collection", addToCollection);
+
+        // Call API
+        await manageCollection(token, btnShowId, addToCollection);
+
+        // Update cache
+        if (addToCollection) {
+          // Add to collection - update cache with current show data and set last_collected_at
+          const updatedShow = {
+            ...show,
+            last_collected_at: new Date().toISOString(),
+          };
+          updateCache(btnShowId, updatedShow);
+        } else {
+          // Remove from collection - remove from cache
+          removeShowFromCache(btnShowId);
+        }
+      } catch (error) {
+        console.error("Failed to manage collection:", error);
+        // Revert UI on error
+        collectionBtn.textContent = currentlyInCollection
+          ? "In Collection"
+          : "Add to Collection";
+        collectionBtn.classList.toggle("in-collection", currentlyInCollection);
+      }
+    });
+  }
+
   return div;
 }
 
