@@ -364,8 +364,17 @@ export async function getShowDetails(token, showId) {
       });
     });
 
-    // Save to cache (only this one show, not replacing entire cache)
-    updateCache(showId, formattedShow);
+    // Only save to cache if show is already in user's collection
+    // Check if show exists in collection by checking if it has last_collected_at
+    // or by checking if it's in the collection cache
+    const existingCache = loadCache();
+    const isInCollection = existingCache[showId]?.last_collected_at != null;
+
+    if (isInCollection) {
+      // Show is in collection, update cache
+      updateCache(showId, formattedShow);
+    }
+    // If not in collection, don't save to cache (fixes auto-add issue)
 
     return formattedShow;
   } catch (error) {
@@ -535,4 +544,32 @@ export async function markSeasonWatched(
 
   updateCache(showId, show);
   return show;
+}
+
+/**
+ * Add or remove a show from user's Trakt collection.
+ *
+ * @param {string} token - Trakt access token
+ * @param {string|number} showId - Trakt show ID
+ * @param {boolean} add - true to add, false to remove
+ * @returns {Promise<Object>} Response from Trakt API
+ */
+export async function manageCollection(token, showId, add) {
+  const res = await fetch("/.netlify/functions/manageCollection", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      token,
+      showId,
+      action: add ? "add" : "remove",
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`manageCollection failed: ${res.status} ${text}`);
+  }
+
+  const data = await res.json();
+  return data;
 }

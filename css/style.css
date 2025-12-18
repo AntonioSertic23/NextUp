@@ -255,6 +255,37 @@ main {
   flex: 1;
 }
 
+.collection-btn {
+  background-color: #4d4e53;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+  position: absolute;
+  overflow: hidden;
+  right: 50px;
+  top: 300px;
+  border-radius: 5px;
+}
+
+.collection-btn:hover {
+  background-color: #5d5e63;
+}
+
+.collection-btn.in-collection {
+  background-color: #00ff00;
+  color: #222;
+}
+
+.collection-btn.in-collection:hover {
+  background-color: #00e600;
+}
+
 .show-top-container {
   margin-left: 20px;
 }
