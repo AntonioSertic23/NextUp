@@ -37,7 +37,7 @@ export async function handler(event) {
     };
   }
 
-  const { token, query } = body;
+  const { token, query, page = 1, limit = 10 } = body;
 
   if (!token) {
     return {
@@ -56,11 +56,11 @@ export async function handler(event) {
   }
 
   try {
-    // Search for shows on Trakt
+    // Search for shows on Trakt with pagination
     const searchRes = await fetch(
       `${BASE_URL}/search/show?query=${encodeURIComponent(
         query.trim()
-      )}&extended=full,images`,
+      )}&extended=full,images&page=${page}&limit=${limit}`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -82,7 +82,24 @@ export async function handler(event) {
 
     const results = await searchRes.json();
 
-    return { statusCode: 200, body: JSON.stringify(results) };
+    // Extract pagination info from headers
+    const pagination = {
+      page: parseInt(searchRes.headers.get("X-Pagination-Page") || "1", 10),
+      limit: parseInt(searchRes.headers.get("X-Pagination-Limit") || "10", 10),
+      pageCount: parseInt(
+        searchRes.headers.get("X-Pagination-Page-Count") || "1",
+        10
+      ),
+      itemCount: parseInt(
+        searchRes.headers.get("X-Pagination-Item-Count") || "0",
+        10
+      ),
+    };
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ results, pagination }),
+    };
   } catch (err) {
     return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }

@@ -629,3 +629,54 @@ footer {
 .error-text {
   color: #ff4d4d;
 }
+
+/* ========================================================
+   Pagination Styles
+   ======================================================== */
+
+.pagination-container {
+  margin-top: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.pagination-info {
+  color: #4d4e53;
+  font-size: 0.9rem;
+}
+
+.pagination-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.pagination-btn {
+  padding: 0.5rem 1rem;
+  background-color: #23242d;
+  color: #fff;
+  border: 1px solid #4d4e53;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.pagination-btn:hover {
+  background-color: #2d2e37;
+  border-color: #0e90e6;
+}
+
+.pagination-btn.active {
+  background-color: #0e90e6;
+  border-color: #0e90e6;
+  font-weight: bold;
+}
+
+.pagination-ellipsis {
+  padding: 0.5rem;
+  color: #4d4e53;
+}

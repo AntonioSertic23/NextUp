@@ -379,9 +379,11 @@ export async function getShowDetails(token, showId) {
  *
  * @param {string} token - The user's Trakt OAuth token for authentication.
  * @param {string} query - Search query (show name).
- * @returns {Promise<Array>} Array of search results from Trakt API.
+ * @param {number} [page=1] - Page number for pagination (default: 1).
+ * @param {number} [limit=10] - Number of results per page (default: 10).
+ * @returns {Promise<Object>} Object with `results` array and `pagination` info.
  */
-export async function searchShows(token, query) {
+export async function searchShows(token, query, page = 1, limit = 10) {
   if (!token || !query || !query.trim()) {
     throw new Error("Token and query are required");
   }
@@ -391,7 +393,12 @@ export async function searchShows(token, query) {
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ token, query: query.trim() }),
+    body: JSON.stringify({
+      token,
+      query: query.trim(),
+      page,
+      limit,
+    }),
   });
 
   if (!res.ok) {
