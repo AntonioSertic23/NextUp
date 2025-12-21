@@ -152,12 +152,90 @@ export function renderCollection(container, shows) {
         <p class="progress_text">${p.progress_text || ""}</p>
       </div>
       <div class="next_episode_info_container">
-        <button class="episode_info_btn" data-episode='${JSON.stringify(
-          p.nextEpObj
-        )}'>Episode info</button>
+        <button class="episode_info_btn" data-episode='${JSON.stringify({
+          showId: p.nextEpObj.showId,
+          seasonNumber: p.nextEpObj.seasonNumber,
+          episodeNumber: p.nextEpObj.episodeNumber,
+        })}'>Episode info</button>
         <p class="episodes_left">${
           p.episodes_left != null ? p.episodes_left : ""
         } left</p>
+      </div>
+      </div>
+    </div>
+  `;
+    })
+    .join("");
+
+  // Attach event listeners for modal open
+  container.querySelectorAll(".episode_info_btn").forEach((btn) => {
+    attachEpisodeInfoHandler(btn);
+  });
+}
+
+/**
+ * Renders a list of TV shows with days until next episode information.
+ * @param {HTMLElement} container - The DOM element to render the shows into.
+ * @param {Array} shows - Array of show objects with daysUntilNext and nextEpisode properties.
+ * @returns {void}
+ */
+export function renderMyShowsCollection(container, shows) {
+  container.innerHTML = shows
+    .map((show) => {
+      const p = computeShowProgress(show);
+      const daysUntilNext = show.daysUntilNext;
+      const hoursUntilNext = show.hoursUntilNext;
+      const nextEpisode = show.nextEpisode;
+
+      // Format next episode info
+      const nextEpInfo =
+        nextEpisode && nextEpisode.seasonNumber != null
+          ? `S${String(nextEpisode.seasonNumber).padStart(2, "0")}E${String(
+              nextEpisode.episodeNumber
+            ).padStart(2, "0")} - ${nextEpisode.title || ""}`
+          : p.nextEpObj?.info || "";
+
+      // Format time text with days and hours
+      let timeText = "";
+      if (daysUntilNext === 0 && hoursUntilNext === 0) {
+        timeText = "Today";
+      } else if (daysUntilNext === 0) {
+        timeText = hoursUntilNext === 1 ? "1 hour" : `${hoursUntilNext} hours`;
+      } else if (daysUntilNext === 1) {
+        if (hoursUntilNext === 0) {
+          timeText = "1 day";
+        } else {
+          timeText =
+            hoursUntilNext === 1
+              ? "1 day 1 hour"
+              : `1 day ${hoursUntilNext} hours`;
+        }
+      } else {
+        if (hoursUntilNext === 0) {
+          timeText = `${daysUntilNext} days`;
+        } else {
+          timeText =
+            hoursUntilNext === 1
+              ? `${daysUntilNext} days 1 hour`
+              : `${daysUntilNext} days ${hoursUntilNext} hours`;
+        }
+      }
+
+      return `
+    <div class="show-card" data-id="${show.ids.trakt}">
+      <div class="poster-container">
+        <img class="poster" src="https://${show.images.poster}"></img>
+      </div>
+      <div class="info-container">
+      <p class="title">${show.title}</p>
+      <p class="next_episode">${nextEpInfo}</p>
+      <p class="days_until_next">Next episode in: <span class="days_badge">${timeText}</span></p>
+      <div class="next_episode_info_container">
+        <button class="episode_info_btn" data-episode='${JSON.stringify({
+          showId: p.nextEpObj.showId,
+          seasonNumber: p.nextEpObj.seasonNumber,
+          episodeNumber: p.nextEpObj.episodeNumber,
+        })}'>Episode info</button>
       </div>
       </div>
     </div>

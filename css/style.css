@@ -133,7 +133,7 @@ main {
 
 .poster-container {
   flex: 1;
-  height: 270px;
+  height: 300px;
   border-radius: 5px;
   overflow: hidden;
 }
@@ -160,6 +160,23 @@ main {
 
 .info-container .next_episode {
   font-size: 1.2rem;
+}
+
+.info-container .days_until_next {
+  font-size: 1.1rem;
+  color: #bbb;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.days_badge {
+  background-color: #0e90e6;
+  color: #fff;
+  padding: 0.3rem 0.8rem;
+  border-radius: 15px;
+  font-weight: bold;
+  font-size: 1rem;
 }
 
 .progress-container {
@@ -434,7 +451,7 @@ footer {
   display: none;
   position: relative;
   width: 100vw;
-  max-height: 60vh;
+  height: 60vh;
   background: #222;
   color: #fff;
   box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.25);
@@ -472,10 +489,12 @@ footer {
   flex-direction: column;
   align-items: center;
   width: 50vw;
+  height: 100%;
   gap: 1rem;
 }
 .modal-img {
   width: 100%;
+  height: 50%;
 }
 .modal-img-tag {
   width: 100%;
@@ -487,6 +506,7 @@ footer {
 }
 .modal-details {
   position: relative;
+  width: 100%;
   flex: 1;
   display: flex;
   flex-direction: column;

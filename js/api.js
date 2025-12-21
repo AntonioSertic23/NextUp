@@ -573,3 +573,33 @@ export async function manageCollection(token, showId, add) {
   const data = await res.json();
   return data;
 }
+
+/**
+ * Fetches next episode information for multiple shows from Trakt API.
+ *
+ * @param {string} token - Trakt access token
+ * @param {Array<string|number>} showIds - Array of Trakt show IDs
+ * @returns {Promise<Array>} Array of objects with showId and nextEpisode
+ */
+export async function getNextEpisodes(token, showIds) {
+  if (!token || !Array.isArray(showIds) || showIds.length === 0) {
+    throw new Error("Token and non-empty showIds array are required");
+  }
+
+  const res = await fetch("/.netlify/functions/getNextEpisodes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      token,
+      showIds,
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`getNextEpisodes failed: ${res.status} ${text}`);
+  }
+
+  const data = await res.json();
+  return data;
+}
