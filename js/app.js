@@ -9,6 +9,7 @@ import { renderHome } from "./pages/home.js";
 import { renderShow } from "./pages/show.js";
 import { renderStats } from "./pages/stats.js";
 import { renderDiscover } from "./pages/discover.js";
+import { renderMyShows } from "./pages/myShows.js";
 
 // ========================================================
 // AUTHENTICATION
@@ -35,6 +36,7 @@ const routes = {
   show: renderShow,
   stats: renderStats,
   discover: renderDiscover,
+  myshows: renderMyShows,
 };
 
 /**

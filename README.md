@@ -6,17 +6,35 @@ NextUp is a modern Vanilla JavaScript app for tracking and managing your TV show
 
 ## Features
 
-- Persistent TV show collection synced via Trakt.tv
-- Sort collection by Title, Year, Rating, Last Updated, Date Added, or Episodes Left (ascending/descending)
-- Mark/unmark episodes and entire seasons as watched, with instant UI & local cache update
-- View stats (total shows, watched/left, ratings) and next episodes
-- Detailed episode modal (with air date, overview, screenshot, mark/unmark)
+- **Persistent TV show collection** synced via Trakt.tv
+- **Sort collection** by Title, Year, Rating, Last Updated, Date Added, or Episodes Left (ascending/descending)
+- **Mark/unmark episodes and entire seasons** as watched, with instant UI & local cache update
+- **Add/remove shows** from collection directly from show details page
+- **Discover page** with search functionality and pagination to find new shows
+- **My Shows page** showing collection sorted by time until next episode (with days and hours countdown)
+- **Statistics page** displaying:
+  - Total watch time breakdown (years/months/days/hours)
+  - Total episodes watched across shows and seasons
+  - Top 3 most watched genres
+  - Top 3 most watched shows
+- **Detailed episode modal** (with air date, overview, screenshot, mark/unmark)
+- **Next episode countdown** showing days and hours until next episode airs
 - Remove "Specials" from all calculations and visibility across UI & backend
 - LocalStorage-powered cache optimizes UX and minimizes API calls
 - Responsive UI (single page app) — no frameworks needed!
 - Login via Trakt OAuth — secure and privacy-focused
 - Serverless backend via Netlify Functions (proxies Trakt and centralizes logic)
 - Built for modern browsers, deployable on Netlify/Vercel
+
+---
+
+## About This Project
+
+- This project is inspired by several other similar applications.
+
+- For the first version, it was decided to include all basic functionalities; optimization and customization will be addressed later.
+
+- Due to the urgency of getting the application built and ready to use for personal needs, the decision was made to use AI assistance to complete it by the end of the year, rather than spending another half year building it myself.
 
 ---
 
@@ -54,10 +72,12 @@ NextUp is a modern Vanilla JavaScript app for tracking and managing your TV show
 
 ## Usage
 
-- **Home page**: Browse your collection with flexible sorting; open modal for episode details; click show card for more details.
-- **Modal**: See episode info, screenshots, and mark/unmark directly.
-- **Show Detail**: Mark episodes or entire season as watched/unwatched with a single click — UI instantly updates.
-- **Stats/Upcoming**: Side routes for quick stats and a calendar of upcoming episodes (if implemented).
+- **Home page (Watchlist)**: Browse your collection with flexible sorting; open modal for episode details; click show card for more details.
+- **My Shows**: View your collection sorted by time until next episode airs, with countdown showing days and hours.
+- **Discover**: Search for TV shows by name, browse results with pagination, and add shows to your collection.
+- **Statistics**: View comprehensive statistics including total watch time, episodes watched, top genres, and top shows.
+- **Show Detail**: View detailed show information, mark episodes or entire season as watched/unwatched with a single click, add/remove from collection — UI instantly updates.
+- **Episode Modal**: See episode info, screenshots, air date, and mark/unmark directly from show cards.
 - **Logout**: Log out from Trakt securely via the top-right menu.
 
 ---
@@ -79,13 +99,20 @@ nextup-show-tracker/
 │   └── pages/
 │       ├── home.js          # Home page logic: sorting, rendering, events
 │       ├── show.js          # Show details page and helpers
-│       └── stats.js         # Statistics page
+│       ├── stats.js         # Statistics page with watch time and top shows/genres
+│       ├── discover.js      # Discover page with search and pagination
+│       └── myShows.js       # My Shows page with next episode countdown
 ├── components/
 │   ├── header.html          # Navigation header component
 │   └── footer.html          # Footer component
 └── netlify/functions/
     ├── getClientId.js       # Returns Trakt client ID for OAuth
     ├── getCollection.js     # Serverless backend, bulk data enrichment, filtering
+    ├── getShowDetails.js    # Fetch detailed show information with seasons/episodes
+    ├── getNextEpisodes.js   # Fetch next episode info for multiple shows
+    ├── getEpisodeDetails.js # Fetch detailed episode information (air date, etc.)
+    ├── searchShows.js       # Search for TV shows by name with pagination
+    ├── manageCollection.js  # Add/remove shows from user's collection
     └── markEpisode.js       # Mark/unmark episodes proxy endpoint
 ```
 
@@ -95,8 +122,12 @@ nextup-show-tracker/
 
 - **getClientId.js**: Returns Trakt client ID for OAuth authentication flow
 - **getCollection.js**: Fetches and merges collection, watched data, and seasons; enriches client cache; removes specials; supports efficient bulk fetch
+- **getShowDetails.js**: Fetches detailed show information including seasons, episodes, and watched progress
+- **getNextEpisodes.js**: Fetches next episode information for multiple shows using Trakt's `/shows/{id}/next_episode` endpoint
+- **getEpisodeDetails.js**: Fetches detailed episode information including air date for countdown calculations
+- **searchShows.js**: Searches for TV shows by name with pagination support
+- **manageCollection.js**: Adds or removes shows from user's Trakt collection
 - **markEpisode.js**: Mark/unmark single episodes via Trakt sync/history endpoints
-- _Removed legacy code for per-show progress and watchlist in favor of scalable collection logic._
 
 ---
 

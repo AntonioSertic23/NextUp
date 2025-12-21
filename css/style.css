@@ -133,7 +133,7 @@ main {
 
 .poster-container {
   flex: 1;
-  height: 270px;
+  height: 300px;
   border-radius: 5px;
   overflow: hidden;
 }
@@ -160,6 +160,23 @@ main {
 
 .info-container .next_episode {
   font-size: 1.2rem;
+}
+
+.info-container .days_until_next {
+  font-size: 1.1rem;
+  color: #bbb;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.days_badge {
+  background-color: #0e90e6;
+  color: #fff;
+  padding: 0.3rem 0.8rem;
+  border-radius: 15px;
+  font-weight: bold;
+  font-size: 1rem;
 }
 
 .progress-container {
@@ -434,7 +451,7 @@ footer {
   display: none;
   position: relative;
   width: 100vw;
-  max-height: 60vh;
+  height: 60vh;
   background: #222;
   color: #fff;
   box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.25);
@@ -472,10 +489,12 @@ footer {
   flex-direction: column;
   align-items: center;
   width: 50vw;
+  height: 100%;
   gap: 1rem;
 }
 .modal-img {
   width: 100%;
+  height: 50%;
 }
 .modal-img-tag {
   width: 100%;
@@ -487,6 +506,7 @@ footer {
 }
 .modal-details {
   position: relative;
+  width: 100%;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -710,4 +730,107 @@ footer {
 .pagination-ellipsis {
   padding: 0.5rem;
   color: #4d4e53;
+}
+
+/* ========================================================
+   Statistics Page Styles
+   ======================================================== */
+
+.stats-container {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.stats-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.stats-section h2 {
+  font-size: 2rem;
+  color: #fff;
+  margin-bottom: 1rem;
+}
+
+.stat-card {
+  background-color: #222;
+  border-radius: 8px;
+  padding: 2rem;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.stat-card h3 {
+  font-size: 1.5rem;
+  color: #fff;
+  margin: 0 0 1rem 0;
+  font-weight: bold;
+}
+
+.stat-value {
+  font-size: 1.8rem;
+  color: #0e90e6;
+  font-weight: bold;
+  margin: 0.5rem 0;
+}
+
+.stat-description {
+  font-size: 1.1rem;
+  color: #bbb;
+  font-style: italic;
+  margin: 0.5rem 0 0 0;
+}
+
+.top-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.top-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: #27272b;
+  border-radius: 5px;
+  transition: background-color 0.2s;
+}
+
+.top-item:hover {
+  background-color: #2d2e37;
+}
+
+.top-item .rank {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #0e90e6;
+  min-width: 2rem;
+}
+
+.top-item .name {
+  font-size: 1.2rem;
+  color: #fff;
+  font-weight: bold;
+  flex: 1;
+}
+
+.top-item .count,
+.top-item .details {
+  font-size: 1rem;
+  color: #bbb;
+}
+
+.top-item .top-show-text {
+  font-size: 1.1rem;
+  color: #fff;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.top-item .top-show-text strong {
+  color: #0e90e6;
+  font-weight: bold;
 }
