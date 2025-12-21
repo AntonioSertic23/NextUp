@@ -20,6 +20,16 @@ NextUp is a modern Vanilla JavaScript app for tracking and managing your TV show
 
 ---
 
+## About This Project
+
+- This project is inspired by several other similar applications.
+
+- For the first version, it was decided to include all basic functionalities; optimization and customization will be addressed later.
+
+- Due to the urgency of getting the application built and ready to use for personal needs, the decision was made to use AI assistance to complete it by the end of the year, rather than spending another half year building it myself.
+
+---
+
 ## Quick Start
 
 1. **Clone the repository:**
