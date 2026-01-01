@@ -59,45 +59,6 @@ function formatShowObject(
   };
 }
 
-/**
- * Formats raw Trakt API collection data into a simplified
- * object structure optimized for localStorage caching.
- *
- * @param {Array} data - Raw data array returned from Trakt API.
- * @returns {Object} Formatted object where each key is a show's Trakt ID.
- *
- * Example return format:
- * {
- *   "48587": {
- *     title: "Brooklyn Nine-Nine",
- *     ids: { trakt: 48587, slug: "brooklyn-nine-nine", ... },
- *     year: 2013
- *   },
- *   ...
- * }
- */
-export function formatCollectionData(data) {
-  const formatted = {};
-
-  data.forEach((item) => {
-    // Use seasons from item.show if present (server may have enriched), otherwise fall back to progress.seasons
-    const seasons = Array.isArray(item.show && item.show.seasons)
-      ? item.show.seasons
-      : Array.isArray(item.progress && item.progress.seasons)
-      ? item.progress.seasons
-      : [];
-
-    formatted[item.show.ids.trakt] = formatShowObject(
-      item.show,
-      seasons,
-      item.last_collected_at,
-      item.last_updated_at
-    );
-  });
-
-  return formatted;
-}
-
 export function formatEpisodesData(seasons, show) {
   // Ensure show.seasons exists
   show.seasons = show.seasons || [];
@@ -218,82 +179,6 @@ function sortShows(shows, sortBy = "title") {
   }
 
   return sorted;
-}
-
-/**
- * Returns only shows that have at least one unwatched episode.
- * @param {Array} shows - Array of show objects (from cache or API)
- * @returns {Array}
- */
-function filterUnwatchedShows(shows) {
-  return shows.filter((show) => {
-    if (!Array.isArray(show.seasons)) return false;
-    // For each non-specials season, check if any episode is unwatched
-    for (const season of show.seasons) {
-      if (
-        !season ||
-        season.number === 0 ||
-        (season.title && /special/i.test(season.title))
-      )
-        continue;
-      if (!Array.isArray(season.episodes)) continue;
-      for (const ep of season.episodes) {
-        // Accept all variants: watched===false, watched==null, played==0/null, !completed, etc.
-        if (!ep.watched && !(ep.plays > 0) && !ep.completed) {
-          return true;
-        }
-      }
-    }
-    return false;
-  });
-}
-
-/**
- * Fetches the user's Trakt collection (persistent list, not auto-removed as with collection).
- *
- * - Checks if a cached version exists in localStorage.
- * - If it exists and `forceRefresh` is false, returns the cached data immediately.
- * - Otherwise, fetches the latest data from the Netlify serverless function (`/.netlify/functions/getCollection`, which now proxies /collection),
- *   formats it for local storage, saves it, and then returns it.
- *
- * @param {string} token - The user's Trakt OAuth token for authentication.
- * @param {string} [sortBy] - Optional sort criteria: 'title', 'year', 'rating', etc.
- * @param {boolean} [forceRefresh=false] - If true, bypasses cache and fetches the latest data from the API.
- * @returns {Promise<Array>} A list (array) of shows from the user's collection.
- */
-export async function getCollection(token, sortBy, forceRefresh = false) {
-  const cache = loadCache();
-  const hasCache = Object.keys(cache).length > 0;
-
-  if (hasCache && !forceRefresh) {
-    console.log("Using cached collection");
-
-    const filtered = filterUnwatchedShows(Object.values(cache));
-
-    return sortBy ? sortShows(filtered, sortBy) : filtered;
-  }
-
-  clearCache();
-
-  console.log("Fetching collection from Trakt API...");
-
-  const res = await fetch("/.netlify/functions/getCollection", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ token }),
-  });
-
-  const data = await res.json();
-
-  // Format and store data in cache
-  const formatted = formatCollectionData(data);
-  saveCache(formatted);
-
-  const filtered = filterUnwatchedShows(Object.values(formatted));
-
-  return sortBy ? sortShows(filtered, sortBy) : filtered;
 }
 
 /**

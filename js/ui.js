@@ -8,6 +8,14 @@ import {
   manageCollection,
 } from "./api.js";
 
+const sortOptions = [
+  { value: "last_updated_at", label: "Last Updated" },
+  { value: "title", label: "Title" },
+  { value: "year", label: "Year" },
+  { value: "top_rated", label: "Top Rated" },
+  { value: "episodes_left", label: "Episodes Left" },
+];
+
 /**
  * Highlights the active navbar link based on the URL hash.
  * @returns {void}
@@ -120,45 +128,94 @@ function attachEpisodeInfoHandler(btn) {
 }
 
 /**
+ * Renders sorting controls (dropdowns) for sorting TV show collection.
+ * Appends controls to main and wires up change events.
+ * @param {HTMLElement} main - Main DOM container.
+ * @param {HTMLElement} collectionDiv - Collection container (list parent).
+ * @param {string} token - Trakt user token.
+ */
+export async function renderSortControls(main, collectionDiv, token) {
+  // Sort controls UI
+  const sortDiv = document.createElement("div");
+  sortDiv.className = "sort-controls";
+  sortDiv.innerHTML = `
+    <label for="sort-by">Sort by:
+      <select id="sort-by">
+        ${sortOptions
+          .map((opt) => `<option value="${opt.value}">${opt.label}</option>`)
+          .join("")}
+      </select>
+    </label>
+    <button
+      id="sort-order-btn"
+      class="sort-order-btn"
+      data-order="desc"
+      aria-label="Toggle sort order"
+      title="Toggle sort order"
+    >
+      ↓
+    </button>
+  `;
+
+  main.appendChild(sortDiv);
+
+  sortDiv
+    .querySelector("#sort-by")
+    .addEventListener("change", () => renderList(collectionDiv, token));
+
+  // Order toggle button
+  const orderBtn = sortDiv.querySelector("#sort-order-btn");
+  orderBtn.addEventListener("click", () => {
+    const currentOrder = orderBtn.dataset.order;
+    const newOrder = currentOrder === "desc" ? "asc" : "desc";
+
+    orderBtn.dataset.order = newOrder;
+    orderBtn.textContent = newOrder === "desc" ? "↓" : "↑";
+
+    renderList(collectionDiv, token);
+  });
+}
+
+/**
  * Renders a list of TV shows in a container.
  * @param {HTMLElement} container - The DOM element to render the shows into.
  * @param {Array} shows - Array of show objects from Trakt API or dummy data.
  * @returns {void}
  */
-export function renderCollection(container, shows) {
+export function renderWatchlist(container, shows) {
   container.innerHTML = shows
     .map((show) => {
       const p = computeShowProgress(show);
 
       return `
-    <div class="show-card" data-id="${show.ids.trakt}">
-      <div class="poster-container">
-        <img class="poster" src="https://${show.images.poster}"></img>
-      </div>
-      <div class="info-container">
-      <p class="title">${show.title}</p>
-      <p class="next_episode">${p.nextEpObj?.info || ""}</p>
-      <div class="progress-container">
-        <div class="progress-bar">
-           <div class="progress-bar-fill" style="width: ${
-             p.progress_bar_percent
-           }%;"></div>
+        <div class="show-card" data-id="${show.ids.trakt}">
+          <div class="poster-container">
+            <img class="poster" src="https://${show.images.poster}"></img>
+          </div>
+          <div class="info-container">
+          <p class="title">${show.title}</p>
+          <p class="next_episode">${p.nextEpObj?.info || ""}</p>
+          <div class="progress-container">
+            <div class="progress-bar">
+              <div class="progress-bar-fill" style="width: ${
+                p.progress_bar_percent
+              }%;"></div>
+            </div>
+            <p class="progress_text">${p.progress_text || ""}</p>
+          </div>
+          <div class="next_episode_info_container">
+            <button class="episode_info_btn" data-episode='${JSON.stringify({
+              showId: p.nextEpObj.showId,
+              seasonNumber: p.nextEpObj.seasonNumber,
+              episodeNumber: p.nextEpObj.episodeNumber,
+            })}'>Episode info</button>
+            <p class="episodes_left">${
+              p.episodes_left != null ? p.episodes_left : ""
+            } left</p>
+          </div>
+          </div>
         </div>
-        <p class="progress_text">${p.progress_text || ""}</p>
-      </div>
-      <div class="next_episode_info_container">
-        <button class="episode_info_btn" data-episode='${JSON.stringify({
-          showId: p.nextEpObj.showId,
-          seasonNumber: p.nextEpObj.seasonNumber,
-          episodeNumber: p.nextEpObj.episodeNumber,
-        })}'>Episode info</button>
-        <p class="episodes_left">${
-          p.episodes_left != null ? p.episodes_left : ""
-        } left</p>
-      </div>
-      </div>
-    </div>
-  `;
+      `;
     })
     .join("");
 
