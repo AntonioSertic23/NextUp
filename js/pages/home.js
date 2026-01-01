@@ -90,7 +90,7 @@ async function renderList(listContainer, token) {
  * @returns {Promise<void>}
  */
 export async function renderHome(main) {
-  const token = getToken();
+  const token = await getToken();
 
   const collectionDiv = document.createElement("div");
   collectionDiv.className = "collection-container";

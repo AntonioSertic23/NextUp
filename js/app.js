@@ -2,7 +2,7 @@
 // app.js - Main router, authentication, and component loader
 // ========================================================
 
-import { getToken, login, handleAuthRedirect, logout } from "./auth.js";
+import { handleTraktAuthRedirect, logout, isAuthenticated } from "./auth.js";
 import { clearCache } from "./local_storage.js";
 import { updateActiveNav } from "./ui.js";
 import { renderHome } from "./pages/home.js";
@@ -15,17 +15,29 @@ import { renderMyShows } from "./pages/myShows.js";
 // AUTHENTICATION
 // ========================================================
 
-// Handle redirect from Trakt and store token
-handleAuthRedirect();
+// Handle redirect from Trakt (for connecting Trakt account)
+handleTraktAuthRedirect();
 
-// Check if user is logged in
-const token = getToken();
-if (!token) {
-  // No token → redirect to Trakt login
-  login();
-} else {
-  console.log("User logged in.");
-}
+// Check if user is logged in and redirect to login if not
+(async function initAuth() {
+  const authenticated = await isAuthenticated();
+  if (!authenticated) {
+    // Redirect to login page if not on login page already
+    if (!window.location.pathname.includes("login.html")) {
+      window.location.href = "/login.html";
+      return;
+    }
+  } else {
+    // If authenticated but on login page, redirect to home
+    if (window.location.pathname.includes("login.html")) {
+      window.location.href = "/";
+      return;
+    }
+    console.log("User logged in.");
+    // Initialize router if authenticated
+    initRouter();
+  }
+})();
 
 // ========================================================
 // ROUTER CONFIGURATION
@@ -44,6 +56,13 @@ const routes = {
  * Example: #show/123 → route='show', param='123'
  */
 async function router() {
+  // Check authentication before routing
+  const authenticated = await isAuthenticated();
+  if (!authenticated) {
+    window.location.href = "/login.html";
+    return;
+  }
+
   const main = document.querySelector("main");
   const hash = location.hash.slice(1) || "home";
   const [route, param] = hash.split("/");
@@ -57,17 +76,26 @@ async function router() {
   }
 }
 
-// Update page and navbar on hash change
-window.addEventListener("hashchange", () => {
-  router();
-  updateActiveNav();
-});
+/**
+ * Initialize router (only called after authentication)
+ */
+function initRouter() {
+  // Update page and navbar on hash change
+  window.addEventListener("hashchange", () => {
+    router();
+    updateActiveNav();
+  });
 
-// Initial load
-window.addEventListener("load", () => {
+  // Initial load
+  window.addEventListener("load", () => {
+    router();
+    updateActiveNav();
+  });
+
+  // Initial route
   router();
   updateActiveNav();
-});
+}
 
 // ========================================================
 // COMPONENT LOADER

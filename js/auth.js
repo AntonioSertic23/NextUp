@@ -1,57 +1,269 @@
+// ========================================================
+// auth.js - Supabase authentication with email/password
+// ========================================================
+
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+// Supabase client - initialized lazily
+let supabase = null;
+let configPromise = null;
+
 /**
- * Fetches the Trakt Client ID from a Netlify serverless function.
+ * Fetches Supabase configuration from Netlify serverless function
+ * @returns {Promise<{url: string, anonKey: string}>}
  */
-async function fetchClientId() {
-  const res = await fetch("/.netlify/functions/getClientId");
-  const data = await res.json();
-  return data.clientId;
+async function fetchSupabaseConfig() {
+  if (configPromise) {
+    return configPromise;
+  }
+
+  configPromise = (async () => {
+    try {
+      const res = await fetch("/.netlify/functions/getSupabaseConfig");
+      const data = await res.json();
+      return { url: data.url, anonKey: data.anonKey };
+    } catch (error) {
+      console.error("Error fetching Supabase config:", error);
+      throw error;
+    }
+  })();
+
+  return configPromise;
 }
 
 /**
- * Checks if user is logged in (token exists)
- * @returns {string|null} Access token or null
+ * Gets or initializes Supabase client
+ * @returns {Promise<import('@supabase/supabase-js').SupabaseClient>}
  */
-export function getToken() {
-  return localStorage.getItem("trakt_token");
+async function getSupabaseClient() {
+  if (supabase) {
+    return supabase;
+  }
+
+  const config = await fetchSupabaseConfig();
+  supabase = createClient(config.url, config.anonKey);
+  return supabase;
 }
 
 /**
- * Starts login process by redirecting to Trakt
+ * Checks if user is logged in and returns Trakt token
+ * @returns {Promise<string|null>} Trakt token or null
  */
-export function login() {
-  fetchClientId().then((clientId) => {
-    // Automatically use current origin as redirect URI
-    const redirectUri = window.location.origin;
+export async function getToken() {
+  try {
+    const client = await getSupabaseClient();
+    const {
+      data: { session },
+    } = await client.auth.getSession();
 
-    const AUTH_URL = `https://trakt.tv/oauth/authorize?response_type=token&client_id=${clientId}&redirect_uri=${encodeURIComponent(
-      redirectUri
-    )}`;
+    if (!session || !session.user) {
+      return null;
+    }
 
-    // Redirect the user to Trakt OAuth
-    window.location.href = AUTH_URL;
-  });
+    // Fetch user data to get trakt_token
+    const { data: userData, error } = await client
+      .from("users")
+      .select("trakt_token")
+      .eq("id", session.user.id)
+      .single();
+
+    if (error || !userData) {
+      console.error("Error fetching user data:", error);
+      return null;
+    }
+
+    return userData.trakt_token || null;
+  } catch (error) {
+    console.error("Error getting token:", error);
+    return null;
+  }
 }
 
 /**
- * Logs user out by clearing token and reloading page
+ * Registers a new user with email and password
+ * @param {string} email - User email
+ * @param {string} password - User password
+ * @returns {Promise<{success: boolean, error?: string}>}
  */
-export function logout() {
-  localStorage.removeItem("trakt_token");
-  window.location.reload();
+export async function register(email, password) {
+  try {
+    const client = await getSupabaseClient();
+    const { data, error } = await client.auth.signUp({
+      email,
+      password,
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    // User record is automatically created by database trigger
+    // See supabase_migration.sql for the trigger definition
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 }
 
 /**
- * Handles redirect back from Trakt (token in URL)
+ * Logs in user with email and password
+ * @param {string} email - User email
+ * @param {string} password - User password
+ * @returns {Promise<{success: boolean, error?: string}>}
  */
-export function handleAuthRedirect() {
+export async function login(email, password) {
+  try {
+    const client = await getSupabaseClient();
+    const { data, error } = await client.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    // Create session record (for multi-device support)
+    if (data.session) {
+      const { error: sessionError } = await client.from("sessions").insert({
+        user_id: data.user.id,
+        session_token: data.session.access_token,
+        expires_at: new Date(data.session.expires_at * 1000).toISOString(),
+      });
+
+      if (sessionError) {
+        console.error("Error creating session record:", sessionError);
+        // Don't fail login if session record creation fails
+      }
+    }
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Logs out the current user
+ * @returns {Promise<void>}
+ */
+export async function logout() {
+  try {
+    const client = await getSupabaseClient();
+    const {
+      data: { session },
+    } = await client.auth.getSession();
+
+    if (session) {
+      // Delete session record from database
+      await client
+        .from("sessions")
+        .delete()
+        .eq("session_token", session.access_token);
+    }
+
+    // Sign out from Supabase
+    await client.auth.signOut();
+
+    // Reload page to clear state
+    window.location.reload();
+  } catch (error) {
+    console.error("Error during logout:", error);
+    // Still reload even if there's an error
+    window.location.reload();
+  }
+}
+
+/**
+ * Checks if user is currently authenticated
+ * @returns {Promise<boolean>}
+ */
+export async function isAuthenticated() {
+  try {
+    const client = await getSupabaseClient();
+    const {
+      data: { session },
+    } = await client.auth.getSession();
+    return !!session;
+  } catch (error) {
+    return false;
+  }
+}
+
+/**
+ * Gets current user data
+ * @returns {Promise<{id: string, email: string} | null>}
+ */
+export async function getCurrentUser() {
+  try {
+    const client = await getSupabaseClient();
+    const {
+      data: { user },
+    } = await client.auth.getUser();
+
+    if (!user) {
+      return null;
+    }
+
+    return {
+      id: user.id,
+      email: user.email,
+    };
+  } catch (error) {
+    console.error("Error getting current user:", error);
+    return null;
+  }
+}
+
+/**
+ * Updates user's Trakt token in database
+ * @param {string} traktToken - Trakt OAuth token
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export async function updateTraktToken(traktToken) {
+  try {
+    const client = await getSupabaseClient();
+    const {
+      data: { user },
+    } = await client.auth.getUser();
+
+    if (!user) {
+      return { success: false, error: "User not authenticated" };
+    }
+
+    const { error } = await client
+      .from("users")
+      .update({ trakt_token: traktToken })
+      .eq("id", user.id);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Handles redirect back from Trakt OAuth (for connecting Trakt account)
+ * This should be called after user completes Trakt OAuth flow
+ */
+export async function handleTraktAuthRedirect() {
   const hash = window.location.hash;
   if (hash.includes("access_token")) {
     const params = new URLSearchParams(hash.replace("#", ""));
     const token = params.get("access_token");
 
     if (token) {
-      localStorage.setItem("trakt_token", token);
-      console.log("Logged in successfully");
+      const result = await updateTraktToken(token);
+      if (result.success) {
+        console.log("Trakt token updated successfully");
+      } else {
+        console.error("Error updating Trakt token:", result.error);
+      }
     }
 
     // Clean up URL (remove #access_token part)

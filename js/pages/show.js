@@ -13,7 +13,7 @@ import { renderShowDetails, renderSeasons } from "../ui.js";
  * @returns {Promise<void>}
  */
 export async function renderShow(main, showId) {
-  const token = getToken();
+  const token = await getToken();
 
   // Fetch show details
   const show = await getShowDetails(token, showId);

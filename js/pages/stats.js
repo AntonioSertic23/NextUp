@@ -165,7 +165,7 @@ function calculateStatistics(shows) {
  * @returns {Promise<void>}
  */
 export async function renderStats(main) {
-  const token = getToken();
+  const token = await getToken();
 
   // Show loading state
   main.innerHTML = "<p class='loading-text'>Loading statistics...</p>";
