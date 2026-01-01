@@ -170,7 +170,8 @@ export async function renderStats(main) {
   // Show loading state
   main.innerHTML = "<p class='loading-text'>Loading statistics...</p>";
 
-  try {
+  // TODO: Commented out until the retrieval and storage of series is moved to Supabase instead of localStorage.
+  /* try {
     // Fetch collection
     const shows = await getCollection(token, null);
 
@@ -247,5 +248,5 @@ export async function renderStats(main) {
   } catch (error) {
     console.error("Error loading statistics:", error);
     main.innerHTML = `<p class='error-text'>Error loading statistics: ${error.message}</p>`;
-  }
+  } */
 }

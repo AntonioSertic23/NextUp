@@ -7,11 +7,6 @@ import {
   markSeasonWatched,
   manageCollection,
 } from "./api.js";
-import {
-  loadCache,
-  updateCache,
-  removeShowFromCache,
-} from "./local_storage.js";
 
 /**
  * Highlights the active navbar link based on the URL hash.

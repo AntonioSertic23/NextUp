@@ -41,7 +41,14 @@ async function getSupabaseClient() {
   }
 
   const config = await fetchSupabaseConfig();
-  supabase = createClient(config.url, config.anonKey);
+  supabase = createClient(config.url, config.anonKey, {
+    auth: {
+      persistSession: true,
+      storage: window.localStorage,
+      autoRefreshToken: true,
+      detectSessionInUrl: false,
+    },
+  });
   return supabase;
 }
 
@@ -53,10 +60,10 @@ export async function getToken() {
   try {
     const client = await getSupabaseClient();
     const {
-      data: { session },
-    } = await client.auth.getSession();
+      data: { user },
+    } = await client.auth.getUser();
 
-    if (!session || !session.user) {
+    if (!user) {
       return null;
     }
 
@@ -64,7 +71,7 @@ export async function getToken() {
     const { data: userData, error } = await client
       .from("users")
       .select("trakt_token")
-      .eq("id", session.user.id)
+      .eq("id", user.id)
       .single();
 
     if (error || !userData) {
@@ -133,20 +140,6 @@ export async function login(email, password) {
       return { success: false, error: error.message };
     }
 
-    // Create session record (for multi-device support)
-    if (data.session) {
-      const { error: sessionError } = await client.from("sessions").insert({
-        user_id: data.user.id,
-        session_token: data.session.access_token,
-        expires_at: new Date(data.session.expires_at * 1000).toISOString(),
-      });
-
-      if (sessionError) {
-        console.error("Error creating session record:", sessionError);
-        // Don't fail login if session record creation fails
-      }
-    }
-
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
@@ -161,16 +154,8 @@ export async function logout() {
   try {
     const client = await getSupabaseClient();
     const {
-      data: { session },
-    } = await client.auth.getSession();
-
-    if (session) {
-      // Delete session record from database
-      await client
-        .from("sessions")
-        .delete()
-        .eq("session_token", session.access_token);
-    }
+      data: { claims },
+    } = await client.auth.getClaims();
 
     // Sign out from Supabase
     await client.auth.signOut();
@@ -192,9 +177,10 @@ export async function isAuthenticated() {
   try {
     const client = await getSupabaseClient();
     const {
-      data: { session },
-    } = await client.auth.getSession();
-    return !!session;
+      data: { claims },
+    } = await client.auth.getClaims();
+
+    return !!claims;
   } catch (error) {
     return false;
   }
@@ -262,24 +248,23 @@ export async function updateTraktToken(traktToken) {
  */
 export async function handleTraktAuthRedirect() {
   const hash = window.location.hash;
+
   if (hash.includes("access_token")) {
     const params = new URLSearchParams(hash.replace("#", ""));
     const token = params.get("access_token");
 
     if (token) {
       const result = await updateTraktToken(token);
+
       if (result.success) {
         console.log("Trakt token updated successfully");
-        // Reload page to refresh token in all components
-        window.location.reload();
+        // Clean up URL (remove #access_token part)
+        window.history.replaceState({}, document.title, "/");
         return;
       } else {
         console.error("Error updating Trakt token:", result.error);
       }
     }
-
-    // Clean up URL (remove #access_token part)
-    window.history.replaceState({}, document.title, "/");
   }
 }
 
