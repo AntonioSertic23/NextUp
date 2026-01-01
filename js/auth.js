@@ -80,6 +80,15 @@ export async function getToken() {
 }
 
 /**
+ * Checks if user has Trakt token connected
+ * @returns {Promise<boolean>}
+ */
+export async function hasTraktToken() {
+  const token = await getToken();
+  return !!token;
+}
+
+/**
  * Registers a new user with email and password
  * @param {string} email - User email
  * @param {string} password - User password
@@ -261,6 +270,9 @@ export async function handleTraktAuthRedirect() {
       const result = await updateTraktToken(token);
       if (result.success) {
         console.log("Trakt token updated successfully");
+        // Reload page to refresh token in all components
+        window.location.reload();
+        return;
       } else {
         console.error("Error updating Trakt token:", result.error);
       }
@@ -268,5 +280,29 @@ export async function handleTraktAuthRedirect() {
 
     // Clean up URL (remove #access_token part)
     window.history.replaceState({}, document.title, "/");
+  }
+}
+
+/**
+ * Initiates Trakt OAuth flow to connect Trakt account
+ * @returns {Promise<void>}
+ */
+export async function connectTraktAccount() {
+  try {
+    const res = await fetch("/.netlify/functions/getClientId");
+    const data = await res.json();
+    const clientId = data.clientId;
+
+    // Automatically use current origin as redirect URI
+    const redirectUri = window.location.origin;
+
+    const AUTH_URL = `https://trakt.tv/oauth/authorize?response_type=token&client_id=${clientId}&redirect_uri=${encodeURIComponent(
+      redirectUri
+    )}`;
+
+    // Redirect the user to Trakt OAuth
+    window.location.href = AUTH_URL;
+  } catch (error) {
+    console.error("Error initiating Trakt OAuth:", error);
   }
 }
