@@ -2,13 +2,6 @@
 // api.js - Handles all API communication with Trakt and caching logic
 // ========================================================
 
-import {
-  loadCache,
-  saveCache,
-  updateCache,
-  clearCache,
-} from "./local_storage.js";
-
 /**
  * Formats a raw Trakt show object into a standardized format for caching.
  *

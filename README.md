@@ -95,7 +95,6 @@ nextup-show-tracker/
 │   ├── api.js               # Client API for Trakt (uses Netlify backend)
 │   ├── auth.js              # Trakt OAuth authentication handling
 │   ├── ui.js                # DOM helpers, rendering, and modal logic
-│   ├── local_storage.js     # LocalStorage cache management
 │   └── pages/
 │       ├── home.js          # Home page logic: sorting, rendering, events
 │       ├── show.js          # Show details page and helpers

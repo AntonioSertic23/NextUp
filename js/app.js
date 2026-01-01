@@ -9,7 +9,6 @@ import {
   connectTraktAccount,
   hasTraktToken,
 } from "./auth.js";
-import { clearCache } from "./local_storage.js";
 import { updateActiveNav } from "./ui.js";
 import { renderHome } from "./pages/home.js";
 import { renderShow } from "./pages/show.js";
@@ -22,11 +21,12 @@ import { renderMyShows } from "./pages/myShows.js";
 // ========================================================
 
 // Handle redirect from Trakt (for connecting Trakt account)
-handleTraktAuthRedirect();
+await handleTraktAuthRedirect();
 
 // Check if user is logged in and redirect to login if not
-(async function initAuth() {
+async function initAuth() {
   const authenticated = await isAuthenticated();
+
   if (!authenticated) {
     // Redirect to login page if not on login page already
     if (!window.location.pathname.includes("login.html")) {
@@ -43,7 +43,9 @@ handleTraktAuthRedirect();
     // Initialize router if authenticated
     initRouter();
   }
-})();
+}
+
+initAuth();
 
 // ========================================================
 // ROUTER CONFIGURATION
@@ -173,7 +175,6 @@ async function loadComponent(selector, path) {
     const refreshBtn = container.querySelector("#refresh-btn");
     if (refreshBtn) {
       refreshBtn.addEventListener("click", () => {
-        clearCache();
         window.location.reload();
       });
     }

@@ -5,7 +5,6 @@
 import { getToken } from "../auth.js";
 import { getCollection, getNextEpisodes } from "../api.js";
 import { renderMyShowsCollection } from "../ui.js";
-import { loadCache } from "../local_storage.js";
 
 /**
  * Calculates the number of days and hours until a given date.
@@ -47,7 +46,8 @@ export async function renderMyShows(main) {
   // Show loading state
   collectionDiv.innerHTML = "<p class='loading-text'>Loading shows...</p>";
 
-  try {
+  // TODO: Commented out until the retrieval and storage of series is moved to Supabase instead of localStorage.
+  /* try {
     // Fetch collection (without sorting, we'll sort by days)
     const shows = await getCollection(token, null);
 
@@ -176,5 +176,5 @@ export async function renderMyShows(main) {
   } catch (error) {
     console.error("Error loading My Shows:", error);
     collectionDiv.innerHTML = `<p class='error-text'>Error loading shows: ${error.message}</p>`;
-  }
+  } */
 }

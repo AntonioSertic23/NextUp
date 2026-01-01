@@ -99,5 +99,6 @@ export async function renderHome(main) {
 
   main.appendChild(collectionDiv);
 
-  renderList(collectionDiv, token);
+  // TODO: Commented out until the retrieval and storage of series is moved to Supabase instead of localStorage.
+  // renderList(collectionDiv, token);
 }
