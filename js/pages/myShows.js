@@ -37,7 +37,7 @@ function calculateTimeUntil(firstAired) {
  * @returns {Promise<void>}
  */
 export async function renderMyShows(main) {
-  const token = getToken();
+  const token = await getToken();
 
   const collectionDiv = document.createElement("div");
   collectionDiv.className = "collection-container";

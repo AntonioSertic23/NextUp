@@ -15,7 +15,7 @@ let paginationInfo = null;
  * @returns {Promise<void>}
  */
 export async function renderDiscover(main) {
-  const token = getToken();
+  const token = await getToken();
 
   // Reset state
   currentQuery = "";
