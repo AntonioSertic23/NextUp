@@ -7,7 +7,8 @@ import {
   logout,
   isAuthenticated,
   connectTraktAccount,
-  hasTraktToken,
+  syncTraktAccount,
+  getToken,
 } from "./auth.js";
 import { updateActiveNav } from "./ui.js";
 import { renderHome } from "./pages/home.js";
@@ -148,22 +149,21 @@ async function loadComponent(selector, path) {
       });
     }
 
-    // Update Trakt options based on token status
-    (async () => {
-      const hasToken = await hasTraktToken();
-      const traktConnectBtn = container.querySelector("#trakt-connect-btn");
-      const traktSyncBtn = container.querySelector("#trakt-sync-btn");
+    const traktConnectBtn = container.querySelector("#trakt-connect-btn");
+    const traktSyncBtn = container.querySelector("#trakt-sync-btn");
 
-      if (hasToken) {
-        // User has Trakt token - show "Sync with Trakt" (disabled)
-        if (traktConnectBtn) traktConnectBtn.style.display = "none";
-        if (traktSyncBtn) traktSyncBtn.style.display = "block";
-      } else {
-        // User doesn't have Trakt token - show "Sign in to Trakt"
-        if (traktConnectBtn) traktConnectBtn.style.display = "block";
-        if (traktSyncBtn) traktSyncBtn.style.display = "none";
-      }
-    })();
+    const token = await getToken();
+
+    // Update Trakt options based on token status
+    if (!!token) {
+      // User has Trakt token - show "Sync with Trakt"
+      if (traktConnectBtn) traktConnectBtn.style.display = "none";
+      if (traktSyncBtn) traktSyncBtn.style.display = "block";
+    } else {
+      // User doesn't have Trakt token - show "Sign in to Trakt"
+      if (traktConnectBtn) traktConnectBtn.style.display = "block";
+      if (traktSyncBtn) traktSyncBtn.style.display = "none";
+    }
 
     // Logout button
     const logoutBtn = container.querySelector("#logout-btn");
@@ -180,11 +180,26 @@ async function loadComponent(selector, path) {
     }
 
     // Trakt connect button
-    const traktConnectBtn = container.querySelector("#trakt-connect-btn");
     if (traktConnectBtn) {
       traktConnectBtn.addEventListener("click", () => {
         connectTraktAccount();
       });
+    }
+
+    // Trakt sync button
+    if (traktSyncBtn) {
+      traktSyncBtn.addEventListener("click", async () => {
+        try {
+          await syncTraktAccount(token);
+          alert("Sync successful!");
+        } catch (error) {
+          alert(error.message);
+        }
+      });
+
+      // TODO: Add a loading spinner, as the sync may take a while for large lists.
+      // TODO: Add a confirmation modal when clicking sync, allowing the user to choose the sync direction
+      //       (sync from database to Trakt, from Trakt to database, or only sync new items for existing shows).
     }
   }
 }

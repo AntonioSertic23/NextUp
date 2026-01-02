@@ -120,49 +120,87 @@ function attachEpisodeInfoHandler(btn) {
 }
 
 /**
- * Renders a list of TV shows in a container.
- * @param {HTMLElement} container - The DOM element to render the shows into.
- * @param {Array} shows - Array of show objects from Trakt API or dummy data.
+ * Renders the user's active TV show watchlist.
+ *
+ * IMPORTANT DATA ASSUMPTIONS:
+ * - This function only receives shows that are NOT fully watched.
+ * - Every show is guaranteed to have a valid `next_episode` object.
+ * - `total_episodes` is always greater than `watched_episodes`.
+ *
+ * Rendering notes:
+ * - The container content is fully replaced using `innerHTML`.
+ * - Any existing DOM nodes and event listeners inside the container
+ *   are destroyed and re-created.
+ * - Episode info buttons are re-attached after rendering.
+ *
+ * @param {HTMLElement} container - The DOM element where the watchlist is rendered.
+ * @param {Array<Object>} shows - Active watchlist items (unfinished shows only).
  * @returns {void}
  */
-export function renderCollection(container, shows) {
+export function renderWatchlist(container, shows) {
   container.innerHTML = shows
     .map((show) => {
-      const p = computeShowProgress(show);
+      const nextEpisodeInfo = `S${String(
+        show.next_episode.season_number
+      ).padStart(2, "0")}E${String(show.next_episode.episode_number).padStart(
+        2,
+        "0"
+      )} - ${show.next_episode.title}`;
+
+      const progressBarPercent = Math.round(
+        (show.watched_episodes / show.total_episodes) * 100
+      );
+
+      const progressText = `${show.watched_episodes}/${show.total_episodes}`;
+
+      const episodesLeft = show.total_episodes - show.watched_episodes;
 
       return `
-    <div class="show-card" data-id="${show.ids.trakt}">
-      <div class="poster-container">
-        <img class="poster" src="https://${show.images.poster}"></img>
-      </div>
-      <div class="info-container">
-      <p class="title">${show.title}</p>
-      <p class="next_episode">${p.nextEpObj?.info || ""}</p>
-      <div class="progress-container">
-        <div class="progress-bar">
-           <div class="progress-bar-fill" style="width: ${
-             p.progress_bar_percent
-           }%;"></div>
+        <div class="show-card" data-id="${show.shows.trakt_id}">
+          <div class="poster-container">
+            <img
+              class="poster"
+              src="https://${show.shows.image_poster}"
+              alt="${show.shows.title} poster"
+            />
+          </div>
+
+          <div class="info-container">
+            <p class="title">${show.shows.title}</p>
+            <p class="next_episode">${nextEpisodeInfo}</p>
+
+            <div class="progress-container">
+              <div class="progress-bar">
+                <div
+                  class="progress-bar-fill"
+                  style="width: ${progressBarPercent}%;"
+                ></div>
+              </div>
+              <p class="progress_text">${progressText}</p>
+            </div>
+
+            <div class="next_episode_info_container">
+              <button
+                class="episode_info_btn"
+                data-episode="${show.next_episode.id}"
+              >
+                Episode info
+              </button>
+              <p class="episodes_left">${episodesLeft} left</p>
+            </div>
+          </div>
         </div>
-        <p class="progress_text">${p.progress_text || ""}</p>
-      </div>
-      <div class="next_episode_info_container">
-        <button class="episode_info_btn" data-episode='${JSON.stringify({
-          showId: p.nextEpObj.showId,
-          seasonNumber: p.nextEpObj.seasonNumber,
-          episodeNumber: p.nextEpObj.episodeNumber,
-        })}'>Episode info</button>
-        <p class="episodes_left">${
-          p.episodes_left != null ? p.episodes_left : ""
-        } left</p>
-      </div>
-      </div>
-    </div>
-  `;
+      `;
     })
     .join("");
 
-  // Attach event listeners for modal open
+  /**
+   * Re-attaches episode info handlers after DOM replacement.
+   *
+   * NOTE:
+   * - This is required because `innerHTML` destroys existing DOM nodes.
+   * - `attachEpisodeInfoHandler` is expected to be available in scope.
+   */
   container.querySelectorAll(".episode_info_btn").forEach((btn) => {
     attachEpisodeInfoHandler(btn);
   });
