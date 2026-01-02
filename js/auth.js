@@ -2,74 +2,32 @@
 // auth.js - Supabase authentication with email/password
 // ========================================================
 
-import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+import { getSupabaseClient } from "./database.js";
 
-// Supabase client - initialized lazily
-let supabase = null;
-let configPromise = null;
+const SUPABASE = await getSupabaseClient();
 
 /**
- * Fetches Supabase configuration from Netlify serverless function
- * @returns {Promise<{url: string, anonKey: string}>}
- */
-async function fetchSupabaseConfig() {
-  if (configPromise) {
-    return configPromise;
-  }
-
-  configPromise = (async () => {
-    try {
-      const res = await fetch("/.netlify/functions/getSupabaseConfig");
-      const data = await res.json();
-      return { url: data.url, anonKey: data.anonKey };
-    } catch (error) {
-      console.error("Error fetching Supabase config:", error);
-      throw error;
-    }
-  })();
-
-  return configPromise;
-}
-
-/**
- * Gets or initializes Supabase client
- * @returns {Promise<import('@supabase/supabase-js').SupabaseClient>}
- */
-async function getSupabaseClient() {
-  if (supabase) {
-    return supabase;
-  }
-
-  const config = await fetchSupabaseConfig();
-  supabase = createClient(config.url, config.anonKey, {
-    auth: {
-      persistSession: true,
-      storage: window.localStorage,
-      autoRefreshToken: true,
-      detectSessionInUrl: false,
-    },
-  });
-  return supabase;
-}
-
-/**
- * Checks if user is logged in and returns Trakt token
- * @returns {Promise<string|null>} Trakt token or null
+ * Retrieves the current user's Trakt OAuth token from the database.
+ *
+ * NOTE:
+ * - This is NOT a Supabase auth token.
+ * - The token is stored in the `users.trakt_token` column.
+ * - Returns null if the user is not authenticated or the token is missing.
+ *
+ * @returns {Promise<string|null>} Trakt OAuth token or null
  */
 export async function getToken() {
   try {
-    const client = await getSupabaseClient();
     const {
       data: { user },
-    } = await client.auth.getUser();
+    } = await SUPABASE.auth.getUser();
 
     if (!user) {
       return null;
     }
 
     // Fetch user data to get trakt_token
-    const { data: userData, error } = await client
-      .from("users")
+    const { data: userData, error } = await SUPABASE.from("users")
       .select("trakt_token")
       .eq("id", user.id)
       .single();
@@ -87,24 +45,20 @@ export async function getToken() {
 }
 
 /**
- * Checks if user has Trakt token connected
- * @returns {Promise<boolean>}
- */
-export async function hasTraktToken() {
-  const token = await getToken();
-  return !!token;
-}
-
-/**
- * Registers a new user with email and password
- * @param {string} email - User email
- * @param {string} password - User password
+ * Registers a new user using email and password authentication.
+ *
+ * Notes:
+ * - Supabase authentication handles user creation.
+ * - A corresponding user record is automatically created
+ *   via a database trigger.
+ *
+ * @param {string} email - User email address.
+ * @param {string} password - User password.
  * @returns {Promise<{success: boolean, error?: string}>}
  */
 export async function register(email, password) {
   try {
-    const client = await getSupabaseClient();
-    const { data, error } = await client.auth.signUp({
+    const { data, error } = await SUPABASE.auth.signUp({
       email,
       password,
     });
@@ -123,15 +77,15 @@ export async function register(email, password) {
 }
 
 /**
- * Logs in user with email and password
- * @param {string} email - User email
- * @param {string} password - User password
+ * Logs in a user using email and password authentication.
+ *
+ * @param {string} email - User email address.
+ * @param {string} password - User password.
  * @returns {Promise<{success: boolean, error?: string}>}
  */
 export async function login(email, password) {
   try {
-    const client = await getSupabaseClient();
-    const { data, error } = await client.auth.signInWithPassword({
+    const { data, error } = await SUPABASE.auth.signInWithPassword({
       email,
       password,
     });
@@ -147,18 +101,18 @@ export async function login(email, password) {
 }
 
 /**
- * Logs out the current user
+ * Logs out the currently authenticated user.
+ *
+ * Behavior:
+ * - Signs the user out from Supabase.
+ * - Reloads the page to clear all in-memory application state.
+ *
  * @returns {Promise<void>}
  */
 export async function logout() {
   try {
-    const client = await getSupabaseClient();
-    const {
-      data: { claims },
-    } = await client.auth.getClaims();
-
     // Sign out from Supabase
-    await client.auth.signOut();
+    await SUPABASE.auth.signOut();
 
     // Reload page to clear state
     window.location.reload();
@@ -170,15 +124,18 @@ export async function logout() {
 }
 
 /**
- * Checks if user is currently authenticated
- * @returns {Promise<boolean>}
+ * Checks whether a valid authentication session exists.
+ *
+ * Implementation detail:
+ * - Uses Supabase auth claims to determine session validity.
+ *
+ * @returns {Promise<boolean>} True if the user is authenticated.
  */
 export async function isAuthenticated() {
   try {
-    const client = await getSupabaseClient();
     const {
       data: { claims },
-    } = await client.auth.getClaims();
+    } = await SUPABASE.auth.getClaims();
 
     return !!claims;
   } catch (error) {
@@ -187,15 +144,15 @@ export async function isAuthenticated() {
 }
 
 /**
- * Gets current user data
+ * Retrieves basic information about the currently authenticated user.
+ *
  * @returns {Promise<{id: string, email: string} | null>}
  */
 export async function getCurrentUser() {
   try {
-    const client = await getSupabaseClient();
     const {
       data: { user },
-    } = await client.auth.getUser();
+    } = await SUPABASE.auth.getUser();
 
     if (!user) {
       return null;
@@ -212,23 +169,22 @@ export async function getCurrentUser() {
 }
 
 /**
- * Updates user's Trakt token in database
- * @param {string} traktToken - Trakt OAuth token
+ * Updates the authenticated user's Trakt OAuth token in the database.
+ *
+ * @param {string} traktToken - Trakt OAuth access token.
  * @returns {Promise<{success: boolean, error?: string}>}
  */
 export async function updateTraktToken(traktToken) {
   try {
-    const client = await getSupabaseClient();
     const {
       data: { user },
-    } = await client.auth.getUser();
+    } = await SUPABASE.auth.getUser();
 
     if (!user) {
       return { success: false, error: "User not authenticated" };
     }
 
-    const { error } = await client
-      .from("users")
+    const { error } = await SUPABASE.from("users")
       .update({ trakt_token: traktToken })
       .eq("id", user.id);
 
@@ -243,8 +199,16 @@ export async function updateTraktToken(traktToken) {
 }
 
 /**
- * Handles redirect back from Trakt OAuth (for connecting Trakt account)
- * This should be called after user completes Trakt OAuth flow
+ * Handles the redirect callback from Trakt OAuth authentication.
+ *
+ * Behavior:
+ * - Extracts the OAuth access token from the URL hash.
+ * - Persists the token to the database.
+ * - Cleans up the URL after successful handling.
+ *
+ * This function should be called on app initialization.
+ *
+ * @returns {Promise<void>}
  */
 export async function handleTraktAuthRedirect() {
   const hash = window.location.hash;
@@ -269,10 +233,18 @@ export async function handleTraktAuthRedirect() {
 }
 
 /**
- * Initiates Trakt OAuth flow to connect Trakt account
+ * Initiates the Trakt OAuth authentication flow.
+ *
+ * Implementation details:
+ * - Uses the implicit OAuth flow (`response_type=token`).
+ * - The Trakt access token is returned in the URL hash.
+ * - Redirect URI is set dynamically to the current origin.
+ *
  * @returns {Promise<void>}
  */
 export async function connectTraktAccount() {
+  // TODO: Move this and everything related to Trakt into a new trakt.js file
+
   try {
     const res = await fetch("/.netlify/functions/getClientId");
     const data = await res.json();
@@ -289,5 +261,36 @@ export async function connectTraktAccount() {
     window.location.href = AUTH_URL;
   } catch (error) {
     console.error("Error initiating Trakt OAuth:", error);
+  }
+}
+
+/**
+ * Synchronizes the user's Trakt data with the application backend.
+ *
+ * Behavior:
+ * - Sends the user's Trakt OAuth token to a serverless function.
+ * - Authenticates the request using the Supabase session access token.
+ *
+ * @param {string} token - Trakt OAuth access token.
+ * @returns {Promise<void>}
+ * @throws {Error} If the sync request fails.
+ */
+export async function syncTraktAccount(token) {
+  const {
+    data: { session },
+  } = await SUPABASE.auth.getSession();
+
+  const res = await fetch("/.netlify/functions/syncTraktAccount", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session?.access_token}`,
+    },
+    body: JSON.stringify({ token }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "unknown error");
+    throw new Error(`Trakt sync error: ${res.status} ${text}`);
   }
 }

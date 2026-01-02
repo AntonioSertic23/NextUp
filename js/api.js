@@ -128,60 +128,6 @@ export function formatEpisodesData(seasons, show) {
 }
 
 /**
- * Sorts an array of shows based on the specified sort criteria.
- * @param {Array} shows - Array of show objects to sort
- * @param {string} [sortBy='title'] - Sort criteria: 'title', 'year', 'rating', 'top_rated', 'episodes_left', 'last_collected_at', 'last_updated_at'
- * @returns {Array} Sorted array of shows
- */
-function sortShows(shows, sortBy = "title") {
-  if (!Array.isArray(shows) || shows.length === 0) return shows;
-
-  const sorted = [...shows];
-
-  switch (sortBy) {
-    case "title":
-      sorted.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
-      break;
-    case "year":
-      sorted.sort((a, b) => (b.year || 0) - (a.year || 0));
-      break;
-    case "top_rated":
-      sorted.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-      break;
-    case "episodes_left":
-      // TODO
-      break;
-    case "last_collected_at":
-      sorted.sort((a, b) => {
-        const aDate = a.last_collected_at
-          ? new Date(a.last_collected_at).getTime()
-          : 0;
-        const bDate = b.last_collected_at
-          ? new Date(b.last_collected_at).getTime()
-          : 0;
-        return bDate - aDate; // Most recently collected first
-      });
-      break;
-    case "last_updated_at":
-      sorted.sort((a, b) => {
-        const aDate = a.last_updated_at
-          ? new Date(a.last_updated_at).getTime()
-          : 0;
-        const bDate = b.last_updated_at
-          ? new Date(b.last_updated_at).getTime()
-          : 0;
-        return bDate - aDate; // Most recently updated first
-      });
-      break;
-    default:
-      // Default: no sorting (return as-is)
-      break;
-  }
-
-  return sorted;
-}
-
-/**
  * Retrieves show details from cache or fetches from Trakt API if not cached.
  * If show is not in cache, it will be fetched, formatted, and added to cache.
  *

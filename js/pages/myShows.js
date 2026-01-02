@@ -49,7 +49,7 @@ export async function renderMyShows(main) {
   // TODO: Commented out until the retrieval and storage of series is moved to Supabase instead of localStorage.
   /* try {
     // Fetch collection (without sorting, we'll sort by days)
-    // const shows = await getCollection(token, null);
+    // const shows = await getMyShowsData(token, null);
 
     if (shows.length === 0) {
       collectionDiv.innerHTML =

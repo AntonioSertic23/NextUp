@@ -172,7 +172,7 @@ export async function renderStats(main) {
   // TODO: Commented out until the retrieval and storage of series is moved to Supabase instead of localStorage.
   /* try {
     // Fetch collection
-    // const shows = await getCollection(token, null);
+    // const shows = await getStatisticsData(token, null);
 
     // Calculate statistics
     const stats = calculateStatistics(shows);
