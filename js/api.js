@@ -2,6 +2,8 @@
 // api.js - Handles all API communication with Trakt and caching logic
 // ========================================================
 
+import { getToken, getCurrentUser } from "./auth.js";
+
 /**
  * Formats a raw Trakt show object into a standardized format for caching.
  *
@@ -244,32 +246,28 @@ export async function searchShows(token, query, page = 1, limit = 10) {
 }
 
 /**
- * Mark or unmark an episode as watched via Netlify function + Trakt sync.
- * Updates local cache on success and returns the updated show object.
+ * Marks or unmarks an episode as watched via a Netlify function
+ * and synchronizes the change with Trakt.
  *
- * @param {string} token - Trakt access token
- * @param {number|string} showId - Trakt show id
- * @param {number} seasonNumber - season number
- * @param {number} episodeNumber - episode number within season
- * @param {number|string} episodeTraktId - Trakt episode id
- * @param {boolean} mark - true = mark watched, false = unmark
- * @returns {Object|null} updated show object or null on failure
+ * @param {string} showId - Internal show UUID.
+ * @param {string} episodeId - Internal episode UUID.
+ * @param {boolean} markAsWatched - true to mark as watched, false to unmark.
+ * @returns {Promise<boolean>} Returns true on success, throws on failure.
+ * @throws {Error} If the request fails or the server returns an error.
  */
-export async function markEpisodeWatched(
-  token,
-  showId,
-  seasonNumber,
-  episodeNumber,
-  episodeTraktId,
-  mark
-) {
+export async function markEpisode(showId, episodeId, markAsWatched) {
+  const token = await getToken();
+  const { id: userId } = await getCurrentUser();
+
   const res = await fetch("/.netlify/functions/markEpisode", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       token,
-      action: mark ? "mark" : "unmark",
-      traktId: episodeTraktId,
+      userId,
+      action: markAsWatched ? "mark" : "unmark",
+      showId,
+      episodeId,
     }),
   });
 
@@ -278,23 +276,7 @@ export async function markEpisodeWatched(
     throw new Error(`markEpisode failed: ${res.status} ${text}`);
   }
 
-  // Update local cache: prefer direct update by showId + seasonNumber + episodeNumber
-  const cache = loadCache();
-  const show = cache[showId];
-  const season = show.seasons.find((s) => s.number === seasonNumber);
-  const ep = season.episodes.find((e) => e.number === episodeNumber);
-
-  ep.watched = !!mark;
-  if (mark) {
-    ep.plays = (ep.plays ?? 0) + 1;
-    ep.last_watched = new Date().toISOString();
-  } else {
-    ep.plays = 0;
-    delete ep.last_watched;
-  }
-
-  updateCache(showId, show);
-  return show;
+  return true;
 }
 
 /**
