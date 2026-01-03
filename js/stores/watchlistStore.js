@@ -1,0 +1,130 @@
+// ========================================================
+// stores/watchlistStore.js - Watchlist state & sorting logic
+// ========================================================
+
+let watchlist = [];
+let sortBy = "added_at";
+let sortOrder = "desc";
+
+/**
+ * Initializes the watchlist state and applies the current sort.
+ *
+ * @param {Array<Object>} data - Raw watchlist data from the backend.
+ */
+export function setWatchlist(data) {
+  watchlist = data;
+  sortShows();
+}
+
+/**
+ * Returns the current watchlist in its sorted order.
+ *
+ * IMPORTANT:
+ * - The returned array is the internal store reference.
+ * - Consumers MUST NOT mutate it directly.
+ *
+ * @returns {Array<Object>}
+ */
+export function getWatchlist() {
+  return watchlist;
+}
+
+/**
+ * Finds a show entry by its internal show ID.
+ *
+ * @param {string} showId
+ * @returns {Object|null}
+ */
+export function getShowById(showId) {
+  return watchlist.find((s) => s.shows.id === showId) || null;
+}
+
+/**
+ * Changes the active sort field and re-sorts the watchlist.
+ *
+ * Side effects:
+ * - Mutates the internal watchlist order.
+ * - Persists the sort preference to localStorage.
+ *
+ * @param {string} newSort
+ */
+export function changeSort(newSort) {
+  sortBy = newSort;
+
+  localStorage.setItem("watchlist_sort", newSort);
+
+  sortShows();
+}
+
+/**
+ * Changes the sort order (asc / desc).
+ *
+ * Side effects:
+ * - Mutates the internal watchlist order by reversing it.
+ * - Persists the order preference to localStorage.
+ *
+ * @param {"asc"|"desc"} newOrder
+ */
+export function changeOrder(newOrder) {
+  sortOrder = newOrder;
+
+  localStorage.setItem("watchlist_order", newOrder);
+
+  watchlist.reverse();
+}
+
+/**
+ * Sorts the global watchlist in place based on selected criteria.
+ *
+ * IMPORTANT:
+ * - This function MUTATES the `watchlist` array directly.
+ * - No copy of the original order is kept.
+ * - Intended behavior: the watchlist order is permanently updated
+ *   until another sort operation is applied.
+ */
+function sortShows() {
+  const direction = orderBy === "asc" ? 1 : -1;
+
+  watchlist.sort((a, b) => {
+    let aValue, bValue;
+
+    switch (sortBy) {
+      case "added_at":
+        aValue = a.added_at ? new Date(a.added_at).getTime() : 0;
+        bValue = b.added_at ? new Date(b.added_at).getTime() : 0;
+        return (aValue - bValue) * direction;
+
+      case "title":
+        aValue = (a.shows?.title || "").toLowerCase();
+        bValue = (b.shows?.title || "").toLowerCase();
+        return aValue.localeCompare(bValue) * direction;
+
+      case "year":
+        aValue = a.shows?.year ?? 0;
+        bValue = b.shows?.year ?? 0;
+        return (aValue - bValue) * direction;
+
+      case "rating":
+        aValue = a.shows?.rating ?? 0;
+        bValue = b.shows?.rating ?? 0;
+        return (aValue - bValue) * direction;
+
+      case "last_watched_at":
+        aValue = a.shows?.last_watched_at
+          ? new Date(a.shows.last_watched_at).getTime()
+          : 0;
+        bValue = b.shows?.last_watched_at
+          ? new Date(b.shows.last_watched_at).getTime()
+          : 0;
+        return (aValue - bValue) * direction;
+
+      case "episodes_left":
+        aValue = (a.total_episodes ?? 0) - (a.watched_episodes ?? 0);
+        bValue = (b.total_episodes ?? 0) - (b.watched_episodes ?? 0);
+        return (aValue - bValue) * direction;
+
+      default:
+        return 0;
+    }
+  });
+}
