@@ -6,12 +6,9 @@ import {
   getWatchlist,
   changeSort,
   changeOrder,
+  getNextEpisodeById,
 } from "./stores/watchlistStore.js";
-import {
-  markEpisodeWatched,
-  markSeasonWatched,
-  manageCollection,
-} from "./api.js";
+import { markEpisode, markSeasonWatched, manageCollection } from "./api.js";
 
 const sortOptions = [
   { value: "added_at", label: "Last Added" },
@@ -40,14 +37,32 @@ export function updateActiveNav() {
   });
 }
 
+/**
+ * Formats an episode string in the form `SxxExx - Title`.
+ *
+ * Pads season and episode numbers to 2 digits.
+ *
+ * @param {number|string} seasonNumber - Season number.
+ * @param {number|string} episodeNumber - Episode number.
+ * @param {string} [title] - Optional episode title.
+ * @returns {string} Formatted episode string, e.g. `S01E05 - Pilot`.
+ */
+export function formatEpisodeInfo(seasonNumber, episodeNumber, title) {
+  if (seasonNumber == null || episodeNumber == null) return "";
+
+  const season = String(seasonNumber).padStart(2, "0");
+  const episode = String(episodeNumber).padStart(2, "0");
+
+  return `S${season}E${episode}${title ? ` - ${title}` : ""}`;
+}
+
 // Helper to compute progress for a show at render time
 function computeShowProgress(show) {
-  const nextEpisodeInfo = `S${String(show.next_episode.season_number).padStart(
-    2,
-    "0"
-  )}E${String(show.next_episode.episode_number).padStart(2, "0")} - ${
+  const nextEpisodeInfo = formatEpisodeInfo(
+    show.next_episode.season_number,
+    show.next_episode.episode_number,
     show.next_episode.title
-  }`;
+  );
 
   const progressBarPercent = Math.round(
     (show.watched_episodes / show.total_episodes) * 100
@@ -60,36 +75,46 @@ function computeShowProgress(show) {
   return { nextEpisodeInfo, progressBarPercent, progressText, episodesLeft };
 }
 
-// Attach click handler for episode info buttons (opens modal with cached episode data)
+/**
+ * Attaches a click handler to an "Episode info" button that opens the episode modal.
+ *
+ * If the episode cannot be found, logs an error and exits gracefully.
+ *
+ * @param {HTMLElement} btn - The episode info button element.
+ */
 function attachEpisodeInfoHandler(btn) {
   if (!btn) return;
+
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
-    const episodeData = JSON.parse(btn.getAttribute("data-episode")) || {};
-    const { showId, seasonNumber, episodeNumber } = episodeData;
-    if (!showId || seasonNumber == null || episodeNumber == null) return;
 
-    const cache = loadCache();
-    const show = cache[showId];
-    if (!show || !Array.isArray(show.seasons)) return;
+    const episodeId = btn.getAttribute("data-episode");
+    if (!episodeId) {
+      alert("Unable to show episode info: missing ID.");
+      return;
+    }
 
-    const season = show.seasons.find((s) => s.number === seasonNumber);
-    if (!season || !Array.isArray(season.episodes)) return;
+    const nextEpisode = getNextEpisodeById(episodeId);
+    if (!nextEpisode) {
+      alert("Episode information could not be retrieved.");
+      return;
+    }
 
-    const episode = season.episodes.find((ep) => ep.number === episodeNumber);
-    if (!episode) return;
-
-    const nextEp = {
-      ...episode,
-      season: seasonNumber,
-      info:
-        episodeData.info ||
-        `S${String(seasonNumber).padStart(2, "0")}E${String(
-          episodeNumber
-        ).padStart(2, "0")} - ${episode.title || ""}`,
+    // Callback to update/remove the episode card after an action like marking watched
+    const updateUICallback = () => {
+      console.log("updateUICallback");
+      // TODO: Fetch the next episode for this series and update or remove only that single series from the UI.
+      /*
+      const nextEpisode = getNextEpisode();
+      if (nextEpisode) {
+        updateShowCard(nextEpisode.show_id);
+      } else {
+        removeShowCard(nextEpisode.show_id);
+      }
+      */
     };
 
-    showEpisodeInfoModal(nextEp, showId, "collection");
+    showEpisodeInfoModal(nextEpisode, updateUICallback);
   });
 }
 
@@ -248,12 +273,11 @@ export function renderMyShowsCollection(container, shows) {
       const nextEpisode = show.nextEpisode;
 
       // Format next episode info
-      const nextEpInfo =
-        nextEpisode && nextEpisode.seasonNumber != null
-          ? `S${String(nextEpisode.seasonNumber).padStart(2, "0")}E${String(
-              nextEpisode.episodeNumber
-            ).padStart(2, "0")} - ${nextEpisode.title || ""}`
-          : p.nextEpObj?.info || "";
+      const nextEpInfo = formatEpisodeInfo(
+        nextEpisode.seasonNumber,
+        nextEpisode.episodeNumber,
+        nextEpisode.title
+      );
 
       // Format time text with days and hours
       let timeText = "";
@@ -586,21 +610,14 @@ export function renderSeasons(container, show) {
 
         const mark = btn.classList.contains("mark-watched");
 
-        // Optimistically update UI
-        btn.textContent = mark ? "Watched" : "Mark as watched";
-        btn.classList.toggle("mark-watched", !mark);
-        btn.classList.toggle("unmark-watched", mark);
+        updateMarkButton(btn, mark);
+
+        // TODO:
+        const episodeId = "";
 
         try {
           // call API to mark/unmark episode
-          const updatedShow = await markEpisodeWatched(
-            token,
-            showId,
-            seasonNumber,
-            episodeNumber,
-            episodeTraktId,
-            mark
-          );
+          const updatedShow = markEpisode(showId, episodeId, mark);
 
           // Update UI in-place for this episode/button using returned updatedShow if available
           if (updatedShow) {
@@ -734,12 +751,24 @@ export function renderSeasons(container, show) {
       const episode = season.episodes.find((ep) => ep.number === episodeNumber);
       if (!episode) return;
 
-      const info = `S${String(seasonNumber).padStart(2, "0")}E${String(
-        episodeNumber
-      ).padStart(2, "0")} - ${episode.title || ""}`;
+      const info = formatEpisodeInfo(
+        seasonNumber,
+        episodeNumber,
+        episode.title
+      );
       const nextEp = { ...episode, season: seasonNumber, info };
 
-      showEpisodeInfoModal(nextEp, showId, "show", epDiv);
+      // TODO:
+      const isWatched = true;
+
+      const callback = updateEpisodeAndSeasonUI(
+        episodeDiv,
+        updatedShow,
+        seasonNumber,
+        mark
+      );
+
+      showEpisodeInfoModal(nextEp, callback, isWatched);
     });
   });
 }
@@ -799,75 +828,82 @@ function updateMarkButton(markBtn, watched) {
 }
 
 /**
- * Shows the episode info modal and fills it with the provided episode's details.
- * @param {Object} episode - Episode object with info, title, date, overview, and images.
- * @param {string|number} showId - Trakt show ID for marking episodes
- * @param {string} context
- * @param {HTMLElement} episodeDiv - The episode DOM element
+ * Formats a date string or Date object into `DD/MM/YYYY` format.
+ *
+ * @param {string|Date} input - The date to format.
+ * @returns {string} Formatted date string in `DD/MM/YYYY` format.
  */
-export function showEpisodeInfoModal(episode, showId, context, episodeDiv) {
+export function formatDate(input) {
+  if (!input) return "";
+
+  const d = input instanceof Date ? input : new Date(input);
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+
+  return `${day}/${month}/${year}`;
+}
+
+/**
+ * Shows the episode info modal and populates it with the given episode's details.
+ *
+ * @param {Object} episode - The episode object to display.
+ * @param {Function} updateUICallback - Callback to invoke when the UI should be updated
+ *                                      (e.g., marking episode watched).
+ * @param {boolean} [isWatched=false] - Indicates whether the episode is already marked as watched.
+ */
+function showEpisodeInfoModal(episode, updateUICallback, isWatched = false) {
   const overlay = document.getElementById("episode-info-modal-overlay");
   const modal = document.getElementById("episode-info-modal");
 
   overlay.style.display = "flex";
   modal.style.display = "flex";
 
+  // Episode info
   const info = modal.querySelector(".episode-info-info");
-  const date = modal.querySelector(".episode-info-date");
-  const overviewEl = modal.querySelector(".episode-info-overview");
-  const imgTag = modal.querySelector(".modal-img-tag");
-  const markBtn = modal.querySelector(".modal-mark-btn");
+  info.textContent =
+    formatEpisodeInfo(
+      episode.season_number,
+      episode.episode_number,
+      episode.title
+    ) || "";
 
-  info.textContent = episode.info || "";
-  // Date
-  const d = new Date(episode.first_aired);
-  const formattedDate = `${String(d.getDate()).padStart(2, "0")}/${String(
-    d.getMonth() + 1
-  ).padStart(2, "0")}/${d.getFullYear()}`;
-  date.textContent = `Aired on ${formattedDate}`;
+  // Air date
+  const date = modal.querySelector(".episode-info-date");
+  date.textContent = `Aired on ${formatDate(episode.first_aired)}`;
+
+  // Overview
+  const overviewEl = modal.querySelector(".episode-info-overview");
   overviewEl.textContent = episode.overview || "";
 
-  // Image
-  if (episode.images?.screenshot && episode.images.screenshot[0]) {
-    imgTag.src = `https://${episode.images.screenshot[0]}`;
-    imgTag.style.display = "block";
+  // Episode image with fallback
+  const imgTag = modal.querySelector(".modal-img-tag");
+  if (episode.image_screenshot) {
+    imgTag.src = `https://${episode.image_screenshot}`;
+  } else {
+    imgTag.style.display = "none";
   }
 
-  updateMarkButton(markBtn, !!episode.watched);
+  // Mark button
+  const markBtn = modal.querySelector(".modal-mark-btn");
+  updateMarkButton(markBtn, isWatched);
 
-  // Use showId directly as argument
-  const seasonNumber = episode.season;
-  const episodeNumber = episode.number;
-  const episodeTraktId =
-    episode.ids?.trakt || episode.trakt || episode.trakt_id;
-  const token = window.localStorage.getItem("trakt_token");
+  let mark = isWatched;
 
-  let mark = !episode.watched;
-
-  markBtn.onclick = async () => {
+  markBtn.onclick = () => {
     try {
-      const updatedShow = await markEpisodeWatched(
-        token,
-        showId,
-        seasonNumber,
-        episodeNumber,
-        episodeTraktId,
-        mark
-      );
+      const showUpdated = markEpisode(episode.show_id, episode.id, !mark);
 
-      if (updatedShow) {
+      if (showUpdated) {
+        mark = !mark;
         updateMarkButton(markBtn, mark);
 
-        if (context === "collection") {
-          updateShowCard(showId);
-        } else if (context === "show") {
-          updateEpisodeAndSeasonUI(episodeDiv, updatedShow, seasonNumber, mark);
+        if (typeof updateUICallback === "function") {
+          updateUICallback();
         }
       }
-
-      mark = !mark;
     } catch (err) {
-      console.error("Failed to mark episode:", err && err.message);
+      alert("Failed to mark episode as watched. Please try again.");
     }
   };
 

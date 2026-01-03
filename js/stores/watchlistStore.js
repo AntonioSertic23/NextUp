@@ -40,6 +40,29 @@ export function getShowById(showId) {
 }
 
 /**
+ * Returns the `next_episode` object along with its parent show ID
+ * from the watchlist matching the given episode ID.
+ *
+ * Iterates through all shows in the in-memory `watchlist` array
+ * and finds the show whose `next_episode.id` matches the provided `episodeId`.
+ *
+ * @param {string} episodeId - The unique ID of the next episode to find.
+ * @returns {Object|null} The `next_episode` object with added `showId`, or `null` if not found.
+ */
+export function getNextEpisodeById(episodeId) {
+  if (!episodeId) return null;
+
+  const show = watchlist.find((show) => show.next_episode?.id === episodeId);
+
+  if (!show?.next_episode) return null;
+
+  return {
+    ...show.next_episode,
+    show_id: show.shows.id,
+  };
+}
+
+/**
  * Changes the active sort field and re-sorts the watchlist.
  *
  * Side effects:
@@ -83,7 +106,7 @@ export function changeOrder(newOrder) {
  *   until another sort operation is applied.
  */
 function sortShows() {
-  const direction = orderBy === "asc" ? 1 : -1;
+  const direction = sortOrder === "asc" ? 1 : -1;
 
   watchlist.sort((a, b) => {
     let aValue, bValue;
