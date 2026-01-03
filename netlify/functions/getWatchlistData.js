@@ -53,8 +53,20 @@ export async function handler(event) {
         completed_at,
         watched_episodes,
         total_episodes,
-        next_episode (*),
-        shows (*)
+        next_episode (
+          id,
+          episode_number,
+          season_number,
+          title,
+          image_screenshot,
+          overview,
+          first_aired
+        ),
+        shows (
+          id,
+          title,
+          image_poster
+        )
         `
       )
       .eq("list_id", listId)

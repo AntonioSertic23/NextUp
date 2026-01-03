@@ -3,10 +3,24 @@
 // ========================================================
 
 import {
+  getWatchlist,
+  changeSort,
+  changeOrder,
+} from "./stores/watchlistStore.js";
+import {
   markEpisodeWatched,
   markSeasonWatched,
   manageCollection,
 } from "./api.js";
+
+const sortOptions = [
+  { value: "added_at", label: "Last Added" },
+  { value: "title", label: "Title" },
+  { value: "year", label: "Year" },
+  { value: "rating", label: "Top Rated" },
+  { value: "last_watched_at", label: "Last Watched" },
+  { value: "episodes_left", label: "Episodes Left" },
+];
 
 /**
  * Highlights the active navbar link based on the URL hash.
@@ -28,62 +42,22 @@ export function updateActiveNav() {
 
 // Helper to compute progress for a show at render time
 function computeShowProgress(show) {
-  const seasons =
-    Array.isArray(show.seasons) && show.seasons.length > 0
-      ? show.seasons
-      : Array.isArray(show.progress && show.progress.seasons)
-      ? show.progress.seasons
-      : [];
+  const nextEpisodeInfo = `S${String(show.next_episode.season_number).padStart(
+    2,
+    "0"
+  )}E${String(show.next_episode.episode_number).padStart(2, "0")} - ${
+    show.next_episode.title
+  }`;
 
-  // Exclude specials
-  const effectiveSeasons = seasons.filter((s) => {
-    if (!s) return false;
-    if (s.number === 0) return false;
-    if (s.title && /special/i.test(s.title)) return false;
-    return true;
-  });
+  const progressBarPercent = Math.round(
+    (show.watched_episodes / show.total_episodes) * 100
+  );
 
-  let total = 0;
-  let watched = 0;
-  let nextEpObj = null;
+  const progressText = `${show.watched_episodes}/${show.total_episodes}`;
 
-  effectiveSeasons.forEach((s) => {
-    const eps = Array.isArray(s.episodes) ? s.episodes : [];
-    eps.forEach((ep) => {
-      total += 1;
-      const isWatched =
-        !!ep.watched || (ep.plays != null && ep.plays > 0) || !!ep.completed;
-      if (isWatched) watched += 1;
-      // Find first unwatched episode
-      if (!nextEpObj && !isWatched) {
-        const nextInfo =
-          "S" +
-          String(s.number).padStart(2, "0") +
-          "E" +
-          String(ep.number).padStart(2, "0") +
-          " - " +
-          ep.title;
-        nextEpObj = {
-          showId: show.ids.trakt,
-          seasonNumber: s.number,
-          episodeNumber: ep.number,
-          info: nextInfo,
-        };
-      }
-    });
-    // if no episodes array, try to use episode_count as fallback (counts only)
-    if (!Array.isArray(s.episodes) && typeof s.episode_count === "number") {
-      total += s.episode_count;
-    }
-  });
+  const episodesLeft = show.total_episodes - show.watched_episodes;
 
-  const progress_text =
-    total > 0 ? `${watched}/${total}` : watched > 0 ? `${watched}` : null;
-  const episodes_left = total > 0 ? Math.max(total - watched, 0) : null;
-  const progress_bar_percent =
-    total > 0 ? Math.round((watched / total) * 100) : 0;
-
-  return { progress_text, episodes_left, progress_bar_percent, nextEpObj };
+  return { nextEpisodeInfo, progressBarPercent, progressText, episodesLeft };
 }
 
 // Attach click handler for episode info buttons (opens modal with cached episode data)
@@ -120,43 +94,96 @@ function attachEpisodeInfoHandler(btn) {
 }
 
 /**
+ * Renders sorting controls and binds UI events that mutate
+ * the global watchlist ordering.
+ *
+ * Side effects:
+ * - Triggers watchlist state mutations via the watchlist store.
+ * - Persists sort preferences via store logic.
+ *
+ * @param {HTMLElement} main - Main page container.
+ */
+export async function renderSortControls(main) {
+  const savedOrder = localStorage.getItem("watchlist_order") || "desc";
+
+  const sortDiv = document.createElement("div");
+  sortDiv.className = "sort-controls";
+  sortDiv.innerHTML = `
+  <label for="sort-by">Sort by:
+  <select id="sort-by">
+  ${sortOptions
+    .map((opt) => `<option value="${opt.value}">${opt.label}</option>`)
+    .join("")}
+    </select>
+    </label>
+    <button
+    id="sort-order-btn"
+    class="sort-order-btn"
+    data-order="${savedOrder}"
+    aria-label="Toggle sort order"
+    title="Toggle sort order"
+    >${savedOrder === "desc" ? "↓" : "↑"}</button>
+    `;
+
+  main.prepend(sortDiv);
+
+  const sortBySelect = sortDiv.querySelector("#sort-by");
+  const orderBtn = sortDiv.querySelector("#sort-order-btn");
+
+  const savedSortBy = localStorage.getItem("watchlist_sort");
+  if (savedSortBy) {
+    sortBySelect.value = savedSortBy;
+  }
+
+  sortBySelect.addEventListener("change", (e) => {
+    const newSort = e.target.value;
+
+    changeSort(newSort);
+
+    renderWatchlist();
+  });
+
+  orderBtn.addEventListener("click", () => {
+    const currentOrder = orderBtn.dataset.order;
+    const newOrder = currentOrder === "desc" ? "asc" : "desc";
+
+    orderBtn.dataset.order = newOrder;
+    orderBtn.textContent = newOrder === "desc" ? "↓" : "↑";
+
+    changeOrder(newOrder);
+
+    renderWatchlist();
+  });
+}
+
+/**
  * Renders the user's active TV show watchlist.
  *
- * IMPORTANT DATA ASSUMPTIONS:
- * - This function only receives shows that are NOT fully watched.
- * - Every show is guaranteed to have a valid `next_episode` object.
- * - `total_episodes` is always greater than `watched_episodes`.
- *
- * Rendering notes:
- * - The container content is fully replaced using `innerHTML`.
- * - Any existing DOM nodes and event listeners inside the container
- *   are destroyed and re-created.
- * - Episode info buttons are re-attached after rendering.
- *
- * @param {HTMLElement} container - The DOM element where the watchlist is rendered.
- * @param {Array<Object>} shows - Active watchlist items (unfinished shows only).
  * @returns {void}
  */
-export function renderWatchlist(container, shows) {
+export async function renderWatchlist() {
+  const shows = getWatchlist();
+  const container = document.getElementById("watchlist-container");
+
+  if (!shows.length) {
+    container.innerHTML = `<p class="no-show-message">
+          You don't have any saved series in your list. Add them via the Discover page, or use Sync with Trakt if you already have some saved there.
+        </p>`;
+
+    return;
+  }
+
   container.innerHTML = shows
     .map((show) => {
-      const nextEpisodeInfo = `S${String(
-        show.next_episode.season_number
-      ).padStart(2, "0")}E${String(show.next_episode.episode_number).padStart(
-        2,
-        "0"
-      )} - ${show.next_episode.title}`;
-
-      const progressBarPercent = Math.round(
-        (show.watched_episodes / show.total_episodes) * 100
-      );
-
-      const progressText = `${show.watched_episodes}/${show.total_episodes}`;
-
-      const episodesLeft = show.total_episodes - show.watched_episodes;
+      const {
+        nextEpisodeInfo,
+        progressBarPercent,
+        progressText,
+        episodesLeft,
+      } = computeShowProgress(show);
 
       return `
-        <div class="show-card" data-id="${show.shows.trakt_id}">
+        <div class="show-card" data-id="${show.shows.id}">
           <div class="poster-container">
             <img
               class="poster"
