@@ -1,35 +1,38 @@
 // ========================================================
-// pages/show.js - Render Single Show Details Page
+// pages/show.js - Render single show details page
 // ========================================================
 
-import { getToken } from "../services/authService.js";
 import { getShowDetails } from "../api.js";
-import { renderShowDetails, renderSeasons } from "../ui.js";
+import { renderShowDetails } from "../ui.js";
 
 /**
- * Renders the details page for a single show.
- * @param {HTMLElement} main - The main container element
- * @param {string} showId - Trakt show ID
+ * Render the single show details page.
+ *
+ * - Shows a loading state
+ * - Loads show data using a database-first strategy
+ * - Renders show details or a fallback error message
+ *
+ * @param {HTMLElement} main - Main application container
+ * @param {string} showId - Internal show ID
  * @returns {Promise<void>}
  */
 export async function renderShow(main, showId) {
-  const token = await getToken();
+  const container = document.createElement("div");
+  container.id = "show-container";
+  container.innerHTML = "<p class='loading-text'>Loading...</p>";
+  main.appendChild(container);
 
-  // Fetch show details
-  const show = await getShowDetails(token, showId);
+  try {
+    const show = await getShowDetails(showId);
 
-  // Clear previous content
-  main.innerHTML = "";
+    if (!show) {
+      container.innerHTML = "<p>Show not found.</p>";
+      return;
+    }
 
-  if (!show) {
-    main.innerHTML = "<p>Show not found or error loading show details.</p>";
-    return;
+    renderShowDetails(show);
+  } catch (err) {
+    console.error("Failed to render show page:", err);
+    container.innerHTML = "<p>Failed to load show details.</p>";
   }
-
-  // Render show info
-  const showDiv = renderShowDetails(show);
-  main.appendChild(showDiv);
-
-  // Render seasons
-  renderSeasons(showDiv, show);
 }

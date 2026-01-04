@@ -30,16 +30,6 @@ export function getWatchlist() {
 }
 
 /**
- * Finds a show entry by its internal show ID.
- *
- * @param {string} showId
- * @returns {Object|null}
- */
-export function getShowById(showId) {
-  return watchlist.find((s) => s.shows.id === showId) || null;
-}
-
-/**
  * Returns the `next_episode` object along with its parent show ID
  * from the watchlist matching the given episode ID.
  *

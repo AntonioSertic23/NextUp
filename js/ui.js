@@ -339,32 +339,28 @@ export function renderMyShowsCollection(container, shows) {
  * @returns {HTMLElement} - The show details element
  */
 export function renderShowDetails(show) {
-  const div = document.createElement("div");
-  div.classList.add("show-details");
+  const showContainer = document.getElementById("show-container");
 
-  // Check if show is in collection
-  const cache = loadCache();
-  const isInCollection = cache[show.ids?.trakt]?.last_collected_at != null;
-  const collectionBtnClass = isInCollection
+  const collectionBtnClass = show.in_collection
     ? "collection-btn in-collection"
     : "collection-btn";
-  const collectionBtnText = isInCollection
+  const collectionBtnText = show.in_collection
     ? "In Collection"
     : "Add to Collection";
 
-  div.innerHTML = `
+  showContainer.innerHTML = `
     <div class="show_banner-container">
-      <img class="show_banner-img" src="https://${show.images.fanart}">
+      <img class="show_banner-img" src="https://${show.image_fanart}">
     </div>
     <div class="show_poster-container">
-      <img class="show_poster-img" src="https://${show.images.poster}">
+      <img class="show_poster-img" src="https://${show.image_poster}">
       <div class="show-top-container">
         <h2>${show.title} (${show.year})</h2>
         <p class="status">Status: ${show.status}</p>
       </div>
     </div>
     <button class="${collectionBtnClass}" id="collection-btn" data-show-id="${
-    show.ids?.trakt || ""
+    show.id
   }">${collectionBtnText}</button>
     <div class="show_other_info-container">
       <p class="tagline">${show.tagline}</p>
@@ -372,20 +368,23 @@ export function renderShowDetails(show) {
       <p class="overview">${show.overview}</p>
       <br>
       <div class="more_info-row">
-        <p class="rating">⭐ ${parseFloat(show.rating || 0).toFixed(1)}</p>
+        <p class="rating">⭐ ${parseFloat(show.rating).toFixed(1)}</p>
         -
-        <p class="genres">${(show.genres || []).join(", ")}</p>
+        <p class="genres">${show.genres}</p>
         -
-        <p class="runtime">${show.runtime || 0} min</p>
+        <p class="runtime">${show.runtime} min</p>
         -
-        <p class="network">${show.network || ""}</p>
+        <p class="network">${show.network}</p>
       </div>
     </div>
     <div id="seasons"></div>
   `;
 
+  return;
+  // TODO
+
   // Add event listener for collection button
-  const collectionBtn = div.querySelector("#collection-btn");
+  const collectionBtn = showContainer.querySelector("#collection-btn");
   if (collectionBtn) {
     collectionBtn.addEventListener("click", async () => {
       const btnShowId = collectionBtn.dataset.showId;
@@ -434,7 +433,7 @@ export function renderShowDetails(show) {
     });
   }
 
-  return div;
+  renderSeasons(showContainer, show);
 }
 
 /**
@@ -484,7 +483,8 @@ function updateEpisodeAndSeasonUI(episodeDiv, updatedShow, seasonNumber, mark) {
  */
 export function renderSeasons(container, show) {
   const seasonsContainer = container.querySelector("#seasons");
-  const seasons = Array.isArray(show && show.seasons) ? show.seasons : [];
+
+  const seasons = show.seasons;
 
   const seasonTitle = document.createElement("p");
   seasonTitle.classList.add("seasons_title");

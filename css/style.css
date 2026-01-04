@@ -432,7 +432,9 @@ main {
    Show Styles
    ======================================================== */
 
-#watchlist-container {
+#watchlist-container,
+#my_shows-container,
+#show-container {
   position: relative;
 }
 
@@ -442,7 +444,7 @@ main {
   margin-top: 3rem;
 }
 
-.show-details {
+#show-container {
   padding: 1rem;
   position: relative;
 }

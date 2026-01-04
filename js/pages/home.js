@@ -19,6 +19,7 @@ import { setWatchlist } from "../stores/watchlistStore.js";
 export async function renderHome(main) {
   const watchlistDiv = document.createElement("div");
   watchlistDiv.id = "watchlist-container";
+  watchlistDiv.innerHTML = "<p class='loading-text'>Loading...</p>";
   main.appendChild(watchlistDiv);
 
   setWatchlist(await getWatchlistData());
