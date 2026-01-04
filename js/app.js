@@ -2,14 +2,13 @@
 // app.js - Main router, authentication, and component loader
 // ========================================================
 
+import { logout, getToken } from "./services/authService.js";
 import {
   handleTraktAuthRedirect,
-  logout,
-  isAuthenticated,
   connectTraktAccount,
   syncTraktAccount,
-  getToken,
-} from "./auth.js";
+} from "./services/traktService.js";
+import { isAuthenticated, initUserStore } from "./stores/userStore.js";
 import { updateActiveNav } from "./ui.js";
 import { renderHome } from "./pages/home.js";
 import { renderShow } from "./pages/show.js";
@@ -24,9 +23,11 @@ import { renderMyShows } from "./pages/myShows.js";
 // Handle redirect from Trakt (for connecting Trakt account)
 await handleTraktAuthRedirect();
 
+await initUserStore();
+
 // Check if user is logged in and redirect to login if not
 async function initAuth() {
-  const authenticated = await isAuthenticated();
+  const authenticated = isAuthenticated();
 
   if (!authenticated) {
     // Redirect to login page if not on login page already

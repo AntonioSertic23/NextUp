@@ -2,7 +2,7 @@
 // pages/stats.js - Render Statistics Page
 // ========================================================
 
-import { getToken } from "../auth.js";
+import { getToken } from "../services/authService.js";
 
 /**
  * Converts minutes to years, months, days, and hours.

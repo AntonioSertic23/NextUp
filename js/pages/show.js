@@ -2,7 +2,7 @@
 // pages/show.js - Render Single Show Details Page
 // ========================================================
 
-import { getToken } from "../auth.js";
+import { getToken } from "../services/authService.js";
 import { getShowDetails } from "../api.js";
 import { renderShowDetails, renderSeasons } from "../ui.js";
 

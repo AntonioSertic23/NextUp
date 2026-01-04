@@ -2,7 +2,7 @@
 // pages/myShows.js - Render My Shows Page
 // ========================================================
 
-import { getToken } from "../auth.js";
+import { getToken } from "../services/authService.js";
 import { getNextEpisodes } from "../api.js";
 import { renderMyShowsCollection } from "../ui.js";
 
@@ -39,7 +39,7 @@ export async function renderMyShows(main) {
   const token = await getToken();
 
   const collectionDiv = document.createElement("div");
-  collectionDiv.className = "collection-container";
+  collectionDiv.id = "collection-container";
 
   main.appendChild(collectionDiv);
 

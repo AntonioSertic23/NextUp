@@ -2,7 +2,7 @@
 // login.js - Login and registration page
 // ========================================================
 
-import { login, register } from "./auth.js";
+import { login, register } from "./services/authService.js";
 
 /**
  * Initializes the login/register form event listeners
