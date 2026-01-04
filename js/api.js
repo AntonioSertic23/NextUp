@@ -2,7 +2,8 @@
 // api.js - Handles all API communication with Trakt and caching logic
 // ========================================================
 
-import { getToken, getCurrentUser } from "./auth.js";
+import { getToken } from "./services/authService.js";
+import { getUser } from "./stores/userStore.js";
 
 /**
  * Formats a raw Trakt show object into a standardized format for caching.
@@ -257,7 +258,7 @@ export async function searchShows(token, query, page = 1, limit = 10) {
  */
 export async function markEpisode(showId, episodeId, markAsWatched) {
   const token = await getToken();
-  const { id: userId } = await getCurrentUser();
+  const { id: userId } = await getUser();
 
   const res = await fetch("/.netlify/functions/markEpisode", {
     method: "POST",

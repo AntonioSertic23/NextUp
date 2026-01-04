@@ -2,7 +2,7 @@
 // pages/discover.js - Render Discover Page
 // ========================================================
 
-import { getToken } from "../auth.js";
+import { getToken } from "../services/authService.js";
 import { searchShows } from "../api.js";
 
 let currentQuery = "";
