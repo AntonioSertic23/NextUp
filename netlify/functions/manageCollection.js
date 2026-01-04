@@ -1,10 +1,13 @@
 // ========================================================
-// manageCollection.js - Netlify serverless function for adding/removing shows from collection
+// functions/manageCollection.js - Netlify serverless function for adding/removing shows from collection
 // ========================================================
 
-import fetch from "node-fetch";
-
-const BASE_URL = "https://api.trakt.tv";
+import {
+  addShowToList,
+  removeShowFromList,
+  getDefaultListId,
+  resolveUserIdFromToken,
+} from "../lib/supabaseService.js";
 
 /**
  * Netlify serverless function to add or remove a show from user's Trakt collection.
@@ -37,14 +40,18 @@ export async function handler(event) {
     };
   }
 
-  const { token, showId, action } = body;
+  let userId;
 
-  if (!token) {
+  try {
+    userId = await resolveUserIdFromToken(event.headers.authorization);
+  } catch (err) {
     return {
-      statusCode: 400,
-      body: JSON.stringify({ error: "Missing 'token' in request body." }),
+      statusCode: 401,
+      body: JSON.stringify({ error: err.message }),
     };
   }
+
+  const { showId, action } = body;
 
   if (!showId) {
     return {
@@ -63,64 +70,25 @@ export async function handler(event) {
   }
 
   try {
+    // const userId = await resolveUserIdFromToken(token);
+    const listId = await getDefaultListId(userId);
+
     if (action === "add") {
-      // POST /sync/collection
-      const payload = {
-        shows: [{ ids: { trakt: parseInt(showId, 10) } }],
-      };
-
-      const res = await fetch(`${BASE_URL}/sync/collection`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "trakt-api-version": "2",
-          "trakt-api-key": process.env.TRAKT_CLIENT_ID,
-          "Content-Type": "application/json",
-          "User-Agent": "NextUp/1.0.0",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        return {
-          statusCode: res.status,
-          body: JSON.stringify({ error: text }),
-        };
-      }
-
-      const data = await res.json();
-      return { statusCode: 200, body: JSON.stringify(data) };
+      await addShowToList(showId, listId, userId);
     } else {
-      // POST /sync/collection/remove
-      const payload = {
-        shows: [{ ids: { trakt: parseInt(showId, 10) } }],
-      };
-
-      const res = await fetch(`${BASE_URL}/sync/collection/remove`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "trakt-api-version": "2",
-          "trakt-api-key": process.env.TRAKT_CLIENT_ID,
-          "Content-Type": "application/json",
-          "User-Agent": "NextUp/1.0.0",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        return {
-          statusCode: res.status,
-          body: JSON.stringify({ error: text }),
-        };
-      }
-
-      const data = await res.json();
-      return { statusCode: 200, body: JSON.stringify(data) };
+      await removeShowFromList(listId, showId);
     }
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ success: true }),
+    };
   } catch (err) {
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    console.error("manageCollection failed:", err);
+
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: err.message }),
+    };
   }
 }

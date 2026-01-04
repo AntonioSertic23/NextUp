@@ -21,7 +21,6 @@ export async function getWatchlistData() {
 
   const { id: userId } = getUser();
 
-  // Fetch default list ID via helper
   const listId = await getDefaultListId(userId);
 
   const token = await getToken();
@@ -43,7 +42,7 @@ export async function getWatchlistData() {
  * @param {string} userId - User ID
  * @returns {Promise<string|null>} The default list ID, or null if not found / error
  */
-async function getDefaultListId(userId) {
+export async function getDefaultListId(userId) {
   const SUPABASE = await getSupabaseClient();
 
   try {
@@ -72,42 +71,54 @@ async function getDefaultListId(userId) {
  * - Determines if it exists in the user's default list via "lists" + "list_shows"
  *
  * @param {string} showId - The ID of the show in the database
+ * @param {string} [traktIdentifier] - Optional Trakt identifier
  * @returns {Promise<Object|null>} Show object with additional boolean `in_collection`.
  *                                Returns `null` if show is not found or on error.
  */
-export async function getShowById(showId) {
+export async function getShowById(showId, traktIdentifier) {
   const SUPABASE = await getSupabaseClient();
   const { id: userId } = getUser();
+
+  const orQueryParts = [];
+  if (showId) orQueryParts.push(`id.eq.${showId}`);
+  if (traktIdentifier) {
+    if (!isNaN(Number(traktIdentifier))) {
+      // traktIdentifier is a number, compare only against integer columns
+      const idNum = Number(traktIdentifier);
+      orQueryParts.push(`trakt_id.eq.${idNum}`);
+      orQueryParts.push(`tvdb_id.eq.${idNum}`);
+      orQueryParts.push(`tmdb_id.eq.${idNum}`);
+    } else {
+      // traktIdentifier is a string, compare only against string columns
+      orQueryParts.push(`slug_id.eq.${traktIdentifier}`);
+      orQueryParts.push(`imdb_id.eq.${traktIdentifier}`);
+    }
+  }
 
   try {
     // Fetch show from database
     const { data: show, error: showError } = await SUPABASE.from("shows")
       .select("*")
-      .eq("id", showId)
-      .single();
+      .or(orQueryParts.join(","))
+      .maybeSingle();
 
     if (showError) {
       console.error("Error fetching show:", showError.message);
       return null;
     }
-    if (!show) {
-      console.warn("Show not found in database:", showId);
-      return null;
-    }
 
-    // Fetch default list ID via helper
+    if (!show) return null;
+
     const listId = await getDefaultListId(userId);
 
-    if (!listId) {
-      return { ...show, in_collection: false };
-    }
+    if (!listId) return { ...show, in_collection: false };
 
     // Check if show is in the default list
     const { data: listShows, error: lsError } = await SUPABASE.from(
       "list_shows"
     )
       .select("id")
-      .eq("show_id", showId)
+      .eq("show_id", show.id)
       .eq("list_id", listId)
       .limit(1);
 

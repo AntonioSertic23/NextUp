@@ -85,12 +85,12 @@ export async function connectTraktAccount() {
  * @throws {Error} If request fails
  */
 export async function syncTraktAccount() {
-  const session = getSession();
+  const { access_token } = getSession();
 
   const res = await fetch("/.netlify/functions/syncTraktAccount", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${session.access_token}`,
+      Authorization: `Bearer ${access_token}`,
     },
   });
 

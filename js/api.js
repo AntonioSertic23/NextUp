@@ -3,7 +3,7 @@
 // ========================================================
 
 import { getToken } from "./services/authService.js";
-import { getUser } from "./stores/userStore.js";
+import { getUser, getSession } from "./stores/userStore.js";
 import { getShowById } from "./database.js";
 
 /**
@@ -21,10 +21,10 @@ import { getShowById } from "./database.js";
  */
 export async function getShowDetails(showId, traktIdentifier) {
   // Try database first
-  if (showId) {
-    const dbShow = await getShowById(showId);
+  if (showId || traktIdentifier) {
+    const dbShow = await getShowById(showId, traktIdentifier);
     if (dbShow) return dbShow;
-    console.warn("Show not found in database:", showId);
+    console.warn("Show not found in database:", showId || traktIdentifier);
   }
 
   // If not in DB, fallback to Trakt
@@ -215,21 +215,26 @@ export async function markSeasonWatched(
 }
 
 /**
- * Add or remove a show from user's Trakt collection.
+ * Adds or removes a show from the user's default list.
  *
- * @param {string} token - Trakt access token
- * @param {string|number} showId - Trakt show ID
- * @param {boolean} add - true to add, false to remove
- * @returns {Promise<Object>} Response from Trakt API
+ * @async
+ * @param {string} showId - Trakt show ID
+ * @param {boolean} addToCollection - true to add, false to remove
+ * @returns {Promise<Object>} Trakt API response
+ * @throws {Error} If the request fails
  */
-export async function manageCollection(token, showId, add) {
+export async function manageCollection(showId, addToCollection) {
+  const { access_token } = getSession();
+
   const res = await fetch("/.netlify/functions/manageCollection", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${access_token}`,
+    },
     body: JSON.stringify({
-      token,
       showId,
-      action: add ? "add" : "remove",
+      action: addToCollection ? "add" : "remove",
     }),
   });
 
@@ -239,6 +244,7 @@ export async function manageCollection(token, showId, add) {
   }
 
   const data = await res.json();
+
   return data;
 }
 

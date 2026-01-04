@@ -380,60 +380,37 @@ export function renderShowDetails(show) {
     <div id="seasons"></div>
   `;
 
-  return;
-  // TODO
-
   // Add event listener for collection button
   const collectionBtn = showContainer.querySelector("#collection-btn");
+
   if (collectionBtn) {
     collectionBtn.addEventListener("click", async () => {
-      const btnShowId = collectionBtn.dataset.showId;
-      if (!btnShowId) return;
+      const showId = collectionBtn.dataset.showId;
+      if (!showId) return;
 
-      const token = window.localStorage.getItem("trakt_token");
-      if (!token) {
-        console.warn("Missing token for managing collection");
-        return;
-      }
+      const shouldAdd = !collectionBtn.classList.contains("in-collection");
 
-      const currentlyInCollection =
-        collectionBtn.classList.contains("in-collection");
-      const addToCollection = !currentlyInCollection;
+      collectionBtn.disabled = true;
 
       try {
-        // Optimistically update UI
-        collectionBtn.textContent = addToCollection
+        await manageCollection(showId, shouldAdd);
+
+        collectionBtn.textContent = shouldAdd
           ? "In Collection"
           : "Add to Collection";
-        collectionBtn.classList.toggle("in-collection", addToCollection);
 
-        // Call API
-        await manageCollection(token, btnShowId, addToCollection);
-
-        // Update cache
-        if (addToCollection) {
-          // Add to collection - update cache with current show data and set last_collected_at
-          const updatedShow = {
-            ...show,
-            last_collected_at: new Date().toISOString(),
-          };
-          updateCache(btnShowId, updatedShow);
-        } else {
-          // Remove from collection - remove from cache
-          removeShowFromCache(btnShowId);
-        }
+        collectionBtn.classList.toggle("in-collection", shouldAdd);
       } catch (error) {
         console.error("Failed to manage collection:", error);
-        // Revert UI on error
-        collectionBtn.textContent = currentlyInCollection
-          ? "In Collection"
-          : "Add to Collection";
-        collectionBtn.classList.toggle("in-collection", currentlyInCollection);
+        alert("Failed to update collection.");
+      } finally {
+        collectionBtn.disabled = false;
       }
     });
   }
 
-  renderSeasons(showContainer, show);
+  // TODO: Render seasons
+  // renderSeasons(showContainer, show);
 }
 
 /**

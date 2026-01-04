@@ -4,10 +4,10 @@
 
 import fetch from "node-fetch";
 import {
-  SUPABASE,
   saveShow,
   saveUserEpisodes,
   saveShowSeasonsAndEpisodes,
+  resolveUserIdFromToken,
 } from "../lib/supabaseService.js";
 
 const BASE_URL = "https://api.trakt.tv";
@@ -48,26 +48,16 @@ export async function handler(event) {
     };
   }
 
-  const supabaseAccessToken = event.headers.authorization?.replace(
-    "Bearer ",
-    ""
-  );
+  let userId;
 
-  if (!supabaseAccessToken) {
+  try {
+    userId = await resolveUserIdFromToken(event.headers.authorization);
+  } catch (err) {
     return {
       statusCode: 401,
-      body: "Missing supabase token in headers",
+      body: JSON.stringify({ error: err.message }),
     };
   }
-
-  const { data: userData, error } = await SUPABASE.auth.getUser(
-    supabaseAccessToken
-  );
-
-  if (error || !userData?.user)
-    return { statusCode: 401, body: "Invalid user" };
-
-  const userId = userData.user.id;
 
   // Fetch watched shows
   const watchedRes = await fetch(
