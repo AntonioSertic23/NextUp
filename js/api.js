@@ -15,33 +15,37 @@ import { getShowById } from "./database.js";
  * 3. Persist the fetched show to the database
  *
  * @param {string} showId - Internal show ID
- * @param {string} [traktId] - Trakt show ID (required if not in database)
+ * @param {string} [traktIdentifier] - Trakt show identifier.
+ * Can be a Trakt slug (e.g. "game-of-thrones") or a numeric Trakt ID.
  * @returns {Promise<Object|null>} Show data or null if unavailable
  */
-export async function getShowDetails(showId, traktId) {
-  const dbShow = await getShowById(showId);
+export async function getShowDetails(showId, traktIdentifier) {
+  // Try database first
+  if (showId) {
+    const dbShow = await getShowById(showId);
+    if (dbShow) return dbShow;
+    console.warn("Show not found in database:", showId);
+  }
 
-  if (dbShow) return dbShow;
-
-  if (!traktId) {
-    console.warn(
-      "Show not found in database and traktId was not provided:",
-      showId
-    );
+  // If not in DB, fallback to Trakt
+  if (!traktIdentifier) {
+    console.warn("traktIdentifier not provided, cannot fetch from Trakt.");
     return null;
   }
 
-  return;
-  // TODO
+  const traktShow = await fetchShowFromTrakt(traktIdentifier);
 
-  const traktShow = await fetchShowFromTrakt(traktId);
-
-  if (!traktShow) return null;
-
-  return traktShow;
+  return traktShow || null;
 }
 
-async function fetchShowFromTrakt(traktId) {
+/**
+ * Fetches show details from Trakt via a serverless function.
+ *
+ * @async
+ * @param {string} traktIdentifier - Trakt show identifier (slug or numeric ID)
+ * @returns {Promise<Object|null>} Show data if successful, otherwise null
+ */
+async function fetchShowFromTrakt(traktIdentifier) {
   const token = await getToken();
 
   try {
@@ -50,7 +54,7 @@ async function fetchShowFromTrakt(traktId) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ token, traktId }),
+      body: JSON.stringify({ token, traktIdentifier }),
     });
 
     if (!res.ok) {

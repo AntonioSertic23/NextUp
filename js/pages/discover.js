@@ -139,7 +139,7 @@ function displaySearchResults(container, results) {
     card.addEventListener("click", () => {
       const id = card.dataset.id;
       if (id) {
-        location.hash = `show/${id}`;
+        location.hash = `show?traktIdentifier=${id}`;
       }
     });
   });

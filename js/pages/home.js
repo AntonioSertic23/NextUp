@@ -34,6 +34,6 @@ export async function renderHome(main) {
     if (!card) return;
 
     const showId = card.dataset.id;
-    location.hash = `show/${showId}`;
+    location.hash = `show?showId=${showId}`;
   });
 }
