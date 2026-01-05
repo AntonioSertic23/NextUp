@@ -17,17 +17,7 @@ import { getUser } from "./stores/userStore.js";
  * @throws {Error} If the fetch fails or response is invalid
  */
 export async function getWatchlistData() {
-  const SUPABASE = await getSupabaseClient();
-
-  const { id: userId } = getUser();
-
-  const {
-    data: { id: listId },
-  } = await SUPABASE.from("lists")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("is_default", true)
-    .single();
+  const listId = await getDefaultListId();
 
   const token = await getToken();
 
@@ -40,4 +30,32 @@ export async function getWatchlistData() {
   });
 
   return await res.json();
+}
+
+/**
+ * Get the default list ID for a given user.
+ *
+ * @returns {Promise<string|null>} The default list ID, or null if not found / error
+ */
+export async function getDefaultListId() {
+  const SUPABASE = await getSupabaseClient();
+  const { id: userId } = getUser();
+
+  try {
+    const { data: list, error } = await SUPABASE.from("lists")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("is_default", true)
+      .single();
+
+    if (error) {
+      console.error("Error fetching default list:", error.message);
+      return null;
+    }
+
+    return list?.id ?? null;
+  } catch (err) {
+    console.error("Unexpected error fetching default list:", err);
+    return null;
+  }
 }

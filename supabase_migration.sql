@@ -84,7 +84,7 @@ CREATE TRIGGER update_users_updated_at
 create table if not exists shows (
   id uuid primary key default gen_random_uuid(),
   trakt_id integer unique not null,
-  slug_id text,
+  slug_id text unique not null,
   tvdb_id integer,
   imdb_id text,
   tmdb_id integer,

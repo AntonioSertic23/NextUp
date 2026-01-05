@@ -74,13 +74,21 @@ async function router() {
   }
 
   const main = document.querySelector("main");
+
+  // Get hash without '#', default to "home"
   const hash = location.hash.slice(1) || "home";
-  const [route, param] = hash.split("/");
+
+  // Split hash by '?'
+  const [route, queryString] = hash.split("?");
+  const params = new URLSearchParams(queryString);
+  const traktIdentifier = params.get("traktIdentifier");
 
   main.innerHTML = "";
 
+  // Check if route exists
   if (routes[route]) {
-    await routes[route](main, param);
+    // Pass all params as array
+    await routes[route](main, traktIdentifier);
   } else {
     main.innerHTML = "<p>404 - Page not found.</p>";
   }

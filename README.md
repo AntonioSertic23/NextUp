@@ -113,7 +113,7 @@ nextup-show-tracker/
     ├── getEpisodeDetails.js # Fetch detailed episode information (air date, etc.)
     ├── searchShows.js       # Search for TV shows by name with pagination
     ├── manageCollection.js  # Add/remove shows from user's collection
-    └── markEpisode.js       # Mark/unmark episodes proxy endpoint
+    └── markEpisodes.js       # Mark/unmark episodes proxy endpoint
 ```
 
 ---
@@ -127,7 +127,7 @@ nextup-show-tracker/
 - **getEpisodeDetails.js**: Fetch detailed episode information including air date, screenshots, overview.
 - **searchShows.js**: Search for TV shows by name with pagination support.
 - **manageCollection.js**: Add/remove shows from user's Trakt collection.
-- **markEpisode.js**: Mark/unmark single episodes; sync with Trakt and database.
+- **markEpisodes.js**: Mark/unmark single episodes; sync with Trakt and database.
 
 ---
 
