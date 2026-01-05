@@ -7,6 +7,7 @@ import {
   saveUserEpisode,
   deleteUserEpisode,
   updateListShows,
+  resolveUserIdFromToken,
 } from "../lib/supabaseService.js";
 
 const BASE_URL = "https://api.trakt.tv";
@@ -106,9 +107,20 @@ export async function handler(event) {
     };
   }
 
-  const { token, userId, action, showId, episodeId } = body;
+  let userId;
 
-  if (!token || !userId || !episodeId || !action) {
+  try {
+    userId = await resolveUserIdFromToken(event.headers.authorization);
+  } catch (err) {
+    return {
+      statusCode: 401,
+      body: JSON.stringify({ error: err.message }),
+    };
+  }
+
+  const { token, action, showId, episodeId } = body;
+
+  if (!token || !episodeId || !action) {
     return {
       statusCode: 400,
       body: JSON.stringify({ error: "Missing required fields" }),

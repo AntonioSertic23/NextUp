@@ -306,17 +306,16 @@ export async function getShowWithSeasonsAndEpisodes(showId) {
  */
 export async function saveUserEpisode(userId, episodeId) {
   try {
-    // 1. Insert watched episode
-    const { error: insertError } = await SUPABASE.from("user_episodes").insert({
-      user_id: userId,
-      episode_id: episodeId,
-    });
+    // Insert watched episode
+    await SUPABASE.from("user_episodes").upsert(
+      {
+        user_id: userId,
+        episode_id: episodeId,
+      },
+      { onConflict: "user_id,episode_id" }
+    );
 
-    if (insertError) {
-      throw insertError;
-    }
-
-    // 2. Fetch trakt_id from episodes table
+    // Fetch trakt_id from episodes table
     const { data, error: fetchError } = await SUPABASE.from("episodes")
       .select("trakt_id")
       .eq("id", episodeId)
@@ -463,7 +462,7 @@ export async function updateListShows(userId, showId, direction) {
     // Convert the result to a simple array of IDs
     const watchedIds = watchedEpisodes.map((ep) => ep.episode_id);
 
-    const nextEpisodeId = getNextUnwatchedEpisode(showId, watchedIds);
+    const nextEpisodeId = await getNextUnwatchedEpisode(showId, watchedIds);
 
     // Build update payload
     const updatePayload = {

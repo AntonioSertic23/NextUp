@@ -119,14 +119,16 @@ export async function searchShows(token, query, page = 1, limit = 10) {
  */
 export async function markEpisode(showId, episodeId, markAsWatched) {
   const token = await getToken();
-  const { id: userId } = await getUser();
+  const { access_token } = getSession();
 
   const res = await fetch("/.netlify/functions/markEpisode", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${access_token}`,
+    },
     body: JSON.stringify({
       token,
-      userId,
       action: markAsWatched ? "mark" : "unmark",
       showId,
       episodeId,
