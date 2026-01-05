@@ -136,7 +136,7 @@ async function getEpisodeId(showId, seasonNumber, episodeNumber) {
  * @param {string} userId - Supabase user id
  * @returns {Promise<void>}
  */
-export async function saveUserEpisodes(seasons, showId, userId) {
+export async function saveTraktUserEpisodes(seasons, showId, userId) {
   for (const season of seasons) {
     for (const episode of season.episodes) {
       const episodeId = await getEpisodeId(
@@ -363,78 +363,81 @@ export async function getShowWithSeasonsAndEpisodes(userId, traktIdentifier) {
 }
 
 /**
- * Saves a watched episode for a user in the database
- * and returns the Trakt episode ID.
+ * Marks one or more episodes as watched for a user and returns their Trakt IDs.
  *
  * @param {string} userId - User UUID.
- * @param {string} episodeId - Episode UUID.
- * @returns {Promise<number>} Trakt episode ID.
- * @throws {Error} If insert or lookup fails.
+ * @param {string[]} episodeIds - List of episode UUIDs.
+ * @returns {Promise<number[]>} Array of Trakt episode IDs.
+ * @throws {Error} If upsert or lookup fails.
  */
-export async function saveUserEpisode(userId, episodeId) {
+export async function saveUserEpisodes(userId, episodeIds) {
   try {
-    // Insert watched episode
-    await SUPABASE.from("user_episodes").upsert(
-      {
-        user_id: userId,
-        episode_id: episodeId,
-      },
+    // Prepare rows for bulk upsert
+    const rows = episodeIds.map((episodeId) => ({
+      user_id: userId,
+      episode_id: episodeId,
+    }));
+
+    //  Bulk upsert
+    const { error: upsertError } = await SUPABASE.from("user_episodes").upsert(
+      rows,
       { onConflict: "user_id,episode_id" }
     );
 
-    // Fetch trakt_id from episodes table
-    const { data, error: fetchError } = await SUPABASE.from("episodes")
-      .select("trakt_id")
-      .eq("id", episodeId)
-      .single();
-
-    if (fetchError || !data) {
-      throw new Error("Failed to fetch trakt_id for episode");
+    if (upsertError) {
+      throw upsertError;
     }
 
-    return data.trakt_id;
+    // Fetch trakt_ids for all episodes
+    const { data, error: fetchError } = await SUPABASE.from("episodes")
+      .select("trakt_id")
+      .in("id", episodeIds);
+
+    if (fetchError) {
+      throw fetchError;
+    }
+
+    return data.map((row) => row.trakt_id);
   } catch (err) {
-    console.error("saveUserEpisode failed:", episodeId, err);
+    console.error("saveUserEpisodes failed:", episodeIds, err);
     throw err;
   }
 }
 
 /**
- * Deletes a watched episode entry for a user
- * and returns the Trakt episode ID.
+ * Deletes one or more watched episodes for a user and returns their Trakt IDs.
  *
  * @param {string} userId - User UUID.
- * @param {string} episodeId - Episode UUID.
- * @returns {Promise<number>} Trakt episode ID.
+ * @param {string[]} episodeIds - List of episode UUIDs to delete.
+ * @returns {Promise<number[]>} Array of Trakt episode IDs of deleted episodes.
  * @throws {Error} If delete or lookup fails.
  */
-export async function deleteUserEpisode(userId, episodeId) {
+export async function deleteUserEpisodes(userId, episodeIds) {
   try {
-    // 1. Fetch trakt_id first
-    const { data, error: fetchError } = await SUPABASE.from("episodes")
-      .select("trakt_id")
-      .eq("id", episodeId)
-      .single();
-
-    if (fetchError || !data) {
-      throw new Error("Failed to fetch trakt_id for episode");
+    if (!Array.isArray(episodeIds) || episodeIds.length === 0) {
+      return [];
     }
 
-    const traktId = data.trakt_id;
+    // 1. Fetch trakt_ids first
+    const { data, error: fetchError } = await SUPABASE.from("episodes")
+      .select("id, trakt_id")
+      .in("id", episodeIds);
 
-    // 2. Delete watched episode
+    if (fetchError) throw fetchError;
+
+    const traktIds = data.map((row) => row.trakt_id);
+
+    // 2. Bulk delete watched episodes
     const { error: deleteError } = await SUPABASE.from("user_episodes")
       .delete()
       .eq("user_id", userId)
-      .eq("episode_id", episodeId);
+      .in("episode_id", episodeIds);
 
-    if (deleteError) {
-      throw deleteError;
-    }
+    if (deleteError) throw deleteError;
 
-    return traktId;
+    return traktIds;
   } catch (err) {
-    console.error("deleteUserEpisode failed:", episodeId, err);
+    console.error("deleteUserEpisodes failed:", episodeIds, err);
     throw err;
   }
 }
@@ -471,18 +474,19 @@ export async function getNextUnwatchedEpisode(showId, watchedIds) {
 }
 
 /**
- * Updates the list_shows entry after marking or unmarking an episode.
+ * Updates the list_shows entry after marking or unmarking episodes.
  *
- * - Increments or decrements watched_episodes
- * - Recomputes next_episode
- * - Updates completion state only when incrementing
+ * - Can increment or decrement watched_episodes by a specified count.
+ * - Recomputes `next_episode` based on user's watched episodes.
+ * - Updates `is_completed` and `completed_at` only when incrementing or decrementing.
  *
- * @param {string} userId - User UUID.
- * @param {string} showId - Show UUID.
+ * @param {string} userId - UUID of the user.
+ * @param {string} showId - UUID of the show.
  * @param {"increment" | "decrement"} direction - Update direction.
+ * @param {number} count - Number of episodes to increment or decrement (default 0).
  * @throws {Error} If database operations fail.
  */
-export async function updateListShows(userId, showId, direction) {
+export async function updateListShows(userId, showId, direction, count = 0) {
   try {
     const {
       data: { id: listId },
@@ -511,7 +515,7 @@ export async function updateListShows(userId, showId, direction) {
     }
 
     // Compute new watched count
-    const delta = direction === "increment" ? 1 : -1;
+    const delta = direction === "increment" ? count : -count;
     const newWatchedCount = Math.max(0, listShow.watched_episodes + delta);
 
     const isCompleted =
@@ -537,12 +541,8 @@ export async function updateListShows(userId, showId, direction) {
       next_episode: nextEpisodeId,
     };
 
-    if (direction === "increment") {
-      updatePayload.is_completed = isCompleted;
-      updatePayload.completed_at = isCompleted
-        ? new Date().toISOString()
-        : null;
-    }
+    updatePayload.is_completed = isCompleted;
+    updatePayload.completed_at = isCompleted ? new Date().toISOString() : null;
 
     // Update by primary key
     const { error: updateError } = await SUPABASE.from("list_shows")

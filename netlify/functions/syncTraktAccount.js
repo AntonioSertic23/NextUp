@@ -5,7 +5,7 @@
 import fetch from "node-fetch";
 import {
   saveShow,
-  saveUserEpisodes,
+  saveTraktUserEpisodes,
   saveShowSeasonsAndEpisodes,
   resolveUserIdFromToken,
 } from "../lib/supabaseService.js";
@@ -103,7 +103,7 @@ export async function handler(event) {
 
       // Safely access seasons property from Trakt response
       if (show.seasons?.length) {
-        await saveUserEpisodes(show.seasons, showId, userId);
+        await saveTraktUserEpisodes(show.seasons, showId, userId);
       }
     } catch (err) {
       console.error("Error processing show:", show.show.title, err);

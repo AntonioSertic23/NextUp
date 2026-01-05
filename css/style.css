@@ -601,8 +601,7 @@ main {
   font-weight: bold;
 }
 
-.mark-watched,
-.mark-season {
+.mark-watched {
   background-color: #4d4e53;
   color: #fff;
   border: none;
@@ -611,13 +610,11 @@ main {
   cursor: pointer;
 }
 
-.mark-watched:hover,
-.mark-season:hover {
+.mark-watched:hover {
   background-color: #5d5e63;
 }
 
-.unmark-watched,
-.unmark-season {
+.unmark-watched {
   background-color: #00ff00;
   color: #222;
   border: none;
@@ -626,15 +623,12 @@ main {
   cursor: pointer;
 }
 
-.unmark-watched:hover,
-.unmark-season:hover {
+.unmark-watched:hover {
   background-color: #00e600;
 }
 
 .mark-watched:disabled,
-.unmark-watched:disabled,
-.mark-season:disabled,
-.unmark-season:disabled {
+.unmark-watched:disabled {
   background-color: #2f3035;
   color: #aaa;
   cursor: not-allowed;
@@ -642,9 +636,7 @@ main {
 }
 
 .mark-watched:disabled:hover,
-.unmark-watched:disabled:hover,
-.mark-season:disabled:hover,
-.unmark-season:disabled:hover {
+.unmark-watched:disabled:hover {
   background-color: #2f3035;
 }
 

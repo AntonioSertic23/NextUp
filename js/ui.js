@@ -8,7 +8,7 @@ import {
   changeOrder,
   getNextEpisodeById,
 } from "./stores/watchlistStore.js";
-import { markEpisode, markSeasonWatched, manageCollection } from "./api.js";
+import { markEpisodes, manageCollection } from "./api.js";
 
 const sortOptions = [
   { value: "added_at", label: "Last Added" },
@@ -110,7 +110,7 @@ function computeSeasonProgress(episodes) {
 function computeEpisodeProgress(episode) {
   const epWatched = !!episode.watched_at;
   const btnClass = epWatched ? "unmark-watched" : "mark-watched";
-  const btnText = epWatched ? "Watched" : "Mark as watched";
+  const btnText = epWatched ? "Unmark" : "Mark";
 
   const firstAiredDate = new Date(episode.first_aired);
   let airedStr;
@@ -501,7 +501,7 @@ function updateEpisodeAndSeasonUI(episodeDiv, updatedShow, seasonNumber, mark) {
 
   // Update button state
   const epWatchedNow = !!mark;
-  btn.textContent = epWatchedNow ? "Watched" : "Mark as watched";
+  btn.textContent = epWatchedNow ? "Unmark" : "Mark";
   btn.classList.toggle("mark-watched", !epWatchedNow);
   btn.classList.toggle("unmark-watched", epWatchedNow);
 
@@ -541,9 +541,7 @@ function renderSeasonEpisodes(episodes) {
           const { episodeInfo, btnClass, btnText } = computeEpisodeProgress(ep);
 
           return `
-          <div class="episode" data-show-id="${ep.show_id}" data-episode-id="${
-            ep.id
-          }">
+          <div class="episode" data-episode-id="${ep.id}">
             <div class="episode_info-container">
               <p class="episode_title">${ep.title || "Untitled"}</p>
               <p class="episode_info">${episodeInfo}</p>
@@ -565,7 +563,7 @@ function renderSeason(season) {
   const seasonDiv = document.createElement("div");
   seasonDiv.classList.add("season");
   // annotate season div with season number for easy lookup
-  seasonDiv.dataset.season = season.season_number;
+  seasonDiv.dataset.seasonId = season.season_number;
 
   const { progressBarPercent, progressText, seasonCompleted } =
     computeSeasonProgress(season.episodes);
@@ -573,10 +571,8 @@ function renderSeason(season) {
   seasonDiv.innerHTML = `
       <div class="season-container">
         <button class="${
-          seasonCompleted ? "unmark-season" : "mark-season"
-        } season_mark_btn">${
-    seasonCompleted ? "Unmark season" : "Mark season"
-  }</button>
+          seasonCompleted ? "unmark-watched" : "mark-watched"
+        } season_mark_btn">${seasonCompleted ? "Unmark" : "Mark"}</button>
         <p class="season_number">Season ${season.season_number}</p>
         <div class="progress-container">
           <div class="progress-bar">
@@ -616,7 +612,12 @@ function updateSeasonProgress(btn, markAsWatched, setAll = false) {
   // Mark/unmark entire season
   if (setAll) {
     watched = markAsWatched ? total : 0;
-    // TODO: Update all other episodes in season ?
+
+    const episodeDivs = season.querySelectorAll(".episode");
+    episodeDivs.forEach((epDiv) => {
+      const epBtn = epDiv.querySelector("button");
+      updateMarkButton(epBtn, markAsWatched);
+    });
   } else {
     // Single episode update
     watched = markAsWatched ? watched + 1 : watched - 1;
@@ -661,35 +662,33 @@ export function renderShowSeasons(container, seasons, showId) {
 
   // Add event listeners to all buttons (both watched and not watched)
   seasonsContainer
-    .querySelectorAll(".mark-watched, .unmark-watched")
+    .querySelectorAll(".episode .mark-watched, .episode .unmark-watched")
     .forEach((btn) => {
       btn.addEventListener("click", async (event) => {
         event.stopPropagation();
 
-        const episodeMarkBtn = event.currentTarget;
-        episodeMarkBtn.disabled = true;
+        btn.disabled = true;
 
-        const episodeDiv = episodeMarkBtn.closest(".episode");
-        const showId = episodeDiv.dataset.showId;
+        const episodeDiv = btn.closest(".episode");
         const episodeId = episodeDiv.dataset.episodeId;
-        let markAsWatched = episodeMarkBtn.classList.contains("mark-watched");
+        const markAsWatched = btn.classList.contains("mark-watched");
 
         try {
-          const showUpdated = await markEpisode(
+          const showUpdated = await markEpisodes(
             showId,
-            episodeId,
+            [episodeId],
             markAsWatched
           );
 
           if (showUpdated) {
-            updateMarkButton(episodeMarkBtn, markAsWatched);
-            updateSeasonProgress(episodeMarkBtn, markAsWatched);
+            updateMarkButton(btn, markAsWatched);
+            updateSeasonProgress(btn, markAsWatched);
           }
         } catch (err) {
           console.log("err", err);
           alert("Failed to mark episode as watched.");
         } finally {
-          episodeMarkBtn.disabled = false;
+          btn.disabled = false;
         }
       });
     });
@@ -706,106 +705,40 @@ export function renderShowSeasons(container, seasons, showId) {
     attachEpisodeInfoHandler(element, { ...episodeData, showId });
   });
 
-  return;
-  // TODO
-
   // Add event listeners for season-level mark/unmark buttons
   seasonsContainer.querySelectorAll(".season_mark_btn").forEach((btn) => {
-    btn.addEventListener("click", async () => {
+    btn.addEventListener("click", async (event) => {
+      event.stopPropagation();
+
+      btn.disabled = true;
       const seasonDiv = btn.closest(".season");
-      if (!seasonDiv) return;
-      const seasonNumber = parseInt(seasonDiv.dataset.season, 10);
-      const token = window.localStorage.getItem("trakt_token");
-      if (!token || !showId) {
-        console.warn("Missing token or showId for marking season");
-        return;
-      }
+      const markAsWatched = btn.classList.contains("mark-watched");
+      const episodeElements = seasonDiv.querySelectorAll(`.episode`);
 
-      const mark = btn.classList.contains("mark-season");
-
-      // Optimistic UI: set all episode buttons in this season
-      const episodeDivs = seasonDiv.querySelectorAll(".episode");
-      episodeDivs.forEach((epDiv) => {
-        const epBtn = epDiv.querySelector("button");
-        if (!epBtn) return;
-        epBtn.textContent = mark ? "Watched" : "Mark as watched";
-        epBtn.classList.toggle("mark-watched", !mark);
-        epBtn.classList.toggle("unmark-watched", mark);
-      });
-
-      updateMarkButton(episodeMarkBtn, markAsWatched); // TODO: prosljediti "episode" ili "season" za promjenu klasa da može raditi za oboje...
-      updateSeasonProgress(btn, markAsWatched, true);
-
-      // Update progress bar optimistically
-      const fill = seasonDiv.querySelector(".progress-bar-fill");
-      const textEl = seasonDiv.querySelector(".progress_text");
-      const total = episodeDivs.length;
-      const completed = mark ? total : 0;
-      const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
-      if (fill) fill.style.width = `${percent}%`;
-      if (textEl) textEl.textContent = `${completed}/${total}`;
-      // Update season button optimistically
-      const seasonBtnOptim = seasonDiv.querySelector(".season_mark_btn");
-      if (seasonBtnOptim) {
-        if (mark) {
-          seasonBtnOptim.textContent = "Unmark season";
-          seasonBtnOptim.classList.remove("mark-season");
-          seasonBtnOptim.classList.add("unmark-season");
-        } else {
-          seasonBtnOptim.textContent = "Mark season";
-          seasonBtnOptim.classList.remove("unmark-season");
-          seasonBtnOptim.classList.add("mark-season");
-        }
-      }
+      const episodeIds = Array.from(episodeElements)
+        .filter((epEl) => {
+          const btn = epEl.querySelector("button");
+          if (!btn) return false;
+          return markAsWatched ? btn.classList.contains("mark-watched") : true;
+        })
+        .map((epEl) => epEl.dataset.episodeId);
 
       try {
-        const episodeIds = Array.from(episodeDivs)
-          .map((d) => d.dataset.trakt)
-          .filter(Boolean);
-        const updatedShow = await markSeasonWatched(
-          token,
+        const showUpdated = await markEpisodes(
           showId,
-          seasonNumber,
-          mark,
-          episodeIds
+          episodeIds,
+          markAsWatched
         );
-        if (updatedShow) {
-          // apply authoritative update from server
-          const updatedSeason = (updatedShow.seasons || []).find(
-            (s) => s.number === seasonNumber
-          );
-          if (updatedSeason) {
-            // update each episode button and progress based on updatedSeason
-            const episodes = Array.isArray(updatedSeason.episodes)
-              ? updatedSeason.episodes
-              : [];
-            episodeDivs.forEach((epDiv) => {
-              const epNum = parseInt(epDiv.dataset.episode, 10);
-              const match = episodes.find((e) => e.number === epNum);
-              const epBtn = epDiv.querySelector("button");
-              if (!epBtn) return;
-              const epWatched = match
-                ? !!match.watched || (match.plays != null && match.plays > 0)
-                : !!mark;
-              epBtn.textContent = epWatched ? "Watched" : "Mark as watched";
-              epBtn.classList.toggle("mark-watched", !epWatched);
-              epBtn.classList.toggle("unmark-watched", epWatched);
-            });
 
-            const total2 = episodes.length;
-            const completed2 = episodes.reduce(
-              (acc, e) =>
-                acc + (e.watched || (e.plays != null && e.plays > 0) ? 1 : 0),
-              0
-            );
-            const percent2 =
-              total2 > 0 ? Math.round((completed2 / total2) * 100) : 0;
-            if (fill) fill.style.width = `${percent2}%`;
-            if (textEl) textEl.textContent = `${completed2}/${total2}`;
-          }
+        if (showUpdated) {
+          updateMarkButton(btn, markAsWatched);
+          updateSeasonProgress(btn, markAsWatched, true);
         }
       } catch (err) {
-        console.error("Failed to mark season:", err);
+        console.log("err", err);
+        alert("Failed to mark episode as watched.");
+      } finally {
+        btn.disabled = false;
       }
     });
   });
@@ -863,11 +796,11 @@ function updateMarkButton(markBtn, watched) {
   if (watched) {
     markBtn.classList.remove("mark-watched");
     markBtn.classList.add("unmark-watched");
-    markBtn.textContent = "Watched";
+    markBtn.textContent = "Unmark";
   } else {
     markBtn.classList.remove("unmark-watched");
     markBtn.classList.add("mark-watched");
-    markBtn.textContent = "Mark as watched";
+    markBtn.textContent = "Mark";
   }
 }
 
@@ -936,7 +869,7 @@ function showEpisodeInfoModal(episode, updateUICallback, isWatched = false) {
 
   markBtn.onclick = () => {
     try {
-      const showUpdated = markEpisode(episode.show_id, episode.id, !mark);
+      const showUpdated = markEpisodes(episode.show_id, [episode.id], !mark);
 
       if (showUpdated) {
         mark = !mark;

@@ -82,16 +82,16 @@ export async function searchShows(token, query, page = 1, limit = 10) {
  * and synchronizes the change with Trakt.
  *
  * @param {string} showId - Internal show UUID.
- * @param {string} episodeId - Internal episode UUID.
+ * @param {Array} episodeIds - List of internal episode UUIDs.
  * @param {boolean} markAsWatched - true to mark as watched, false to unmark.
  * @returns {Promise<boolean>} Returns true on success, throws on failure.
  * @throws {Error} If the request fails or the server returns an error.
  */
-export async function markEpisode(showId, episodeId, markAsWatched) {
+export async function markEpisodes(showId, episodeIds, markAsWatched) {
   const token = await getToken();
   const { access_token } = getSession();
 
-  const res = await fetch("/.netlify/functions/markEpisode", {
+  const res = await fetch("/.netlify/functions/markEpisodes", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -101,13 +101,13 @@ export async function markEpisode(showId, episodeId, markAsWatched) {
       token,
       action: markAsWatched ? "mark" : "unmark",
       showId,
-      episodeId,
+      episodeIds,
     }),
   });
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(`markEpisode failed: ${res.status} ${text}`);
+    throw new Error(`markEpisodes failed: ${res.status} ${text}`);
   }
 
   return true;
@@ -129,10 +129,10 @@ export async function markSeasonWatched(
   mark,
   episodeIds
 ) {
-  // Call markEpisode endpoint for each episode trakt id sequentially to avoid rate spikes
+  // Call markEpisodes endpoint for each episode trakt id sequentially to avoid rate spikes
   for (const traktId of episodeIds) {
     try {
-      const res = await fetch("/.netlify/functions/markEpisode", {
+      const res = await fetch("/.netlify/functions/markEpisodes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

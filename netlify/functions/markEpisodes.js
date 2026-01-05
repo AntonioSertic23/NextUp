@@ -1,29 +1,31 @@
 // ========================================================
-// functions/markEpisode.js - Netlify function to mark/unmark an episode as watched on Trakt
+// functions/markEpisodes.js - Netlify function to mark/unmark an episode as watched on Trakt
 // ========================================================
 
 import fetch from "node-fetch";
 import {
-  saveUserEpisode,
-  deleteUserEpisode,
+  saveUserEpisodes,
+  deleteUserEpisodes,
   updateListShows,
   resolveUserIdFromToken,
 } from "../lib/supabaseService.js";
 
 const BASE_URL = "https://api.trakt.tv";
-
 /**
- * Marks an episode as watched on Trakt.
+ * Marks one or more episodes as watched on Trakt.
  *
- * Calls Trakt `/sync/history` endpoint to add the episode
- * to the user's watch history.
- *
- * @param {string} token - Trakt OAuth access token.
- * @param {number|string} traktId - Trakt episode ID.
- * @returns {Promise<boolean>} True if successful.
- * @throws {Error} If Trakt API request fails.
+ * @param {string} token - Trakt OAuth access token
+ * @param {Array<number|string>} traktIds - Array of Trakt episode IDs
+ * @returns {Promise<boolean>} True if successful
+ * @throws {Error} If Trakt API request fails
  */
-async function markOnTrakt(token, traktId) {
+async function markOnTrakt(token, traktIds) {
+  if (!Array.isArray(traktIds) || traktIds.length === 0) return true;
+
+  const payload = {
+    episodes: traktIds.map((id) => ({ ids: { trakt: Number(id) } })),
+  };
+
   const res = await fetch(`${BASE_URL}/sync/history`, {
     method: "POST",
     headers: {
@@ -33,9 +35,7 @@ async function markOnTrakt(token, traktId) {
       "Content-Type": "application/json",
       "User-Agent": "NextUp/1.0.0",
     },
-    body: JSON.stringify({
-      episodes: [{ ids: { trakt: Number(traktId) } }],
-    }),
+    body: JSON.stringify(payload),
   });
 
   if (!res.ok) {
@@ -47,17 +47,20 @@ async function markOnTrakt(token, traktId) {
 }
 
 /**
- * Unmarks (removes) an episode from watched history on Trakt.
+ * Unmarks one or more episodes as watched on Trakt.
  *
- * Calls Trakt `/sync/history/remove` endpoint to remove
- * the episode from the user's watch history.
- *
- * @param {string} token - Trakt OAuth access token.
- * @param {number|string} traktId - Trakt episode ID.
- * @returns {Promise<boolean>} True if successful.
- * @throws {Error} If Trakt API request fails.
+ * @param {string} token - Trakt OAuth access token
+ * @param {Array<number|string>} traktIds - Array of Trakt episode IDs
+ * @returns {Promise<boolean>} True if successful
+ * @throws {Error} If Trakt API request fails
  */
-async function unmarkOnTrakt(token, traktId) {
+async function unmarkOnTrakt(token, traktIds) {
+  if (!Array.isArray(traktIds) || traktIds.length === 0) return true;
+
+  const payload = {
+    episodes: traktIds.map((id) => ({ ids: { trakt: Number(id) } })),
+  };
+
   const res = await fetch(`${BASE_URL}/sync/history/remove`, {
     method: "POST",
     headers: {
@@ -67,9 +70,7 @@ async function unmarkOnTrakt(token, traktId) {
       "Content-Type": "application/json",
       "User-Agent": "NextUp/1.0.0",
     },
-    body: JSON.stringify({
-      episodes: [{ ids: { trakt: Number(traktId) } }],
-    }),
+    body: JSON.stringify(payload),
   });
 
   if (!res.ok) {
@@ -118,9 +119,14 @@ export async function handler(event) {
     };
   }
 
-  const { token, action, showId, episodeId } = body;
+  const { token, action, showId, episodeIds } = body;
 
-  if (!token || !episodeId || !action) {
+  if (
+    !token ||
+    !Array.isArray(episodeIds) ||
+    episodeIds.length === 0 ||
+    !action
+  ) {
     return {
       statusCode: 400,
       body: JSON.stringify({ error: "Missing required fields" }),
@@ -130,16 +136,16 @@ export async function handler(event) {
   try {
     switch (action) {
       case "mark": {
-        const traktId = await saveUserEpisode(userId, episodeId);
-        await markOnTrakt(token, traktId);
-        await updateListShows(userId, showId, "increment");
+        const traktIds = await saveUserEpisodes(userId, episodeIds);
+        await markOnTrakt(token, traktIds);
+        await updateListShows(userId, showId, "increment", traktIds.length);
         break;
       }
 
       case "unmark": {
-        const traktId = await deleteUserEpisode(userId, episodeId);
-        await unmarkOnTrakt(token, traktId);
-        await updateListShows(userId, showId, "decrement");
+        const traktIds = await deleteUserEpisodes(userId, episodeIds);
+        await unmarkOnTrakt(token, traktIds);
+        await updateListShows(userId, showId, "decrement", traktIds.length);
         break;
       }
 
@@ -155,7 +161,7 @@ export async function handler(event) {
       body: JSON.stringify({ success: true }),
     };
   } catch (err) {
-    console.error("markEpisode handler failed:", err);
+    console.error("markEpisodes handler failed:", err);
 
     return {
       statusCode: 500,
