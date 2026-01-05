@@ -175,7 +175,7 @@ body.login-page {
 
 /* Navigation links */
 .nav-link {
-  color: #4d4e53;
+  color: #5d5e63;
   text-decoration: none;
   font-weight: bold;
   transition: color 0.2s;
@@ -398,7 +398,7 @@ main {
 }
 
 .progress_text {
-  color: #4d4e53;
+  color: #5d5e63;
   font-size: 1.2rem;
 }
 
@@ -420,11 +420,11 @@ main {
 }
 
 .episode_info_btn:hover {
-  background-color: #4d4e53;
+  background-color: #5d5e63;
 }
 
 .episodes_left {
-  color: #4d4e53;
+  color: #5d5e63;
   font-size: 1.2rem;
 }
 
@@ -440,7 +440,7 @@ main {
 
 .no-show-message {
   font-size: 1.2rem;
-  color: #4d4e53;
+  color: #5d5e63;
   margin-top: 3rem;
 }
 
@@ -585,7 +585,7 @@ main {
   align-items: center;
   justify-content: space-between;
   padding: 0.5rem;
-  border-bottom: 1px solid #4d4e53;
+  border-bottom: 1px solid #5d5e63;
   cursor: pointer;
 }
 .episode:hover {
@@ -603,12 +603,17 @@ main {
 
 .mark-watched,
 .mark-season {
-  background-color: #00bfff;
-  color: #222;
+  background-color: #4d4e53;
+  color: #fff;
   border: none;
   border-radius: 3px;
   padding: 0.2rem 0.5rem;
   cursor: pointer;
+}
+
+.mark-watched:hover,
+.mark-season:hover {
+  background-color: #5d5e63;
 }
 
 .unmark-watched,
@@ -619,6 +624,28 @@ main {
   border-radius: 3px;
   padding: 0.2rem 0.5rem;
   cursor: pointer;
+}
+
+.unmark-watched:hover,
+.unmark-season:hover {
+  background-color: #00e600;
+}
+
+.mark-watched:disabled,
+.unmark-watched:disabled,
+.mark-season:disabled,
+.unmark-season:disabled {
+  background-color: #2f3035;
+  color: #aaa;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.mark-watched:disabled:hover,
+.unmark-watched:disabled:hover,
+.mark-season:disabled:hover,
+.unmark-season:disabled:hover {
+  background-color: #2f3035;
 }
 
 .expand_btn {
@@ -771,7 +798,7 @@ footer {
 .sort-controls select {
   background: #23242d;
   color: #fff;
-  border: 1px solid #4d4e53;
+  border: 1px solid #5d5e63;
   border-radius: 4px;
   font-size: 1rem;
   margin-left: 0.5rem;
@@ -829,7 +856,7 @@ footer {
 }
 
 .search-input::placeholder {
-  color: #4d4e53;
+  color: #5d5e63;
 }
 
 .search-btn {
@@ -913,7 +940,7 @@ footer {
 .no-results {
   text-align: center;
   padding: 2rem;
-  color: #4d4e53;
+  color: #5d5e63;
   font-size: 1.1rem;
 }
 
@@ -934,7 +961,7 @@ footer {
 }
 
 .pagination-info {
-  color: #4d4e53;
+  color: #5d5e63;
   font-size: 0.9rem;
 }
 
@@ -969,7 +996,7 @@ footer {
 
 .pagination-ellipsis {
   padding: 0.5rem;
-  color: #4d4e53;
+  color: #5d5e63;
 }
 
 /* ========================================================
