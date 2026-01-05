@@ -56,7 +56,12 @@ export function formatEpisodeInfo(seasonNumber, episodeNumber, title) {
   return `S${season}E${episode}${title ? ` - ${title}` : ""}`;
 }
 
-// Helper to compute progress for a show at render time
+/**
+ * Compute overall progress for a show at render time.
+ *
+ * @param {Object} show - Show object containing watched and total episodes, and next_episode info.
+ * @returns {Object} Progress info including next episode display, percent complete, progress text, and episodes left.
+ */
 function computeShowProgress(show) {
   const nextEpisodeInfo = formatEpisodeInfo(
     show.next_episode.season_number,
@@ -64,15 +69,71 @@ function computeShowProgress(show) {
     show.next_episode.title
   );
 
-  const progressBarPercent = Math.round(
-    (show.watched_episodes / show.total_episodes) * 100
-  );
+  const total = show.total_episodes || 0;
+  const watched = show.watched_episodes || 0;
 
-  const progressText = `${show.watched_episodes}/${show.total_episodes}`;
-
-  const episodesLeft = show.total_episodes - show.watched_episodes;
+  const progressBarPercent =
+    total > 0 ? Math.round((watched / total) * 100) : 0;
+  const progressText = `${watched}/${total}`;
+  const episodesLeft = Math.max(0, total - watched);
 
   return { nextEpisodeInfo, progressBarPercent, progressText, episodesLeft };
+}
+
+/**
+ * Compute progress for a set of episodes.
+ *
+ * @param {Array} episodes - Array of episode objects, each with optional `watched_at` date
+ * @returns {Object} Progress info:
+ *   - progressBarPercent {number}: percentage of episodes watched
+ *   - progressText {string}: e.g., "3/10" (watched/total)
+ */
+function computeSeasonProgress(episodes) {
+  const total = episodes.length;
+  if (total === 0) return { progressBarPercent: 0, progressText: "0/0" };
+
+  const completed = episodes.filter((ep) => Boolean(ep.watched_at)).length;
+
+  return {
+    progressBarPercent: Math.round((completed / total) * 100),
+    progressText: `${completed}/${total}`,
+    seasonCompleted: completed >= total,
+  };
+}
+
+/**
+ * Computes progress-related info for an episode.
+ * @param {Object} episode - Episode object
+ * @param {string|null} episode.watched_at - ISO date if watched, null if not
+ * @returns {Object} - Contains formatted episode info, button class, and button text
+ */
+function computeEpisodeProgress(episode) {
+  const epWatched = !!episode.watched_at;
+  const btnClass = epWatched ? "unmark-watched" : "mark-watched";
+  const btnText = epWatched ? "Watched" : "Mark as watched";
+
+  const firstAiredDate = new Date(episode.first_aired);
+  let airedStr;
+  if (isNaN(firstAiredDate.getTime())) {
+    airedStr = "Unknown";
+  } else {
+    airedStr = new Intl.DateTimeFormat("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(firstAiredDate);
+  }
+
+  const episodeInfo = `S${String(episode.season_number).padStart(
+    2,
+    "0"
+  )}E${String(episode.episode_number).padStart(2, "0")} - ${airedStr}`;
+
+  return {
+    episodeInfo,
+    btnClass,
+    btnText,
+  };
 }
 
 /**
@@ -382,7 +443,6 @@ export function renderShowDetails(show) {
 
   // Add event listener for collection button
   const collectionBtn = showContainer.querySelector("#collection-btn");
-
   if (collectionBtn) {
     collectionBtn.addEventListener("click", async () => {
       const showId = collectionBtn.dataset.showId;
@@ -409,7 +469,7 @@ export function renderShowDetails(show) {
     });
   }
 
-  renderSeasons(showContainer, show);
+  renderShowSeasons(showContainer, show.seasons, show.id);
 }
 
 /**
@@ -453,96 +513,59 @@ function updateEpisodeAndSeasonUI(episodeDiv, updatedShow, seasonNumber, mark) {
 }
 
 /**
- * Renders seasons and episodes of a show.
- * @param {HTMLElement} container - Container element to append seasons to
- * @param {Object} show - Show object containing `show.seasons` (array of season objects with episodes)
+ * Generates HTML for all episodes in a season.
+ * @param {Array} episodes - List of episodes
+ * @returns {string} - HTML string for the episodes
  */
-export function renderSeasons(container, show) {
-  console.log("show", show);
-  return;
-  // TODO
+function renderSeasonEpisodes(episodes) {
+  return `
+      ${episodes
+        .map((ep) => {
+          const { episodeInfo, btnClass, btnText } = computeEpisodeProgress(ep);
 
-  const seasonsContainer = container.querySelector("#seasons");
+          return `
+          <div class="episode" data-season="${
+            ep.season_number
+          }" data-episode="${ep.episode_number}" data-trakt="${ep.id}">
+            <div class="episode_info-container">
+              <p class="episode_title">${ep.title || "Untitled"}</p>
+              <p class="episode_info">${episodeInfo}</p>
+            </div>
 
-  const seasons = show.seasons;
-
-  const seasonTitle = document.createElement("p");
-  seasonTitle.classList.add("seasons_title");
-  seasonTitle.textContent = "Seasons";
-  seasonsContainer.appendChild(seasonTitle);
-
-  seasons.forEach((season) => {
-    const seasonDiv = document.createElement("div");
-    seasonDiv.classList.add("season");
-    // annotate season div with season number for easy lookup
-    seasonDiv.dataset.season = season.number;
-
-    // compute totals for the season
-    const episodesArray = Array.isArray(season.episodes) ? season.episodes : [];
-    const total =
-      episodesArray.length > 0
-        ? episodesArray.length
-        : season.episode_count || season.aired_episodes || 0;
-    let completed = 0;
-    episodesArray.forEach((ep) => {
-      const watched =
-        !!ep.watched || (ep.plays != null && ep.plays > 0) || !!ep.completed;
-      if (watched) completed += 1;
-    });
-
-    const progress_bar_percent =
-      total > 0 ? Math.round((completed / total) * 100) : 0;
-    const progress_text = `${completed}/${total}`;
-
-    const episodesHTML = `
-      <div class="episodes">
-        ${episodesArray
-          .map((ep) => {
-            const epWatched =
-              !!ep.watched ||
-              (ep.plays != null && ep.plays > 0) ||
-              !!ep.completed;
-            const btnClass = epWatched ? "unmark-watched" : "mark-watched";
-            const btnText = epWatched ? "Watched" : "Mark as watched";
-
-            const firstAiredDate = new Date(ep.first_aired);
-            const dd = String(firstAiredDate.getDate()).padStart(2, "0");
-            const mm = String(firstAiredDate.getMonth() + 1).padStart(2, "0");
-            const yyyy = firstAiredDate.getFullYear();
-            const airedStr = `${dd}/${mm}/${yyyy}`;
-
-            return `
-            <div class="episode" data-season="${season.number}" data-episode="${
-              ep.number
-            }" data-trakt="${ep.ids && ep.ids.trakt ? ep.ids.trakt : ""}">
-              <div class="episode_info-container">
-                <p class="episode_title">${ep.title || "Untitled"}</p>
-                <p class="episode_info">S${String(season.number).padStart(
-                  2,
-                  "0"
-                )}E${String(ep.number).padStart(2, "0")} - ${airedStr}</p>
-              </div>
-
-              <button class="${btnClass}">${btnText}</button>
-            </div>`;
-          })
-          .join("")}
-      </div>
+            <button class="${btnClass}">${btnText}</button>
+          </div>`;
+        })
+        .join("")}
     `;
+}
 
-    seasonDiv.innerHTML = `
+/**
+ * Renders a single season including its progress bar, mark/unmark button, and episode list.
+ * @param {Object} season - Season object
+ * @returns {HTMLElement} - A div element containing the rendered season
+ */
+function renderSeason(season) {
+  const seasonDiv = document.createElement("div");
+  seasonDiv.classList.add("season");
+  // annotate season div with season number for easy lookup
+  seasonDiv.dataset.season = season.season_number;
+
+  const { progressBarPercent, progressText, seasonCompleted } =
+    computeSeasonProgress(season.episodes);
+
+  seasonDiv.innerHTML = `
       <div class="season-container">
         <button class="${
-          completed === total ? "unmark-season" : "mark-season"
+          seasonCompleted ? "unmark-season" : "mark-season"
         } season_mark_btn">${
-      completed === total ? "Unmark season" : "Mark season"
-    }</button>
-        <p class="season_number">Season ${season.number}</p>
+    seasonCompleted ? "Unmark season" : "Mark season"
+  }</button>
+        <p class="season_number">Season ${season.season_number}</p>
         <div class="progress-container">
           <div class="progress-bar">
-            <div class="progress-bar-fill" style="width: ${progress_bar_percent}%;"></div>
+            <div class="progress-bar-fill" style="width: ${progressBarPercent}%;"></div>
           </div>
-          <p class="progress_text">${progress_text}</p>
+          <p class="progress_text">${progressText}</p>
         </div>
         <button class="expand_btn">
           <svg class="icon" width="14" height="14" viewBox="0 0 24 24">
@@ -550,10 +573,26 @@ export function renderSeasons(container, show) {
           </svg>
         </button>
       </div>
-      ${episodesHTML}
+      <div class="episodes">${renderSeasonEpisodes(season.episodes)}</div>
     `;
+  return seasonDiv;
+}
 
-    seasonsContainer.appendChild(seasonDiv);
+/**
+ * Renders seasons and episodes of a show.
+ * @param {HTMLElement} container - Container element to append seasons to
+ * @param {Array} seasons - Show seasons
+ * @param {string} showId - Internal show UUID.
+ */
+export function renderShowSeasons(container, seasons, showId) {
+  const seasonsContainer = container.querySelector("#seasons");
+  const seasonsTitle = document.createElement("p");
+  seasonsTitle.classList.add("seasons_title");
+  seasonsTitle.textContent = "Seasons";
+  seasonsContainer.appendChild(seasonsTitle);
+
+  seasons.forEach((season) => {
+    seasonsContainer.appendChild(renderSeason(season));
   });
 
   // Expand/collapse seasons
@@ -567,10 +606,15 @@ export function renderSeasons(container, show) {
     });
   });
 
+  return;
+  // TODO
+
   // Add event listeners to all buttons (both watched and not watched)
   seasonsContainer
     .querySelectorAll(".mark-watched, .unmark-watched")
     .forEach((btn) => {
+      // TODO: This already exists, so it can be reused or extracted into a separate method
+
       btn.addEventListener("click", async () => {
         // Determine metadata from DOM
         const episodeDiv = btn.closest(".episode");
@@ -579,9 +623,6 @@ export function renderSeasons(container, show) {
         const episodeNumber = parseInt(episodeDiv.dataset.episode, 10);
         const episodeTraktId = episodeDiv.dataset.trakt || null;
 
-        // Find show ID from the container's show details
-        const showId =
-          show && show.ids && show.ids.trakt ? show.ids.trakt : null;
         const token = window.localStorage.getItem("trakt_token");
         if (!token || !showId) {
           console.warn("Missing token or showId for marking episode");
@@ -620,7 +661,6 @@ export function renderSeasons(container, show) {
       const seasonDiv = btn.closest(".season");
       if (!seasonDiv) return;
       const seasonNumber = parseInt(seasonDiv.dataset.season, 10);
-      const showId = show && show.ids && show.ids.trakt ? show.ids.trakt : null;
       const token = window.localStorage.getItem("trakt_token");
       if (!token || !showId) {
         console.warn("Missing token or showId for marking season");
