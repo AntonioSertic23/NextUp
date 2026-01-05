@@ -37,13 +37,13 @@ export async function resolveUserIdFromToken(authorization) {
  * Saves or updates a show in the database.
  * @param {Object} show - Show object from Trakt API
  * @param {string|null} lastWatchedAt - Last watched timestamp
- * @returns {Promise<string|null>} Returns UUID of the show in the DB, or null if failed
+ * @returns {Promise<string|null>} Returns slug_id of the show in the DB, or null if failed
  * @throws Will throw an error if upsert fails critically
  */
 export async function saveShow(show, lastWatchedAt) {
   try {
     const {
-      data: { id: showId },
+      data: { id: showId, slug_id: traktIdentifier },
       error,
     } = await SUPABASE.from("shows")
       .upsert(
@@ -84,7 +84,7 @@ export async function saveShow(show, lastWatchedAt) {
         },
         { onConflict: "trakt_id", returning: "representation" }
       )
-      .select("id")
+      .select("id, slug_id")
       .single();
 
     if (error) {
@@ -92,12 +92,12 @@ export async function saveShow(show, lastWatchedAt) {
       throw new Error(`Failed to save show '${show.title}': ${error.message}`);
     }
 
-    if (!showId) {
+    if (!showId || !traktIdentifier) {
       console.warn("Upsert returned no data for show:", show.title);
       return null;
     }
 
-    return showId;
+    return { showId, traktIdentifier };
   } catch (err) {
     console.error("Unexpected error in saveShow:", show.title, err);
     throw err;
@@ -224,25 +224,36 @@ export async function saveShowSeasonsAndEpisodes(seasons, showId) {
 }
 
 /**
- * Retrieve a show with its nested seasons and episodes.
+ * Retrieves a show from the database together with its seasons, episodes,
+ * user watch progress, and collection status.
  *
- * - Fetches the show from the "shows" table by ID
- * - Fetches all seasons for that show
- * - Fetches all episodes for those seasons
- * - Returns a nested structure where each season includes its episodes
+ * Lookup strategy:
+ * - Matches by internal show ID if provided
+ * - Optionally matches by Trakt-related identifiers (slug, trakt_id, imdb_id, etc.)
+ *   with automatic type handling (numeric vs string identifiers)
  *
- * @param {string} showId - The ID of the show to fetch
- * @returns {Promise<Object|null>} A show object with nested `seasons` array,
- *                                each season containing an `episodes` array.
- *                                Returns `null` if the show is not found or on error.
+ * Data returned:
+ * - Show base fields
+ * - Nested seasons with episodes
+ * - Each episode enriched with optional user watch metadata
+ * - Boolean `in_collection` indicating whether the show exists
+ *   in the user's default list
+ *
+ * Notes:
+ * - All data is retrieved from Supabase
+ *
+ * @param {string} userId - Authenticated user UUID
+ * @param {string} traktIdentifier - Trakt identifier (slug ID)
+ * @returns {Promise<Object|null>}
+ * Returns `null` if the show does not exist or on unrecoverable error.
  */
-export async function getShowWithSeasonsAndEpisodes(showId) {
+export async function getShowWithSeasonsAndEpisodes(userId, traktIdentifier) {
   try {
-    // Fetch show
+    // Fetch show from database
     const { data: show, error: showError } = await SUPABASE.from("shows")
       .select("*")
-      .eq("id", showId)
-      .single();
+      .eq("slug_id", traktIdentifier)
+      .maybeSingle();
 
     if (showError || !show) {
       console.error("Show not found:", showError?.message);
@@ -254,7 +265,7 @@ export async function getShowWithSeasonsAndEpisodes(showId) {
       "seasons"
     )
       .select("*")
-      .eq("show_id", showId)
+      .eq("show_id", show.id)
       .order("season_number", { ascending: true });
 
     if (seasonsError) {
@@ -276,18 +287,74 @@ export async function getShowWithSeasonsAndEpisodes(showId) {
       console.error("Error fetching episodes:", episodesError.message);
     }
 
-    // Nest episodes into seasons
-    const seasonsWithEpisodes = seasons.map((season) => ({
-      ...season,
-      episodes: episodes
-        ? episodes.filter((ep) => ep.season_id === season.id)
-        : [],
-    }));
+    // Fetch user episodes for show
+    const episodeIds = episodes?.map((ep) => ep.id) ?? [];
+
+    // Count watched episodes from user_episodes
+    const { data: watchedData, error: watchedError } = await SUPABASE.from(
+      "user_episodes"
+    )
+      .select("episode_id, watched_at")
+      .eq("user_id", userId)
+      .in("episode_id", episodeIds || []);
+
+    if (watchedError) {
+      console.error("Error fetching watched episodes:", watchedError);
+    }
+
+    let seasonsWithEpisodes;
+
+    if (watchedData?.length) {
+      // Nest watched data into episodes
+      const episodesWithWatchedData = episodes.map((episode) => ({
+        ...episode,
+        watched_at: watchedData
+          ? watchedData.find((ep) => ep.episode_id === episode.id)
+              ?.watched_at || null
+          : null,
+      }));
+
+      // Nest episodes with watched data into seasons
+      seasonsWithEpisodes = seasons.map((season) => ({
+        ...season,
+        episodes: episodesWithWatchedData
+          ? episodesWithWatchedData.filter((ep) => ep.season_id === season.id)
+          : [],
+      }));
+    } else {
+      // Nest episodes into seasons
+      seasonsWithEpisodes = seasons.map((season) => ({
+        ...season,
+        episodes: episodes
+          ? episodes.filter((ep) => ep.season_id === season.id)
+          : [],
+      }));
+    }
+
+    let in_collection = false;
+    const listId = await getDefaultListId(userId);
+
+    // Check if show is in the default list
+    const { count, error: lsError } = await SUPABASE.from("list_shows")
+      .select("id", { count: "exact", head: true })
+      .eq("show_id", show.id)
+      .eq("list_id", listId);
+
+    if (lsError) {
+      console.error(
+        "Error checking if show is in collection:",
+        lsError.message
+      );
+      return { ...show, seasons: seasonsWithEpisodes, in_collection };
+    }
+
+    in_collection = (count ?? 0) > 0;
 
     // Return show with nested seasons & episodes
     return {
       ...show,
       seasons: seasonsWithEpisodes,
+      in_collection,
     };
   } catch (err) {
     console.error("Unexpected error:", err);

@@ -13,19 +13,18 @@ import { renderShowDetails } from "../ui.js";
  * - Renders show details or a fallback error message
  *
  * @param {HTMLElement} main - Main application container
- * @param {string} showId - Internal show ID
  * @param {string} [traktIdentifier] - Trakt show identifier.
  * Can be a Trakt slug (e.g. "game-of-thrones") or a numeric Trakt ID.
  * @returns {Promise<void>}
  */
-export async function renderShow(main, showId, traktIdentifier) {
+export async function renderShow(main, traktIdentifier) {
   const container = document.createElement("div");
   container.id = "show-container";
   container.innerHTML = "<p class='loading-text'>Loading...</p>";
   main.appendChild(container);
 
   try {
-    const show = await getShowDetails(showId, traktIdentifier);
+    const show = await getShowDetails(traktIdentifier);
 
     if (!show) {
       container.innerHTML = "<p>Show not found.</p>";

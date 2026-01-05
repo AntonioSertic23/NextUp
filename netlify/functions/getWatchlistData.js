@@ -64,6 +64,7 @@ export async function handler(event) {
         ),
         shows (
           id,
+          slug_id,
           title,
           image_poster
         )

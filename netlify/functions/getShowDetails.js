@@ -7,18 +7,17 @@ import {
   saveShow,
   saveShowSeasonsAndEpisodes,
   getShowWithSeasonsAndEpisodes,
+  resolveUserIdFromToken,
 } from "../lib/supabaseService.js";
 
 const BASE_URL = "https://api.trakt.tv";
-
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Netlify serverless function to fetch a show's details from Trakt API and store them in the database.
  *
  * - Only accepts POST requests; returns 405 otherwise.
  * - Expects a JSON body containing:
- *   - `token`: user's Trakt access token
+ *   - `traktToken`: user's Trakt access token
  *   - `traktIdentifier`: Trakt show identifier
  * - Fetches show details and seasons with episodes from Trakt.
  * - Saves the show and its seasons/episodes to the database.
@@ -47,12 +46,23 @@ export async function handler(event) {
     };
   }
 
-  const { token, traktIdentifier } = body;
+  let userId;
 
-  if (!token) {
+  try {
+    userId = await resolveUserIdFromToken(event.headers.authorization);
+  } catch (err) {
+    return {
+      statusCode: 401,
+      body: JSON.stringify({ error: err.message }),
+    };
+  }
+
+  const { traktToken, traktIdentifier } = body;
+
+  if (!traktToken) {
     return {
       statusCode: 400,
-      body: JSON.stringify({ error: "Missing 'token' in request body." }),
+      body: JSON.stringify({ error: "Missing Trakt token in request body." }),
     };
   }
 
@@ -65,6 +75,16 @@ export async function handler(event) {
     };
   }
 
+  // Try database first
+  try {
+    const result = await getShowWithSeasonsAndEpisodes(userId, traktIdentifier);
+
+    if (result) return { statusCode: 200, body: JSON.stringify(result) };
+  } catch (err) {
+    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+  }
+
+  // If not in DB, fallback to Trakt
   try {
     // Fetch show details
     const showRes = await fetch(
@@ -73,7 +93,7 @@ export async function handler(event) {
       )}?extended=full,images`,
       {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${traktToken}`,
           "trakt-api-version": "2",
           "trakt-api-key": process.env.TRAKT_CLIENT_ID,
           "Content-Type": "application/json",
@@ -96,7 +116,7 @@ export async function handler(event) {
       `${BASE_URL}/shows/${traktIdentifier}/seasons?extended=episodes,images&specials=false&count_specials=false`,
       {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${traktToken}`,
           "trakt-api-version": "2",
           "trakt-api-key": process.env.TRAKT_CLIENT_ID,
           "Content-Type": "application/json",
@@ -114,13 +134,15 @@ export async function handler(event) {
 
     const seasons = await seasonsRes.json();
 
-    const showId = await saveShow(show);
+    const { showId: newShowId, traktIdentifier: newTraktIdentifier } =
+      await saveShow(show);
 
-    await saveShowSeasonsAndEpisodes(seasons, showId);
+    await saveShowSeasonsAndEpisodes(seasons, newShowId);
 
-    await delay(300);
-
-    const result = await getShowWithSeasonsAndEpisodes(showId);
+    const result = await getShowWithSeasonsAndEpisodes(
+      userId,
+      newTraktIdentifier
+    );
 
     return { statusCode: 200, body: JSON.stringify(result) };
   } catch (err) {

@@ -12,15 +12,12 @@ import {
 
 const BASE_URL = "https://api.trakt.tv";
 
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
 /**
  * Serverless handler to sync user's Trakt collection
  *
  * Behavior:
  * - Fetches watched shows from Trakt
  * - Saves shows, seasons, episodes and user watched episodes to Supabase
- * - Processes all shows sequentially with a 300ms delay between shows
  *
  * @param {import('@netlify/functions').HandlerEvent} event - Netlify function event
  * @returns {Promise<{statusCode: number, body?: string}>} HTTP response
@@ -108,8 +105,6 @@ export async function handler(event) {
       if (show.seasons?.length) {
         await saveUserEpisodes(show.seasons, showId, userId);
       }
-
-      await delay(300);
     } catch (err) {
       console.error("Error processing show:", show.show.title, err);
       continue; // Continue with next show

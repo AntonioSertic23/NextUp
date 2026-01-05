@@ -3,58 +3,28 @@
 // ========================================================
 
 import { getToken } from "./services/authService.js";
-import { getUser, getSession } from "./stores/userStore.js";
-import { getShowById } from "./database.js";
+import { getSession } from "./stores/userStore.js";
 
 /**
- * Retrieve show details using a database-first strategy.
- *
- * Behavior:
- * 1. Attempt to load the show from the database
- * 2. If not found, fetch it from Trakt
- * 3. Persist the fetched show to the database
- *
- * @param {string} showId - Internal show ID
- * @param {string} [traktIdentifier] - Trakt show identifier.
- * Can be a Trakt slug (e.g. "game-of-thrones") or a numeric Trakt ID.
- * @returns {Promise<Object|null>} Show data or null if unavailable
- */
-export async function getShowDetails(showId, traktIdentifier) {
-  // Try database first
-  if (showId || traktIdentifier) {
-    const dbShow = await getShowById(showId, traktIdentifier);
-    if (dbShow) return dbShow;
-    console.warn("Show not found in database:", showId || traktIdentifier);
-  }
-
-  // If not in DB, fallback to Trakt
-  if (!traktIdentifier) {
-    console.warn("traktIdentifier not provided, cannot fetch from Trakt.");
-    return null;
-  }
-
-  const traktShow = await fetchShowFromTrakt(traktIdentifier);
-
-  return traktShow || null;
-}
-
-/**
- * Fetches show details from Trakt via a serverless function.
+ * Fetches show details from Supabase and if it is not there fetches it from Trakt and saves in database.
+ * In both cases it retrieves show object enriched with seasons and episodes information
  *
  * @async
- * @param {string} traktIdentifier - Trakt show identifier (slug or numeric ID)
+ * @param {string} traktIdentifier - Trakt show identifier
  * @returns {Promise<Object|null>} Show data if successful, otherwise null
  */
-async function fetchShowFromTrakt(traktIdentifier) {
-  const token = await getToken();
+export async function getShowDetails(traktIdentifier) {
+  const traktToken = await getToken();
+  const { access_token } = getSession();
 
   try {
     const res = await fetch("/.netlify/functions/getShowDetails", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${access_token}`,
       },
-      body: JSON.stringify({ token, traktIdentifier }),
+      body: JSON.stringify({ traktToken, traktIdentifier }),
     });
 
     if (!res.ok) {

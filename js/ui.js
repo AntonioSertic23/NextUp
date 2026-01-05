@@ -208,7 +208,7 @@ export async function renderWatchlist() {
       } = computeShowProgress(show);
 
       return `
-        <div class="show-card" data-id="${show.shows.id}">
+        <div class="show-card" data-id="${show.shows.slug_id}">
           <div class="poster-container">
             <img
               class="poster"
@@ -409,8 +409,7 @@ export function renderShowDetails(show) {
     });
   }
 
-  // TODO: Render seasons
-  // renderSeasons(showContainer, show);
+  renderSeasons(showContainer, show);
 }
 
 /**
@@ -459,6 +458,10 @@ function updateEpisodeAndSeasonUI(episodeDiv, updatedShow, seasonNumber, mark) {
  * @param {Object} show - Show object containing `show.seasons` (array of season objects with episodes)
  */
 export function renderSeasons(container, show) {
+  console.log("show", show);
+  return;
+  // TODO
+
   const seasonsContainer = container.querySelector("#seasons");
 
   const seasons = show.seasons;

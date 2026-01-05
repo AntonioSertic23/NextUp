@@ -33,7 +33,7 @@ export async function renderHome(main) {
     const card = e.target.closest(".show-card");
     if (!card) return;
 
-    const showId = card.dataset.id;
-    location.hash = `show?showId=${showId}`;
+    const traktIdentifier = card.dataset.id;
+    location.hash = `show?traktIdentifier=${traktIdentifier}`;
   });
 }

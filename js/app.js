@@ -81,7 +81,6 @@ async function router() {
   // Split hash by '?'
   const [route, queryString] = hash.split("?");
   const params = new URLSearchParams(queryString);
-  const showId = params.get("showId");
   const traktIdentifier = params.get("traktIdentifier");
 
   main.innerHTML = "";
@@ -89,7 +88,7 @@ async function router() {
   // Check if route exists
   if (routes[route]) {
     // Pass all params as array
-    await routes[route](main, showId, traktIdentifier);
+    await routes[route](main, traktIdentifier);
   } else {
     main.innerHTML = "<p>404 - Page not found.</p>";
   }
