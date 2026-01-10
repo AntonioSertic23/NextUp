@@ -18,7 +18,6 @@ import { getUser } from "./stores/userStore.js";
  */
 export async function getWatchlistData() {
   const listId = await getDefaultListId();
-
   const token = await getToken();
 
   const res = await fetch("/.netlify/functions/getWatchlistData", {
@@ -30,6 +29,50 @@ export async function getWatchlistData() {
   });
 
   return await res.json();
+}
+
+/**
+ * Fetches the next episode to watch for all shows in the user's default list.
+ *
+ * @param {string|number} showId - The unique identifier of the show.
+ * @returns {Promise<Array<Object>|null>} Array of next episodes or null on error
+ */
+export async function getShowNextEpisode(showId) {
+  const SUPABASE = await getSupabaseClient();
+  const listId = await getDefaultListId();
+
+  try {
+    const { data } = await SUPABASE.from("list_shows")
+      .select(
+        `
+        is_completed,
+        watched_episodes,
+        total_episodes,
+        next_episode (
+          id,
+          episode_number,
+          season_number,
+          title,
+          image_screenshot,
+          overview,
+          first_aired
+        ),
+        shows (
+          slug_id
+        )
+        `
+      )
+      .eq("list_id", listId)
+      .eq("show_id", showId)
+      .single();
+
+    console.log("data", data);
+
+    return data;
+  } catch (err) {
+    console.error("Unexpected error fetching next episode:", err);
+    return null;
+  }
 }
 
 /**

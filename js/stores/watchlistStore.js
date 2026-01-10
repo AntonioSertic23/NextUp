@@ -53,6 +53,38 @@ export function getNextEpisodeById(episodeId) {
 }
 
 /**
+ * Updates the watchlist store with new next episode data for a specific show.
+ *
+ * Finds the show in the watchlist matching `nextEpisode.shows.slug_id`
+ * and updates its `next_episode`, `is_completed`, `watched_episodes`, and `total_episodes` fields.
+ *
+ * @param {Object} nextEpisode - Object containing updated next episode data and show identifier.
+ */
+export function updateNextEpisode(nextEpisode) {
+  const showIndex = watchlist.findIndex(
+    (item) => item.shows.slug_id === nextEpisode.shows.slug_id
+  );
+  if (showIndex === -1) return;
+
+  watchlist[showIndex].next_episode = nextEpisode.next_episode;
+  watchlist[showIndex].is_completed = nextEpisode.is_completed;
+  watchlist[showIndex].watched_episodes = nextEpisode.watched_episodes;
+  watchlist[showIndex].total_episodes = nextEpisode.total_episodes;
+}
+
+/**
+ * Removes a show from the watchlist store based on its trakt identifier.
+ *
+ * @param {string} traktIdentifier - The trakt ID of the show to remove.
+ */
+export function removeShowFromWatchlist(traktIdentifier) {
+  const showIndex = watchlist.findIndex(
+    (item) => item.shows.slug_id === traktIdentifier
+  );
+  if (showIndex === -1) return;
+  watchlist.splice(showIndex, 1);
+}
+/**
  * Changes the active sort field and re-sorts the watchlist.
  *
  * Side effects:
