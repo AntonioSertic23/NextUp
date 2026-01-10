@@ -3,7 +3,6 @@
 // ========================================================
 
 import { renderDiscoverElments } from "../ui.js";
-import { resetDiscoverStore } from "../stores/discoverStore.js";
 
 /**
  * Renders the discover page with search functionality.
@@ -15,6 +14,5 @@ export async function renderDiscover(main) {
   searchDiv.id = "discover-container";
   main.appendChild(searchDiv);
 
-  resetDiscoverStore();
   await renderDiscoverElments(main);
 }
