@@ -7,6 +7,8 @@ import {
   changeSort,
   changeOrder,
   getNextEpisodeById,
+  updateNextEpisode,
+  removeShowFromWatchlist,
 } from "./stores/watchlistStore.js";
 import {
   resetDiscoverStore,
@@ -15,6 +17,7 @@ import {
 } from "./stores/discoverStore.js";
 import { markEpisodes, manageCollection, searchShows } from "./api.js";
 import { formatDate, formatEpisodeInfo } from "./utils.js";
+import { getShowNextEpisode } from "./database.js";
 
 const sortOptions = [
   { value: "added_at", label: "Last Added" },
@@ -124,6 +127,69 @@ function computeEpisodeProgress(episode) {
 }
 
 /**
+ * Updates the watchlist show card with the next episode information.
+ *
+ * @param {Object} nextEpisode - The next episode object.
+ */
+function updateWatchlistShowCard(nextEpisode) {
+  // Find the show card element with matching data-id
+  const showCard = document.querySelector(
+    `.show-card[data-id="${nextEpisode.shows.slug_id}"]`
+  );
+
+  if (showCard) {
+    const { nextEpisodeInfo, progressBarPercent, progressText, episodesLeft } =
+      computeShowProgress(nextEpisode);
+
+    console.log({
+      nextEpisodeInfo,
+      progressBarPercent,
+      progressText,
+      episodesLeft,
+    });
+
+    // Update DOM elements
+    const nextEpisodeEl = showCard.querySelector(".next_episode");
+    const progressBarFillEl = showCard.querySelector(".progress-bar-fill");
+    const progressTextEl = showCard.querySelector(".progress_text");
+    const episodesLeftEl = showCard.querySelector(".episodes_left");
+    const episodeInfoBtn = showCard.querySelector(".episode_info_btn");
+
+    if (nextEpisodeEl) nextEpisodeEl.textContent = nextEpisodeInfo || "";
+
+    if (progressBarFillEl)
+      progressBarFillEl.style.width = `${progressBarPercent}%`;
+
+    if (progressTextEl) progressTextEl.textContent = progressText || "";
+
+    if (episodesLeftEl)
+      episodesLeftEl.textContent = episodesLeft ? `${episodesLeft} left` : "";
+
+    if (episodeInfoBtn)
+      episodeInfoBtn.setAttribute("data-episode", nextEpisode.next_episode.id);
+  } else {
+    console.warn(`No show card found with ID ${nextEpisode.shows.slug_id}.`);
+  }
+}
+
+/**
+ * Removes a show card from the UI based on its Trakt ID.
+ * @param {string|number} traktIdentifier - The unique identifier of the show.
+ */
+function removeWatchlistShowCard(traktIdentifier) {
+  // Find the show card element with matching data-id
+  const showCard = document.querySelector(
+    `.show-card[data-id="${traktIdentifier}"]`
+  );
+
+  if (showCard) {
+    showCard.remove();
+  } else {
+    console.warn(`No show card found with ID ${traktIdentifier}.`);
+  }
+}
+
+/**
  * Attaches a click handler to an episode element that opens the episode modal.
  *
  * If the episode cannot be found, logs an error and exits gracefully.
@@ -157,22 +223,24 @@ function attachEpisodeInfoHandler(element, episode) {
     }
 
     // Callback to update UI after an action like marking episode as watched
-    const updateUICallback = () => {
+    const updateUICallback = async () => {
       if (episode) {
-        updateSeasonProgress(element, !episodeData.watched_at);
+        const markButton = element.querySelector("button");
+        updateSeasonProgress(markButton, !episodeData.watched_at);
         return;
       }
 
-      console.log("updateWatchlistUICallback");
-      // TODO: Fetch the next episode for this series and update or remove only that single series from the UI.
-      /*
-      const nextEpisode = getNextEpisode();
-      if (nextEpisode) {
-        updateWatchlistShowCard(nextEpisode.show_id);
+      const nextEpisode = await getShowNextEpisode(episodeData.show_id);
+
+      console.log("nextEpisode", nextEpisode);
+
+      if (!nextEpisode.is_completed) {
+        updateWatchlistShowCard(nextEpisode);
+        updateNextEpisode(nextEpisode);
       } else {
-        removeWatchlistShowCard(nextEpisode.show_id);
+        removeWatchlistShowCard(nextEpisode.shows.slug_id);
+        removeShowFromWatchlist(nextEpisode.shows.slug_id);
       }
-      */
     };
 
     showEpisodeInfoModal(
@@ -811,6 +879,7 @@ function updateSeasonProgress(btn, markAsWatched, setAll = false) {
   } else {
     // Single episode update
     watched = markAsWatched ? watched + 1 : watched - 1;
+    updateMarkButton(btn, markAsWatched);
   }
 
   // Clamp values just in case
@@ -892,7 +961,7 @@ export function renderShowSeasons(container, seasons, showId) {
 
     if (!episodeData) return;
 
-    attachEpisodeInfoHandler(element, { ...episodeData, showId });
+    attachEpisodeInfoHandler(element, { ...episodeData, show_id: showId });
   });
 
   // Add event listeners for season-level mark/unmark buttons
@@ -932,49 +1001,6 @@ export function renderShowSeasons(container, seasons, showId) {
       }
     });
   });
-}
-
-/**
- * Updates a single show card on the UI with fresh data from cache.
- * @param {string|number} showId - Trakt show ID to update.
- */
-export function updateShowCard(showId) {
-  const showCard = document.querySelector(`.show-card[data-id="${showId}"]`);
-  if (!showCard) return;
-
-  const cache = loadCache();
-  const show = cache[showId];
-  if (!show) return;
-
-  // Recompute progress
-  const p = computeShowProgress(show);
-
-  // Update DOM elements
-  const nextEpisodeEl = showCard.querySelector(".next_episode");
-  const progressBarFill = showCard.querySelector(".progress-bar-fill");
-  const progressText = showCard.querySelector(".progress_text");
-  const episodesLeft = showCard.querySelector(".episodes_left");
-  const episodeInfoBtn = showCard.querySelector(".episode_info_btn");
-
-  if (nextEpisodeEl) nextEpisodeEl.textContent = p.nextEpObj?.info || "";
-  if (progressBarFill)
-    progressBarFill.style.width = `${p.progress_bar_percent}%`;
-  if (progressText) progressText.textContent = p.progress_text || "";
-  if (episodesLeft)
-    episodesLeft.textContent =
-      p.episodes_left != null ? `${p.episodes_left} left` : "";
-
-  // Update episode info button data and reattach listener
-  if (episodeInfoBtn) {
-    episodeInfoBtn.setAttribute(
-      "data-episode",
-      JSON.stringify(p.nextEpObj || {})
-    );
-    // Remove old listener and add new one
-    const newBtn = episodeInfoBtn.cloneNode(true);
-    episodeInfoBtn.parentNode.replaceChild(newBtn, episodeInfoBtn);
-    attachEpisodeInfoHandler(newBtn);
-  }
 }
 
 /**
@@ -1040,9 +1066,13 @@ function showEpisodeInfoModal(episode, updateUICallback, isWatched = false) {
 
   let mark = isWatched;
 
-  markBtn.onclick = () => {
+  markBtn.onclick = async () => {
     try {
-      const showUpdated = markEpisodes(episode.show_id, [episode.id], !mark);
+      const showUpdated = await markEpisodes(
+        episode.show_id,
+        [episode.id],
+        !mark
+      );
 
       if (showUpdated) {
         mark = !mark;
@@ -1050,6 +1080,9 @@ function showEpisodeInfoModal(episode, updateUICallback, isWatched = false) {
 
         if (typeof updateUICallback === "function") {
           updateUICallback();
+
+          // Close modal after action
+          overlay.style.display = "none";
         }
       }
     } catch (err) {
