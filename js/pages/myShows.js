@@ -36,23 +36,21 @@ function calculateTimeUntil(firstAired) {
  * @returns {Promise<void>}
  */
 export async function renderMyShows(main) {
-  const token = await getToken();
-
-  const collectionDiv = document.createElement("div");
-  collectionDiv.id = "collection-container";
-
-  main.appendChild(collectionDiv);
+  const myShowsDiv = document.createElement("div");
+  myShowsDiv.id = "my_shows-container";
+  main.appendChild(myShowsDiv);
 
   // Show loading state
-  collectionDiv.innerHTML = "<p class='loading-text'>Loading shows...</p>";
+  myShowsDiv.innerHTML = "<p class='loading-text'>Loading...</p>";
 
   // TODO: Commented out until the retrieval and storage of series is moved to Supabase instead of localStorage.
   /* try {
+    const token = await getToken();
     // Fetch collection (without sorting, we'll sort by days)
     // const shows = await getMyShowsData(token, null);
 
     if (shows.length === 0) {
-      collectionDiv.innerHTML =
+      myShowsDiv.innerHTML =
         "<p class='no-results'>No shows found in your collection.</p>";
       return;
     }
@@ -158,16 +156,16 @@ export async function renderMyShows(main) {
     });
 
     if (filteredShows.length === 0) {
-      collectionDiv.innerHTML =
+      myShowsDiv.innerHTML =
         "<p class='no-results'>No upcoming episodes found in your collection.</p>";
       return;
     }
 
     // Render the collection with days until next episode
-    renderMyShowsCollection(collectionDiv, filteredShows);
+    renderMyShowsCollection(myShowsDiv, filteredShows);
 
     // Add click event to each show card to navigate to its details page
-    collectionDiv.querySelectorAll(".show-card").forEach((card) => {
+    myShowsDiv.querySelectorAll(".show-card").forEach((card) => {
       card.addEventListener("click", () => {
         const id = card.dataset.id;
         location.hash = `show/${id}`;
@@ -175,6 +173,6 @@ export async function renderMyShows(main) {
     });
   } catch (error) {
     console.error("Error loading My Shows:", error);
-    collectionDiv.innerHTML = `<p class='error-text'>Error loading shows: ${error.message}</p>`;
+    myShowsDiv.innerHTML = `<p class='error-text'>Error loading shows: ${error.message}</p>`;
   } */
 }
