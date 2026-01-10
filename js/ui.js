@@ -8,7 +8,8 @@ import {
   changeOrder,
   getNextEpisodeById,
 } from "./stores/watchlistStore.js";
-import { markEpisodes, manageCollection } from "./api.js";
+import { getDiscoverState, setDiscoverState } from "./stores/discoverStore.js";
+import { markEpisodes, manageCollection, searchShows } from "./api.js";
 
 const sortOptions = [
   { value: "added_at", label: "Last Added" },
@@ -256,6 +257,227 @@ export async function renderSortControls(main) {
     changeOrder(newOrder);
 
     renderWatchlist();
+  });
+}
+
+/** Renders the Discover page with search functionality. */
+export async function renderDiscoverElments() {
+  const pagination = getDiscoverState();
+  const container = document.getElementById("discover-container");
+
+  // Create search input and button
+  const searchForm = document.createElement("div");
+  searchForm.className = "search-form";
+  searchForm.innerHTML = `
+      <input 
+        type="text" 
+        id="search-input" 
+        class="search-input" 
+        placeholder="Enter show name..."
+        value="${pagination.currentQuery}"
+      />
+      <button id="search-btn" class="search-btn">Search</button>
+    `;
+
+  // Create results container
+  const resultsDiv = document.createElement("div");
+  resultsDiv.className = "search-results";
+  resultsDiv.id = "search-results";
+
+  // Create pagination container
+  const paginationDiv = document.createElement("div");
+  paginationDiv.className = "pagination-container";
+  paginationDiv.id = "pagination-container";
+
+  container.appendChild(searchForm);
+  container.appendChild(resultsDiv);
+  container.appendChild(paginationDiv);
+
+  // Add event listener for search button
+  const searchBtn = document.getElementById("search-btn");
+  const searchInput = document.getElementById("search-input");
+
+  searchBtn.addEventListener("click", async () => {
+    const query = searchInput.value.trim();
+    if (!query) {
+      return;
+    }
+
+    await performSearch(query, 1, paginationDiv);
+  });
+
+  // Allow Enter key to trigger search
+  searchInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+      searchBtn.click();
+    }
+  });
+
+  const discoverState = getDiscoverState();
+  if (discoverState.results.length > 0) {
+    displaySearchResults(discoverState.results);
+    renderPagination(
+      paginationDiv,
+      discoverState.currentQuery,
+      discoverState.paginationInfo
+    );
+  }
+}
+
+/**
+ * Performs a search and displays results with pagination.
+ * @param {string} query - Search query
+ * @param {number} page - Page number
+ * @param {HTMLElement} paginationDiv - Pagination container
+ */
+async function performSearch(query, page, paginationDiv) {
+  const resultsDiv = document.getElementById("search-results");
+
+  // Show loading state
+  resultsDiv.innerHTML = "<p class='loading-text'>Searching...</p>";
+  paginationDiv.innerHTML = "";
+
+  try {
+    const data = await searchShows(query, page, 10);
+    console.log("data", data);
+
+    setDiscoverState({
+      currentQuery: query,
+      currentPage: page,
+      paginationInfo: data.pagination,
+      results: data.results,
+    });
+
+    displaySearchResults(data.results);
+    renderPagination(paginationDiv, query, data.pagination);
+  } catch (error) {
+    console.error("Search error:", error);
+    resultsDiv.innerHTML = `<p class='error-text'>Error searching shows: ${error.message}</p>`;
+    paginationDiv.innerHTML = "";
+  }
+}
+
+/**
+ * Displays search results in the results container.
+ * @param {Array} results - Array of show objects from search
+ */
+function displaySearchResults(results) {
+  const container = document.getElementById("search-results");
+
+  if (!results || results.length === 0) {
+    container.innerHTML = "<p class='no-results'>No shows found.</p>";
+    return;
+  }
+
+  container.innerHTML = results
+    .map((show) => {
+      const title = show.show?.title || "";
+      const showId = show.show?.ids?.trakt || "";
+
+      return `
+        <div class="search-result-card" data-id="${showId}">
+          <div class="search-result-poster">
+            <img src="https://${show.show.images.poster[0]}" alt="${title}" />
+          </div>
+          <div class="search-result-info">
+            <h3 class="search-result-title">${title} ${show.show?.year}</h3>
+            <p class="search-result-overview">${show.show?.overview}</p>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+
+  // Add click event to navigate to show details
+  container.querySelectorAll(".search-result-card").forEach((card) => {
+    card.addEventListener("click", () => {
+      const id = card.dataset.id;
+      if (id) {
+        location.hash = `show?traktIdentifier=${id}`;
+      }
+    });
+  });
+}
+
+/**
+ * Renders pagination controls.
+ * @param {HTMLElement} container - Container for pagination controls
+ * @param {string} query - Current search query
+ */
+async function renderPagination(container, query, pagination) {
+  const resultsDiv = document.getElementById("search-results");
+
+  if (!pagination || pagination.pageCount <= 1) {
+    container.innerHTML = "";
+    return;
+  }
+
+  const { page, pageCount, itemCount } = pagination;
+  const pages = [];
+
+  // Previous button
+  if (page > 1) {
+    pages.push(
+      `<button class="pagination-btn" data-page="${page - 1}">Previous</button>`
+    );
+  }
+
+  // Page numbers
+  const maxVisible = 5;
+  let startPage = Math.max(1, page - Math.floor(maxVisible / 2));
+  let endPage = Math.min(pageCount, startPage + maxVisible - 1);
+
+  if (endPage - startPage < maxVisible - 1) {
+    startPage = Math.max(1, endPage - maxVisible + 1);
+  }
+
+  if (startPage > 1) {
+    pages.push(`<button class="pagination-btn" data-page="1">1</button>`);
+    if (startPage > 2) {
+      pages.push(`<span class="pagination-ellipsis">...</span>`);
+    }
+  }
+
+  for (let i = startPage; i <= endPage; i++) {
+    const activeClass = i === page ? "active" : "";
+    pages.push(
+      `<button class="pagination-btn ${activeClass}" data-page="${i}">${i}</button>`
+    );
+  }
+
+  if (endPage < pageCount) {
+    if (endPage < pageCount - 1) {
+      pages.push(`<span class="pagination-ellipsis">...</span>`);
+    }
+    pages.push(
+      `<button class="pagination-btn" data-page="${pageCount}">${pageCount}</button>`
+    );
+  }
+
+  // Next button
+  if (page < pageCount) {
+    pages.push(
+      `<button class="pagination-btn" data-page="${page + 1}">Next</button>`
+    );
+  }
+
+  container.innerHTML = `
+    <div class="pagination-info">
+      Showing page ${page} of ${pageCount} (${itemCount} total results)
+    </div>
+    <div class="pagination-buttons">
+      ${pages.join("")}
+    </div>
+  `;
+
+  // Add event listeners to pagination buttons
+  container.querySelectorAll(".pagination-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const newPage = parseInt(btn.dataset.page, 10);
+      await performSearch(query, newPage, container);
+      // Scroll to top of results
+      resultsDiv.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   });
 }
 

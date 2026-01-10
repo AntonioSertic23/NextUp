@@ -44,13 +44,14 @@ export async function getShowDetails(traktIdentifier) {
 /**
  * Searches for TV shows on Trakt API using a query string.
  *
- * @param {string} token - The user's Trakt OAuth token for authentication.
  * @param {string} query - Search query (show name).
  * @param {number} [page=1] - Page number for pagination (default: 1).
  * @param {number} [limit=10] - Number of results per page (default: 10).
  * @returns {Promise<Object>} Object with `results` array and `pagination` info.
  */
-export async function searchShows(token, query, page = 1, limit = 10) {
+export async function searchShows(query, page = 1, limit = 10) {
+  const token = await getToken();
+
   if (!token || !query || !query.trim()) {
     throw new Error("Token and query are required");
   }
