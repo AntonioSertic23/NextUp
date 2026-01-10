@@ -15,39 +15,7 @@ export function resetDiscoverStore() {
   currentQuery = "";
   currentPage = 1;
   paginationInfo = null;
-}
-
-/**
- * Sets new search query and resets page to 1.
- * @param {string} query - New search query.
- */
-export function setCurrentQuery(query) {
-  currentQuery = query;
-  currentPage = 1; // Reset page on new query
-}
-
-/**
- * Sets current pagination page.
- * @param {number} page - Page number (1-based).
- */
-export function setCurrentPage(page) {
-  currentPage = page;
-}
-
-/**
- * Sets pagination info.
- * @param {Object} pagination - Pagination data object.
- */
-export function setPaginationInfo(pagination) {
-  paginationInfo = pagination;
-}
-
-/**
- * Sets search results array.
- * @param {Array} newResults - Array of search result objects.
- */
-export function setResults(newResults) {
-  results = newResults;
+  results = [];
 }
 
 /**
@@ -69,8 +37,10 @@ export function getDiscoverState() {
  * @param {Object} state - State object with keys matching store properties.
  */
 export function setDiscoverState(state) {
-  currentQuery = state.currentQuery || "";
-  currentPage = state.currentPage || 1;
-  paginationInfo = state.paginationInfo || null;
-  results = state.results || [];
+  console.log("setDiscoverState", state);
+
+  currentQuery = state.currentQuery;
+  currentPage = state.currentPage;
+  paginationInfo = state.paginationInfo;
+  results = state.results;
 }

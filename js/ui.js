@@ -8,8 +8,13 @@ import {
   changeOrder,
   getNextEpisodeById,
 } from "./stores/watchlistStore.js";
-import { getDiscoverState, setDiscoverState } from "./stores/discoverStore.js";
+import {
+  resetDiscoverStore,
+  getDiscoverState,
+  setDiscoverState,
+} from "./stores/discoverStore.js";
 import { markEpisodes, manageCollection, searchShows } from "./api.js";
+import { formatDate, formatEpisodeInfo } from "./utils.js";
 
 const sortOptions = [
   { value: "added_at", label: "Last Added" },
@@ -36,25 +41,6 @@ export function updateActiveNav() {
       link.classList.remove("active");
     }
   });
-}
-
-/**
- * Formats an episode string in the form `SxxExx - Title`.
- *
- * Pads season and episode numbers to 2 digits.
- *
- * @param {number|string} seasonNumber - Season number.
- * @param {number|string} episodeNumber - Episode number.
- * @param {string} [title] - Optional episode title.
- * @returns {string} Formatted episode string, e.g. `S01E05 - Pilot`.
- */
-export function formatEpisodeInfo(seasonNumber, episodeNumber, title) {
-  if (seasonNumber == null || episodeNumber == null) return "";
-
-  const season = String(seasonNumber).padStart(2, "0");
-  const episode = String(episodeNumber).padStart(2, "0");
-
-  return `S${season}E${episode}${title ? ` - ${title}` : ""}`;
 }
 
 /**
@@ -262,7 +248,7 @@ export async function renderSortControls(main) {
 
 /** Renders the Discover page with search functionality. */
 export async function renderDiscoverElments() {
-  const pagination = getDiscoverState();
+  const discoverState = getDiscoverState();
   const container = document.getElementById("discover-container");
 
   // Create search input and button
@@ -274,8 +260,18 @@ export async function renderDiscoverElments() {
         id="search-input" 
         class="search-input" 
         placeholder="Enter show name..."
-        value="${pagination.currentQuery}"
+        value="${discoverState.currentQuery}"
       />
+      
+      <button 
+        type="button" 
+        id="clear-btn" 
+        class="clear-btn"
+        style="
+          display: ${discoverState.currentQuery ? "block" : "none"};
+        "
+      >X</button>
+
       <button id="search-btn" class="search-btn">Search</button>
     `;
 
@@ -294,8 +290,9 @@ export async function renderDiscoverElments() {
   container.appendChild(paginationDiv);
 
   // Add event listener for search button
-  const searchBtn = document.getElementById("search-btn");
-  const searchInput = document.getElementById("search-input");
+  const searchBtn = searchForm.querySelector("#search-btn");
+  const searchInput = searchForm.querySelector("#search-input");
+  const clearBtn = searchForm.querySelector("#clear-btn");
 
   searchBtn.addEventListener("click", async () => {
     const query = searchInput.value.trim();
@@ -304,6 +301,8 @@ export async function renderDiscoverElments() {
     }
 
     await performSearch(query, 1, paginationDiv);
+
+    clearBtn.style.display = "block";
   });
 
   // Allow Enter key to trigger search
@@ -313,7 +312,14 @@ export async function renderDiscoverElments() {
     }
   });
 
-  const discoverState = getDiscoverState();
+  clearBtn.addEventListener("click", () => {
+    searchInput.value = "";
+    clearBtn.style.display = "none";
+    resultsDiv.innerHTML = "";
+    paginationDiv.innerHTML = "";
+    resetDiscoverStore();
+  });
+
   if (discoverState.results.length > 0) {
     displaySearchResults(discoverState.results);
     renderPagination(
@@ -339,7 +345,6 @@ async function performSearch(query, page, paginationDiv) {
 
   try {
     const data = await searchShows(query, page, 10);
-    console.log("data", data);
 
     setDiscoverState({
       currentQuery: query,
@@ -349,6 +354,7 @@ async function performSearch(query, page, paginationDiv) {
     });
 
     displaySearchResults(data.results);
+
     renderPagination(paginationDiv, query, data.pagination);
   } catch (error) {
     console.error("Search error:", error);
@@ -474,7 +480,9 @@ async function renderPagination(container, query, pagination) {
   container.querySelectorAll(".pagination-btn").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const newPage = parseInt(btn.dataset.page, 10);
+
       await performSearch(query, newPage, container);
+
       // Scroll to top of results
       resultsDiv.scrollIntoView({ behavior: "smooth", block: "start" });
     });
@@ -709,46 +717,6 @@ export function renderShowDetails(show) {
   }
 
   renderShowSeasons(showContainer, show.seasons, show.id);
-}
-
-/**
- * Update a single episode button and its season progress in-place.
- * @param {HTMLElement} episodeDiv - The episode DOM element
- * @param {Object} updatedShow - The updated show object returned from API
- * @param {number} seasonNumber
- * @param {boolean} mark
- */
-function updateEpisodeAndSeasonUI(episodeDiv, updatedShow, seasonNumber, mark) {
-  const btn = episodeDiv.querySelector("button");
-
-  // Update button state
-  const epWatchedNow = !!mark;
-  btn.textContent = epWatchedNow ? "Unmark" : "Mark";
-  btn.classList.toggle("mark-watched", !epWatchedNow);
-  btn.classList.toggle("unmark-watched", epWatchedNow);
-
-  // Update season progress using updatedShow data
-  const updatedSeason = (updatedShow.seasons || []).find(
-    (s) => s.number === seasonNumber
-  );
-  if (!updatedSeason) return;
-
-  const episodes = Array.isArray(updatedSeason.episodes)
-    ? updatedSeason.episodes
-    : [];
-  const total = episodes.length;
-  const completed = episodes.reduce(
-    (acc, e) => acc + (e.watched || (e.plays != null && e.plays > 0) ? 1 : 0),
-    0
-  );
-  const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-  const seasonDiv = episodeDiv.closest(".season");
-  if (!seasonDiv) return;
-  const fill = seasonDiv.querySelector(".progress-bar-fill");
-  const textEl = seasonDiv.querySelector(".progress_text");
-  if (fill) fill.style.width = `${percent}%`;
-  if (textEl) textEl.textContent = `${completed}/${total}`;
 }
 
 /**
@@ -1024,23 +992,6 @@ function updateMarkButton(markBtn, watched) {
     markBtn.classList.add("mark-watched");
     markBtn.textContent = "Mark";
   }
-}
-
-/**
- * Formats a date string or Date object into `DD/MM/YYYY` format.
- *
- * @param {string|Date} input - The date to format.
- * @returns {string} Formatted date string in `DD/MM/YYYY` format.
- */
-export function formatDate(input) {
-  if (!input) return "";
-
-  const d = input instanceof Date ? input : new Date(input);
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const year = d.getFullYear();
-
-  return `${day}/${month}/${year}`;
 }
 
 /**
