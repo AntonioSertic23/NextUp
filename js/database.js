@@ -58,15 +58,16 @@ export async function getShowNextEpisode(showId) {
           first_aired
         ),
         shows (
-          slug_id
+          id,
+          slug_id,
+          title,
+          image_poster
         )
         `
       )
       .eq("list_id", listId)
       .eq("show_id", showId)
       .single();
-
-    console.log("data", data);
 
     return data;
   } catch (err) {
@@ -99,6 +100,59 @@ export async function getDefaultListId() {
     return list?.id ?? null;
   } catch (err) {
     console.error("Unexpected error fetching default list:", err);
+    return null;
+  }
+}
+
+/**
+ * Fetches the user's shows along with their next episodes from the default list.
+ *
+ * @returns {Promise<Array<Object>|null>} Array of shows with next episodes or null on error
+ */
+export async function getUpcomingEpisodesData() {
+  const SUPABASE = await getSupabaseClient();
+  const listId = await getDefaultListId();
+
+  try {
+    const { data: shows } = await SUPABASE.from("list_shows")
+      .select("show_id")
+      .eq("list_id", listId);
+
+    const showIds = shows.map((s) => s.show_id);
+    const currentDate = new Date().toISOString();
+
+    const { data: episodes } = await SUPABASE.from("episodes")
+      .select(
+        `
+        id,
+        trakt_id,
+        show_id,
+        title,
+        image_screenshot,
+        episode_number,
+        season_number,
+        overview,
+        first_aired,
+        shows (
+          slug_id,
+          image_poster
+        )
+        `
+      )
+      .in("show_id", showIds)
+      .gt("first_aired", currentDate)
+      .order("first_aired");
+
+    const nextEpisodes = Object.values(
+      episodes.reduce((acc, ep) => {
+        acc[ep.show_id] ??= ep;
+        return acc;
+      }, {})
+    );
+
+    return nextEpisodes;
+  } catch (err) {
+    console.error("Unexpected error fetching next episode:", err);
     return null;
   }
 }

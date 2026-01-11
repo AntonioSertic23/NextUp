@@ -37,8 +37,6 @@ export function getDiscoverState() {
  * @param {Object} state - State object with keys matching store properties.
  */
 export function setDiscoverState(state) {
-  console.log("setDiscoverState", state);
-
   currentQuery = state.currentQuery;
   currentPage = state.currentPage;
   paginationInfo = state.paginationInfo;

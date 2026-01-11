@@ -15,8 +15,9 @@ import {
   getDiscoverState,
   setDiscoverState,
 } from "./stores/discoverStore.js";
+import { getUpcomingEpisodes } from "./stores/myShowsStore.js";
 import { markEpisodes, manageCollection, searchShows } from "./api.js";
-import { formatDate, formatEpisodeInfo } from "./utils.js";
+import { formatDate, formatEpisodeInfo, getTimeUntil } from "./utils.js";
 import { getShowNextEpisode } from "./database.js";
 
 const sortOptions = [
@@ -141,13 +142,6 @@ function updateWatchlistShowCard(nextEpisode) {
     const { nextEpisodeInfo, progressBarPercent, progressText, episodesLeft } =
       computeShowProgress(nextEpisode);
 
-    console.log({
-      nextEpisodeInfo,
-      progressBarPercent,
-      progressText,
-      episodesLeft,
-    });
-
     // Update DOM elements
     const nextEpisodeEl = showCard.querySelector(".next_episode");
     const progressBarFillEl = showCard.querySelector(".progress-bar-fill");
@@ -231,8 +225,6 @@ function attachEpisodeInfoHandler(element, episode) {
       }
 
       const nextEpisode = await getShowNextEpisode(episodeData.show_id);
-
-      console.log("nextEpisode", nextEpisode);
 
       if (!nextEpisode.is_completed) {
         updateWatchlistShowCard(nextEpisode);
@@ -635,78 +627,50 @@ export async function renderWatchlist() {
 }
 
 /**
- * Renders a list of TV shows with days until next episode information.
- * @param {HTMLElement} container - The DOM element to render the shows into.
- * @param {Array} shows - Array of show objects with daysUntilNext and nextEpisode properties.
+ * Renders the user's My Shows collection.
+ *
  * @returns {void}
  */
-export function renderMyShowsCollection(container, shows) {
-  container.innerHTML = shows
-    .map((show) => {
-      const p = computeShowProgress(show);
-      const daysUntilNext = show.daysUntilNext;
-      const hoursUntilNext = show.hoursUntilNext;
-      const nextEpisode = show.nextEpisode;
+export function renderUpcomingEpisodes() {
+  const upcomingEpisodes = getUpcomingEpisodes();
+  const container = document.getElementById("my_shows-container");
 
-      // Format next episode info
-      const nextEpInfo = formatEpisodeInfo(
-        nextEpisode.seasonNumber,
-        nextEpisode.episodeNumber,
-        nextEpisode.title
+  if (!upcomingEpisodes.length) {
+    container.innerHTML = `<p class="no-show-message">
+        No shows found in your collection.
+      </p>`;
+
+    return;
+  }
+
+  container.innerHTML = upcomingEpisodes
+    .map((episode) => {
+      const nextEpisodeInfo = formatEpisodeInfo(
+        episode.season_number,
+        episode.episode_number,
+        episode.title
       );
 
-      // Format time text with days and hours
-      let timeText = "";
-      if (daysUntilNext === 0 && hoursUntilNext === 0) {
-        timeText = "Today";
-      } else if (daysUntilNext === 0) {
-        timeText = hoursUntilNext === 1 ? "1 hour" : `${hoursUntilNext} hours`;
-      } else if (daysUntilNext === 1) {
-        if (hoursUntilNext === 0) {
-          timeText = "1 day";
-        } else {
-          timeText =
-            hoursUntilNext === 1
-              ? "1 day 1 hour"
-              : `1 day ${hoursUntilNext} hours`;
-        }
-      } else {
-        if (hoursUntilNext === 0) {
-          timeText = `${daysUntilNext} days`;
-        } else {
-          timeText =
-            hoursUntilNext === 1
-              ? `${daysUntilNext} days 1 hour`
-              : `${daysUntilNext} days ${hoursUntilNext} hours`;
-        }
-      }
+      const timeText = getTimeUntil(episode.first_aired);
 
       return `
-    <div class="show-card" data-id="${show.ids.trakt}">
-      <div class="poster-container">
-        <img class="poster" src="https://${show.images.poster}"></img>
-      </div>
-      <div class="info-container">
-      <p class="title">${show.title}</p>
-      <p class="next_episode">${nextEpInfo}</p>
-      <p class="days_until_next">Next episode in: <span class="days_badge">${timeText}</span></p>
-      <div class="next_episode_info_container">
-        <button class="episode_info_btn" data-episode='${JSON.stringify({
-          showId: p.nextEpObj.showId,
-          seasonNumber: p.nextEpObj.seasonNumber,
-          episodeNumber: p.nextEpObj.episodeNumber,
-        })}'>Episode info</button>
-      </div>
-      </div>
-    </div>
-  `;
+        <div class="show-card" data-id="${episode.shows.slug_id}">
+          <div class="poster-container">
+            <img
+              class="poster"
+              src="https://${episode.shows.image_poster}"
+              alt="${episode.title} poster"
+            />
+          </div>
+          <div class="info-container">
+            <p class="title">${episode.title}</p>
+            <p class="next_episode">${nextEpisodeInfo}</p>
+            <p class="days_until_next">Next episode in: <span class="days_badge">${timeText}</span></p>
+          </div>
+        </div>
+      `;
     })
     .join("");
-
-  // Attach event listeners for modal open
-  container.querySelectorAll(".episode_info_btn").forEach((btn) => {
-    attachEpisodeInfoHandler(btn);
-  });
 }
 
 /**
@@ -1035,6 +999,10 @@ function showEpisodeInfoModal(episode, updateUICallback, isWatched = false) {
   overlay.style.display = "flex";
   modal.style.display = "flex";
 
+  overlay.onclick = (e) => {
+    if (e.target === overlay) overlay.style.display = "none";
+  };
+
   // Episode info
   const info = modal.querySelector(".episode-info-info");
   info.textContent =
@@ -1088,9 +1056,5 @@ function showEpisodeInfoModal(episode, updateUICallback, isWatched = false) {
     } catch (err) {
       alert("Failed to mark episode as watched. Please try again.");
     }
-  };
-
-  overlay.onclick = (e) => {
-    if (e.target === overlay) overlay.style.display = "none";
   };
 }

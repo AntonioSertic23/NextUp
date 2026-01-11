@@ -37,3 +37,30 @@ export function formatEpisodeInfo(seasonNumber, episodeNumber, title) {
 
   return `S${season}E${episode}${title ? ` - ${title}` : ""}`;
 }
+
+/**
+ * Returns time remaining until a future date in days and hours.
+ *
+ * @param {string} isoDate - ISO datetime string (e.g. 2025-11-07T02:00:00+00)
+ * @returns {string} Formatted time text or "Aired" if date is in the past
+ */
+export function getTimeUntil(isoDate) {
+  if (!isoDate) return "N/A";
+
+  const now = new Date();
+  const target = new Date(isoDate);
+
+  const diffMs = target - now;
+
+  if (diffMs <= 0) return "Aired";
+
+  const totalHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+
+  if (days > 0) {
+    return `${days}d ${hours}h`;
+  }
+
+  return `${hours}h`;
+}
