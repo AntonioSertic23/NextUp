@@ -15,7 +15,10 @@ import {
   getDiscoverState,
   setDiscoverState,
 } from "./stores/discoverStore.js";
-import { getUpcomingEpisodes } from "./stores/myShowsStore.js";
+import {
+  getUpcomingEpisodes,
+  getAllCollectionShows,
+} from "./stores/myShowsStore.js";
 import { markEpisodes, manageCollection, searchShows } from "./api.js";
 import { formatDate, formatEpisodeInfo, getTimeUntil } from "./utils.js";
 import { getShowNextEpisode } from "./database.js";
@@ -633,11 +636,11 @@ export async function renderWatchlist() {
  */
 export function renderUpcomingEpisodes() {
   const upcomingEpisodes = getUpcomingEpisodes();
-  const container = document.getElementById("my_shows-container");
+  const container = document.getElementById("upcoming_episodes-container");
 
   if (!upcomingEpisodes.length) {
     container.innerHTML = `<p class="no-show-message">
-        No shows found in your collection.
+        No upcoming episodes found in your collection.
       </p>`;
 
     return;
@@ -671,6 +674,44 @@ export function renderUpcomingEpisodes() {
       `;
     })
     .join("");
+}
+
+/** Renders all shows in the user's collection.
+ *
+ * @returns {void}
+ */
+export function renderAllCollectionShows() {
+  const allCollectionShows = getAllCollectionShows();
+  const container = document.getElementById("all_my_shows-container");
+
+  if (!allCollectionShows.length) {
+    container.innerHTML = `<p class="no-show-message">
+        No shows found in your collection.
+      </p>`;
+
+    return;
+  }
+
+  // TODO: Use show.is_completed to separately display the series that the user has completed
+
+  allCollectionShows.forEach((show) => {
+    const card = document.createElement("div");
+    card.className = "show-card";
+    card.dataset.id = show.shows.slug_id;
+
+    const posterContainer = document.createElement("div");
+    posterContainer.className = "poster-container";
+
+    const img = document.createElement("img");
+    img.className = "poster";
+    img.src = `https://${show.shows.image_poster}`;
+    img.alt = "show poster";
+
+    posterContainer.appendChild(img);
+    card.appendChild(posterContainer);
+
+    container.appendChild(card);
+  });
 }
 
 /**

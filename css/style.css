@@ -438,9 +438,16 @@ main {
    ======================================================== */
 
 #watchlist-container,
-#my_shows-container,
+#upcoming_episodes-container,
+#all_my_shows-container,
 #show-container {
   position: relative;
+}
+
+#all_my_shows-container {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2rem;
 }
 
 .no-show-message {

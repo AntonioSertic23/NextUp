@@ -156,3 +156,32 @@ export async function getUpcomingEpisodesData() {
     return null;
   }
 }
+
+/** * Fetches all shows in the user's collection from the default list.
+ *
+ * @returns {Promise<Array<Object>|null>} Array of all collection shows or null on error
+ */
+export async function getAllCollectionShowsData() {
+  const SUPABASE = await getSupabaseClient();
+  const listId = await getDefaultListId();
+
+  try {
+    const { data } = await SUPABASE.from("list_shows")
+      .select(
+        `
+        is_completed,
+        shows (
+          id,
+          slug_id,
+          image_poster
+        )
+        `
+      )
+      .eq("list_id", listId);
+
+    return data;
+  } catch (err) {
+    console.error("Unexpected error fetching all collection shows:", err);
+    return null;
+  }
+}

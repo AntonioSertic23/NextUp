@@ -2,12 +2,17 @@
 // pages/myShows.js - Render My Shows Page
 // ========================================================
 
-import { renderUpcomingEpisodes } from "../ui.js";
+import { renderUpcomingEpisodes, renderAllCollectionShows } from "../ui.js";
 import {
   setUpcomingEpisodes,
   getUpcomingEpisodes,
+  setAllCollectionShows,
+  getAllCollectionShows,
 } from "../stores/myShowsStore.js";
-import { getUpcomingEpisodesData } from "../database.js";
+import {
+  getUpcomingEpisodesData,
+  getAllCollectionShowsData,
+} from "../database.js";
 
 /**
  * Renders the My Shows page showing collection sorted by days until next episode.
@@ -15,10 +20,15 @@ import { getUpcomingEpisodesData } from "../database.js";
  * @returns {Promise<void>}
  */
 export async function renderMyShows(main) {
-  const myShowsDiv = document.createElement("div");
-  myShowsDiv.id = "my_shows-container";
-  myShowsDiv.innerHTML = "<p class='loading-text'>Loading...</p>";
-  main.appendChild(myShowsDiv);
+  const upcomingEpisodesDiv = document.createElement("div");
+  upcomingEpisodesDiv.id = "upcoming_episodes-container";
+  upcomingEpisodesDiv.innerHTML = "<p class='loading-text'>Loading...</p>";
+
+  const allCollectionShowsDiv = document.createElement("div");
+  allCollectionShowsDiv.id = "all_my_shows-container";
+
+  main.appendChild(upcomingEpisodesDiv);
+  main.appendChild(allCollectionShowsDiv);
 
   const upcomingEpisodes = getUpcomingEpisodes();
 
@@ -28,8 +38,16 @@ export async function renderMyShows(main) {
 
   renderUpcomingEpisodes();
 
+  const allCollectionShows = getAllCollectionShows();
+
+  if (!upcomingEpisodes.length) {
+    setAllCollectionShows(await getAllCollectionShowsData());
+  }
+
+  renderAllCollectionShows(allCollectionShows);
+
   // Event delegation for dynamically rendered show cards
-  myShowsDiv.addEventListener("click", (e) => {
+  upcomingEpisodesDiv.addEventListener("click", (e) => {
     const card = e.target.closest(".show-card");
     if (!card) return;
 
