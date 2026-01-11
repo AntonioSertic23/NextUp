@@ -4,7 +4,7 @@
 
 import { getWatchlistData } from "../database.js";
 import { renderWatchlist, renderSortControls } from "../ui.js";
-import { setWatchlist } from "../stores/watchlistStore.js";
+import { setWatchlist, getWatchlist } from "../stores/watchlistStore.js";
 
 /**
  * Renders the Home page and initializes the watchlist state.
@@ -22,7 +22,11 @@ export async function renderHome(main) {
   watchlistDiv.innerHTML = "<p class='loading-text'>Loading...</p>";
   main.appendChild(watchlistDiv);
 
-  setWatchlist(await getWatchlistData());
+  const watchlistData = getWatchlist();
+
+  if (!watchlistData.length) {
+    setWatchlist(await getWatchlistData());
+  }
 
   await renderSortControls(main);
 
