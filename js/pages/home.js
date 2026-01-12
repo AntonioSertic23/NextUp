@@ -2,102 +2,41 @@
 // pages/home.js - Render Home Page
 // ========================================================
 
-import { getToken } from "../auth.js";
-import { getCollection } from "../api.js";
-import { renderCollection } from "../ui.js";
-
-const sortOptions = [
-  { value: "last_updated_at", label: "Last Updated" },
-  { value: "last_collected_at", label: "Date Added" },
-  { value: "title", label: "Title" },
-  { value: "year", label: "Year" },
-  { value: "top_rated", label: "Top Rated" },
-  { value: "episodes_left", label: "Episodes Left" },
-];
-
-const orderOptions = [
-  { value: "desc", label: "Descending" },
-  { value: "asc", label: "Ascending" },
-];
+import { getWatchlistData } from "../database.js";
+import { renderWatchlist, renderSortControls } from "../ui.js";
+import { setWatchlist, getWatchlist } from "../stores/watchlistStore.js";
 
 /**
- * Renders sorting controls (dropdowns) for sorting TV show collection.
- * Appends controls to main and wires up change events.
- * @param {HTMLElement} main - Main DOM container.
- * @param {HTMLElement} collectionDiv - Collection container (list parent).
- * @param {string} token - Trakt user token.
- */
-async function renderSortControls(main, collectionDiv, token) {
-  // Sort controls UI
-  const sortDiv = document.createElement("div");
-  sortDiv.className = "sort-controls";
-  sortDiv.innerHTML = `
-    <label for="sort-by">Sort by:
-      <select id="sort-by">
-        ${sortOptions
-          .map((opt) => `<option value="${opt.value}">${opt.label}</option>`)
-          .join("")}
-      </select>
-    </label>
-    <label for="sort-order">Order:
-      <select id="sort-order">
-        ${orderOptions
-          .map((opt) => `<option value="${opt.value}">${opt.label}</option>`)
-          .join("")}
-      </select>
-    </label>
-  `;
-  main.appendChild(sortDiv);
-
-  sortDiv
-    .querySelector("#sort-by")
-    .addEventListener("change", () => renderList(collectionDiv, token));
-  sortDiv
-    .querySelector("#sort-order")
-    .addEventListener("change", () => renderList(collectionDiv, token));
-}
-
-/**
- * Renders a sorted/filtered list of TV shows in the given container.
- * @param {HTMLElement} listContainer - Element to render shows into.
- * @param {string} token - Trakt user token.
- */
-async function renderList(listContainer, token) {
-  const sortDiv = document.querySelector(".sort-controls");
-  const sortBy = sortDiv.querySelector("#sort-by").value;
-  const order = sortDiv.querySelector("#sort-order").value;
-
-  let shows = await getCollection(token, sortBy);
-
-  if (order === "asc") {
-    shows = [...shows].reverse();
-  }
-
-  renderCollection(listContainer, shows);
-
-  // Add click event to each show card to navigate to its details page
-  listContainer.querySelectorAll(".show-card").forEach((card) => {
-    card.addEventListener("click", () => {
-      const id = card.dataset.id;
-      location.hash = `show/${id}`; // Update hash to trigger router
-    });
-  });
-}
-
-/**
- * Renders the home page: sorting controls and the collection list.
- * @param {HTMLElement} main - Main app container for this page.
- * @returns {Promise<void>}
+ * Renders the Home page and initializes the watchlist state.
+ *
+ * Lifecycle notes:
+ * - Fetches the user's watchlist from the backend.
+ * - Initializes the watchlist store once on page load.
+ * - All subsequent sorting is handled internally by the store.
+ *
+ * @param {HTMLElement} main - Main application container.
  */
 export async function renderHome(main) {
-  const token = getToken();
+  const watchlistDiv = document.createElement("div");
+  watchlistDiv.id = "watchlist-container";
+  watchlistDiv.innerHTML = "<p class='loading-text'>Loading...</p>";
+  main.appendChild(watchlistDiv);
 
-  const collectionDiv = document.createElement("div");
-  collectionDiv.className = "collection-container";
+  const watchlistData = getWatchlist();
 
-  renderSortControls(main, collectionDiv, token);
+  if (!watchlistData.length) {
+    setWatchlist(await getWatchlistData());
+  }
 
-  main.appendChild(collectionDiv);
+  await renderSortControls(main);
 
-  renderList(collectionDiv, token);
+  renderWatchlist();
+
+  // Event delegation for dynamically rendered show cards
+  watchlistDiv.addEventListener("click", (e) => {
+    const card = e.target.closest(".show-card");
+    if (!card) return;
+
+    location.hash = `show?traktIdentifier=${card.dataset.id}`;
+  });
 }

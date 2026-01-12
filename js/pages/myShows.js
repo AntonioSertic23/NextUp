@@ -2,34 +2,17 @@
 // pages/myShows.js - Render My Shows Page
 // ========================================================
 
-import { getToken } from "../auth.js";
-import { getCollection, getNextEpisodes } from "../api.js";
-import { renderMyShowsCollection } from "../ui.js";
-import { loadCache } from "../local_storage.js";
-
-/**
- * Calculates the number of days and hours until a given date.
- * @param {string} firstAired - ISO date string of when episode airs (includes time)
- * @returns {Object|null} Object with days and hours until the episode airs, or null if in the past
- */
-function calculateTimeUntil(firstAired) {
-  if (!firstAired) return null;
-
-  const now = new Date();
-  const airedDate = new Date(firstAired);
-
-  // Only consider future episodes
-  if (airedDate < now) return null;
-
-  // Calculate difference in milliseconds
-  const diffMs = airedDate - now;
-
-  // Calculate days and remaining hours
-  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-
-  return { days, hours };
-}
+import { renderUpcomingEpisodes, renderAllCollectionShows } from "../ui.js";
+import {
+  setUpcomingEpisodes,
+  getUpcomingEpisodes,
+  setAllCollectionShows,
+  getAllCollectionShows,
+} from "../stores/myShowsStore.js";
+import {
+  getUpcomingEpisodesData,
+  getAllCollectionShowsData,
+} from "../database.js";
 
 /**
  * Renders the My Shows page showing collection sorted by days until next episode.
@@ -37,144 +20,37 @@ function calculateTimeUntil(firstAired) {
  * @returns {Promise<void>}
  */
 export async function renderMyShows(main) {
-  const token = getToken();
+  const upcomingEpisodesDiv = document.createElement("div");
+  upcomingEpisodesDiv.id = "upcoming_episodes-container";
+  upcomingEpisodesDiv.innerHTML = "<p class='loading-text'>Loading...</p>";
 
-  const collectionDiv = document.createElement("div");
-  collectionDiv.className = "collection-container";
+  const allCollectionShowsDiv = document.createElement("div");
+  allCollectionShowsDiv.id = "all_my_shows-container";
 
-  main.appendChild(collectionDiv);
+  main.appendChild(upcomingEpisodesDiv);
+  main.appendChild(allCollectionShowsDiv);
 
-  // Show loading state
-  collectionDiv.innerHTML = "<p class='loading-text'>Loading shows...</p>";
+  const upcomingEpisodes = getUpcomingEpisodes();
 
-  try {
-    // Fetch collection (without sorting, we'll sort by days)
-    const shows = await getCollection(token, null);
-
-    if (shows.length === 0) {
-      collectionDiv.innerHTML =
-        "<p class='no-results'>No shows found in your collection.</p>";
-      return;
-    }
-
-    // Extract show IDs for next episode API call
-    const showIds = shows.map((show) => show.ids.trakt).filter(Boolean);
-
-    // Fetch next episode information from Trakt API
-    const nextEpisodesData = await getNextEpisodes(token, showIds);
-
-    // Load cache to check for episode details
-    const cache = loadCache();
-
-    // Create a map of showId -> nextEpisode for quick lookup
-    const nextEpisodeMap = {};
-    nextEpisodesData.forEach((item) => {
-      if (item.nextEpisode) {
-        nextEpisodeMap[item.showId] = item.nextEpisode;
-      }
-    });
-
-    // For each show with nextEpisode, find the episode details (especially first_aired)
-    const showsWithNextEpisode = await Promise.all(
-      shows.map(async (show) => {
-        const nextEpisodeBasic = nextEpisodeMap[show.ids.trakt];
-        if (!nextEpisodeBasic) {
-          return null;
-        }
-
-        // Try to find episode in cache first
-        let episodeDetails = null;
-        const showInCache = cache[show.ids.trakt];
-        if (
-          showInCache &&
-          Array.isArray(showInCache.seasons) &&
-          showInCache.seasons.length > 0
-        ) {
-          const season = showInCache.seasons.find(
-            (s) => s.number === nextEpisodeBasic.season
-          );
-          if (season && Array.isArray(season.episodes)) {
-            episodeDetails = season.episodes.find(
-              (ep) => ep.number === nextEpisodeBasic.number
-            );
-          }
-        }
-
-        // If not in cache, fetch episode details from Trakt API
-        if (!episodeDetails) {
-          try {
-            const res = await fetch(`/.netlify/functions/getEpisodeDetails`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                token,
-                showId: show.ids.trakt,
-                season: nextEpisodeBasic.season,
-                episode: nextEpisodeBasic.number,
-              }),
-            });
-
-            if (res.ok) {
-              const data = await res.json();
-              episodeDetails = data.episode;
-            }
-          } catch (err) {
-            console.warn(
-              `Failed to fetch episode details for ${show.ids.trakt} S${nextEpisodeBasic.season}E${nextEpisodeBasic.number}:`,
-              err
-            );
-          }
-        }
-
-        if (!episodeDetails || !episodeDetails.first_aired) {
-          return null;
-        }
-
-        const timeUntil = calculateTimeUntil(episodeDetails.first_aired);
-        if (timeUntil === null) {
-          return null;
-        }
-
-        return {
-          ...show,
-          daysUntilNext: timeUntil.days,
-          hoursUntilNext: timeUntil.hours,
-          nextEpisode: {
-            ...nextEpisodeBasic,
-            ...episodeDetails,
-            seasonNumber: nextEpisodeBasic.season,
-            episodeNumber: nextEpisodeBasic.number,
-          },
-        };
-      })
-    );
-
-    // Filter out null values and sort by time until next episode (days + hours)
-    const filteredShows = showsWithNextEpisode.filter(Boolean).sort((a, b) => {
-      // Sort by total hours until next episode (ascending - fewer hours first)
-      const totalHoursA = a.daysUntilNext * 24 + a.hoursUntilNext;
-      const totalHoursB = b.daysUntilNext * 24 + b.hoursUntilNext;
-      return totalHoursA - totalHoursB;
-    });
-
-    if (filteredShows.length === 0) {
-      collectionDiv.innerHTML =
-        "<p class='no-results'>No upcoming episodes found in your collection.</p>";
-      return;
-    }
-
-    // Render the collection with days until next episode
-    renderMyShowsCollection(collectionDiv, filteredShows);
-
-    // Add click event to each show card to navigate to its details page
-    collectionDiv.querySelectorAll(".show-card").forEach((card) => {
-      card.addEventListener("click", () => {
-        const id = card.dataset.id;
-        location.hash = `show/${id}`;
-      });
-    });
-  } catch (error) {
-    console.error("Error loading My Shows:", error);
-    collectionDiv.innerHTML = `<p class='error-text'>Error loading shows: ${error.message}</p>`;
+  if (!upcomingEpisodes.length) {
+    setUpcomingEpisodes(await getUpcomingEpisodesData());
   }
+
+  renderUpcomingEpisodes();
+
+  const allCollectionShows = getAllCollectionShows();
+
+  if (!upcomingEpisodes.length) {
+    setAllCollectionShows(await getAllCollectionShowsData());
+  }
+
+  renderAllCollectionShows(allCollectionShows);
+
+  // Event delegation for dynamically rendered show cards
+  main.addEventListener("click", (e) => {
+    const card = e.target.closest(".show-card");
+    if (!card) return;
+
+    location.hash = `show?traktIdentifier=${card.dataset.id}`;
+  });
 }
