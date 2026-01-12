@@ -249,6 +249,8 @@ export async function saveShowSeasonsAndEpisodes(seasons, showId) {
  */
 export async function getShowWithSeasonsAndEpisodes(userId, traktIdentifier) {
   try {
+    // TODO: This can be implemented in a simpler way, similar to getStatsData()
+
     // Fetch show from database
     const { data: show, error: showError } = await SUPABASE.from("shows")
       .select("*")
