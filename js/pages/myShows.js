@@ -47,7 +47,7 @@ export async function renderMyShows(main) {
   renderAllCollectionShows(allCollectionShows);
 
   // Event delegation for dynamically rendered show cards
-  upcomingEpisodesDiv.addEventListener("click", (e) => {
+  main.addEventListener("click", (e) => {
     const card = e.target.closest(".show-card");
     if (!card) return;
 
