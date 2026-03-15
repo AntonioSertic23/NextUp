@@ -3,11 +3,82 @@
 // ========================================================
 
 import { createClient } from "@supabase/supabase-js";
+import { refreshTraktAccessToken } from "./traktService.js";
 
 const SUPABASE = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
+
+/**
+ * Persists Trakt OAuth tokens for a user.
+ *
+ * @param {string} userId - Supabase user UUID
+ * @param {Object} tokenData - Token response from Trakt
+ * @param {string} tokenData.access_token
+ * @param {string} tokenData.refresh_token
+ * @param {number} tokenData.expires_in - Lifetime in seconds
+ * @param {number} tokenData.created_at - Unix timestamp when token was created
+ */
+export async function saveTraktTokens(userId, tokenData) {
+  const expiresAt = new Date(
+    (tokenData.created_at + tokenData.expires_in) * 1000
+  ).toISOString();
+
+  const { error } = await SUPABASE.from("users")
+    .update({
+      trakt_token: tokenData.access_token,
+      trakt_refresh_token: tokenData.refresh_token,
+      trakt_token_expires_at: expiresAt,
+    })
+    .eq("id", userId);
+
+  if (error) {
+    console.error("Failed to save Trakt tokens:", error);
+    throw new Error(`Failed to save Trakt tokens: ${error.message}`);
+  }
+}
+
+/**
+ * Returns a valid Trakt access token for a user, refreshing it automatically
+ * if it has expired.
+ *
+ * @param {string} userId - Supabase user UUID
+ * @returns {Promise<string>} Valid Trakt access token
+ * @throws {Error} If the user has no Trakt connection or refresh fails
+ */
+export async function getValidTraktToken(userId) {
+  const { data: user, error } = await SUPABASE.from("users")
+    .select("trakt_token, trakt_refresh_token, trakt_token_expires_at")
+    .eq("id", userId)
+    .single();
+
+  if (error || !user?.trakt_token) {
+    throw new Error("Trakt account not connected");
+  }
+
+  const now = new Date();
+  const expiresAt = user.trakt_token_expires_at
+    ? new Date(user.trakt_token_expires_at)
+    : null;
+
+  // Token still valid (with 5-minute buffer)
+  if (expiresAt && expiresAt.getTime() - 5 * 60 * 1000 > now.getTime()) {
+    return user.trakt_token;
+  }
+
+  // Token expired or no expiry info — try to refresh
+  if (!user.trakt_refresh_token) {
+    throw new Error("Trakt token expired and no refresh token available. Please reconnect your Trakt account.");
+  }
+
+  console.log(`Trakt token expired for user ${userId}, refreshing...`);
+
+  const tokenData = await refreshTraktAccessToken(user.trakt_refresh_token);
+  await saveTraktTokens(userId, tokenData);
+
+  return tokenData.access_token;
+}
 
 /**
  * Resolves the authenticated Supabase user ID from an Authorization header.
@@ -636,20 +707,131 @@ export async function removeShowFromList(listId, showId) {
 }
 
 /**
+ * Fetches all shows currently stored in the database.
+ * Used by the scheduled sync function to check for new episodes.
+ *
+ * @returns {Promise<Array>} Array of show objects with id, trakt_id, title, aired_episodes, status
+ * @throws {Error} If the database query fails
+ */
+export async function getAllTrackedShows() {
+  const { data, error } = await SUPABASE.from("shows")
+    .select("id, trakt_id, slug_id, title, aired_episodes, status")
+    .order("title");
+
+  if (error) {
+    console.error("Failed to fetch shows:", error);
+    throw new Error(`Failed to fetch shows: ${error.message}`);
+  }
+
+  return data || [];
+}
+
+/**
+ * Updates a show's metadata fields (e.g. aired_episodes, status).
+ *
+ * @param {string} showId - Supabase show UUID
+ * @param {Object} metadata - Fields to update
+ * @throws {Error} If the update fails
+ */
+export async function updateShowMetadata(showId, metadata) {
+  const { error } = await SUPABASE.from("shows")
+    .update({ ...metadata, updated_at: new Date().toISOString() })
+    .eq("id", showId);
+
+  if (error) {
+    console.error("Failed to update show metadata:", error);
+    throw new Error(`Failed to update show: ${error.message}`);
+  }
+}
+
+/**
+ * Refreshes all list_shows entries for a given show after new episodes are added.
+ *
+ * For each user tracking this show:
+ * - Recalculates total_episodes and watched_episodes
+ * - Finds the next unwatched episode
+ * - Unmarks is_completed if new unwatched episodes exist
+ *
+ * @param {string} showId - Supabase show UUID
+ */
+export async function refreshListShowsForShow(showId) {
+  const { data: listShows, error: lsError } = await SUPABASE.from("list_shows")
+    .select("id, list_id, is_completed, completed_at")
+    .eq("show_id", showId);
+
+  if (lsError || !listShows?.length) return;
+
+  const { data: allEpisodes } = await SUPABASE.from("episodes")
+    .select("id")
+    .eq("show_id", showId);
+
+  const showEpisodeIds = allEpisodes?.map((ep) => ep.id) || [];
+  const totalEpisodes = showEpisodeIds.length;
+
+  if (totalEpisodes === 0) return;
+
+  for (const listShow of listShows) {
+    try {
+      const { data: list } = await SUPABASE.from("lists")
+        .select("user_id")
+        .eq("id", listShow.list_id)
+        .single();
+
+      if (!list) continue;
+
+      const { data: watchedEps } = await SUPABASE.from("user_episodes")
+        .select("episode_id")
+        .eq("user_id", list.user_id)
+        .in("episode_id", showEpisodeIds);
+
+      const watchedIds = watchedEps?.map((ep) => ep.episode_id) || [];
+      const watchedCount = watchedIds.length;
+
+      let nextEpisodeId = null;
+
+      if (watchedCount < totalEpisodes) {
+        const query = SUPABASE.from("episodes")
+          .select("id")
+          .eq("show_id", showId)
+          .order("season_number", { ascending: true })
+          .order("episode_number", { ascending: true })
+          .limit(1);
+
+        if (watchedIds.length > 0) {
+          query.not("id", "in", `(${watchedIds.join(",")})`);
+        }
+
+        const { data: nextEp } = await query.maybeSingle();
+        nextEpisodeId = nextEp?.id || null;
+      }
+
+      const isCompleted = watchedCount >= totalEpisodes;
+
+      await SUPABASE.from("list_shows")
+        .update({
+          total_episodes: totalEpisodes,
+          watched_episodes: watchedCount,
+          next_episode_id: nextEpisodeId,
+          is_completed: isCompleted,
+          completed_at: isCompleted
+            ? listShow.completed_at || new Date().toISOString()
+            : null,
+        })
+        .eq("id", listShow.id);
+    } catch (err) {
+      console.error(`Error refreshing list_show ${listShow.id}:`, err);
+    }
+  }
+}
+
+/**
  * Retrieves all necessary information to insert a show into a user's list.
  *
  * @async
  * @param {number|string} showId - The Supabase ID of the show
  * @param {number|string} listId - The ID of the user's list
  * @param {string} userId - Supabase user ID
- * @returns {Promise<Object>} Object containing list-show information:
- *  - list_id
- *  - show_id
- *  - is_completed
- *  - completed_at
- *  - watched_episodes
- *  - total_episodes
- *  - next_episode (episode id)
+ * @returns {Promise<Object>} Object containing list-show information
  */
 async function getListShowInformation(showId, listId, userId) {
   // Get all episode IDs of the show
