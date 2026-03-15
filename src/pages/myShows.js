@@ -1,8 +1,4 @@
-// ========================================================
-// pages/myShows.js - Render My Shows Page
-// ========================================================
-
-import { renderUpcomingEpisodes, renderAllCollectionShows } from "../ui.js";
+import { renderUpcomingEpisodes, renderAllCollectionShows } from "../ui/myShows.js";
 import {
   setUpcomingEpisodes,
   getUpcomingEpisodes,
@@ -12,12 +8,11 @@ import {
 import {
   getUpcomingEpisodesData,
   getAllCollectionShowsData,
-} from "../database.js";
+} from "../api/watchlist.js";
 
 /**
  * Renders the My Shows page showing collection sorted by days until next episode.
  * @param {HTMLElement} main - Main app container for this page.
- * @returns {Promise<void>}
  */
 export async function renderMyShows(main) {
   const upcomingEpisodesDiv = document.createElement("div");
@@ -46,7 +41,6 @@ export async function renderMyShows(main) {
 
   renderAllCollectionShows(allCollectionShows);
 
-  // Event delegation for dynamically rendered show cards
   main.addEventListener("click", (e) => {
     const card = e.target.closest(".show-card");
     if (!card) return;

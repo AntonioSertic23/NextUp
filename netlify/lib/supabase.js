@@ -1,9 +1,9 @@
 // ========================================================
-// lib/supabaseService.js
+// lib/supabase.js
 // ========================================================
 
 import { createClient } from "@supabase/supabase-js";
-import { refreshTraktAccessToken } from "./traktService.js";
+import { refreshTraktAccessToken } from "./trakt.js";
 
 const SUPABASE = createClient(
   process.env.SUPABASE_URL,

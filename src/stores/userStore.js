@@ -2,7 +2,7 @@
 // stores/userStore.js -
 // ========================================================
 
-import { getSupabaseClient } from "../services/supabaseService.js";
+import { getSupabaseClient } from "../services/supabase.js";
 
 let user = null;
 let claims = null;

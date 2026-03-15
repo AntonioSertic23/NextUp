@@ -3,14 +3,14 @@
 // ========================================================
 
 import fetch from "node-fetch";
-import { TRAKT_BASE_URL, getTraktHeaders } from "../lib/traktService.js";
+import { TRAKT_BASE_URL, getTraktHeaders } from "../lib/trakt.js";
 import {
   saveShow,
   saveTraktUserEpisodes,
   saveShowSeasonsAndEpisodes,
   resolveUserIdFromToken,
   getValidTraktToken,
-} from "../lib/supabaseService.js";
+} from "../lib/supabase.js";
 
 /**
  * Serverless handler to sync user's Trakt collection

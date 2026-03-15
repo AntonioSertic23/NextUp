@@ -1,18 +1,13 @@
-// ========================================================
-// pages/discover.js - Render Discover Page
-// ========================================================
-
-import { renderDiscoverElments } from "../ui.js";
+import { renderDiscoverElements } from "../ui/discover.js";
 
 /**
  * Renders the discover page with search functionality.
  * @param {HTMLElement} main - The main container element
- * @returns {Promise<void>}
  */
 export async function renderDiscover(main) {
   const searchDiv = document.createElement("div");
   searchDiv.id = "discover-container";
   main.appendChild(searchDiv);
 
-  await renderDiscoverElments(main);
+  await renderDiscoverElements(main);
 }

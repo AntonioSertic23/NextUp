@@ -3,14 +3,14 @@
 // ========================================================
 
 import fetch from "node-fetch";
-import { TRAKT_BASE_URL, getTraktHeaders } from "../lib/traktService.js";
+import { TRAKT_BASE_URL, getTraktHeaders } from "../lib/trakt.js";
 import {
   saveUserEpisodes,
   deleteUserEpisodes,
   updateListShows,
   resolveUserIdFromToken,
   getValidTraktToken,
-} from "../lib/supabaseService.js";
+} from "../lib/supabase.js";
 
 /**
  * Marks one or more episodes as watched on Trakt.

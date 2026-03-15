@@ -1,8 +1,8 @@
 // ========================================================
-// services/authService.js - Supabase authentication with email/password
+// services/auth.js - Supabase authentication with email/password
 // ========================================================
 
-import { getSupabaseClient } from "./supabaseService.js";
+import { getSupabaseClient } from "./supabase.js";
 import { getUser, clearUserStore } from "../stores/userStore.js";
 
 /**

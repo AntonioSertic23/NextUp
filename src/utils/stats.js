@@ -1,70 +1,3 @@
-// ========================================================
-// utils.js
-// ========================================================
-
-/**
- * Formats a date string or Date object into `DD/MM/YYYY` format.
- *
- * @param {string|Date} input - The date to format.
- * @returns {string} Formatted date string in `DD/MM/YYYY` format.
- */
-export function formatDate(input) {
-  if (!input) return "";
-
-  const d = input instanceof Date ? input : new Date(input);
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const year = d.getFullYear();
-
-  return `${day}/${month}/${year}`;
-}
-
-/**
- * Formats an episode string in the form `SxxExx - Title`.
- *
- * Pads season and episode numbers to 2 digits.
- *
- * @param {number|string} seasonNumber - Season number.
- * @param {number|string} episodeNumber - Episode number.
- * @param {string} [title] - Optional episode title.
- * @returns {string} Formatted episode string, e.g. `S01E05 - Pilot`.
- */
-export function formatEpisodeInfo(seasonNumber, episodeNumber, title) {
-  if (seasonNumber == null || episodeNumber == null) return "";
-
-  const season = String(seasonNumber).padStart(2, "0");
-  const episode = String(episodeNumber).padStart(2, "0");
-
-  return `S${season}E${episode}${title ? ` - ${title}` : ""}`;
-}
-
-/**
- * Returns time remaining until a future date in days and hours.
- *
- * @param {string} isoDate - ISO datetime string (e.g. 2025-11-07T02:00:00+00)
- * @returns {string} Formatted time text or "Aired" if date is in the past
- */
-export function getTimeUntil(isoDate) {
-  if (!isoDate) return "N/A";
-
-  const now = new Date();
-  const target = new Date(isoDate);
-
-  const diffMs = target - now;
-
-  if (diffMs <= 0) return "Aired";
-
-  const totalHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const days = Math.floor(totalHours / 24);
-  const hours = totalHours % 24;
-
-  if (days > 0) {
-    return `${days}d ${hours}h`;
-  }
-
-  return `${hours}h`;
-}
-
 /**
  * Converts minutes to years, months, days, and hours.
  * @param {number} totalMinutes - Total minutes to convert
@@ -73,8 +6,8 @@ export function getTimeUntil(isoDate) {
 export function convertMinutesToTime(totalMinutes) {
   const minutesPerHour = 60;
   const hoursPerDay = 24;
-  const daysPerMonth = 30; // Approximation
-  const daysPerYear = 365; // Approximation
+  const daysPerMonth = 30;
+  const daysPerYear = 365;
 
   const totalHours = Math.floor(totalMinutes / minutesPerHour);
   const hours = totalHours % hoursPerDay;
@@ -121,7 +54,7 @@ export function formatTimeBreakdown(time) {
 
 /**
  * Calculates statistics from collection data.
- * @param {Array} shows - Array of show objects
+ * @param {Array} shows - Array of show objects with seasons and episodes
  * @returns {Object} Statistics object
  */
 export function calculateStatistics(shows) {
@@ -136,7 +69,6 @@ export function calculateStatistics(shows) {
     const seasons = Array.isArray(show.seasons) ? show.seasons : [];
     const runtime = show.runtime || 0;
 
-    // Exclude specials
     const effectiveSeasons = seasons.filter((s) => {
       if (!s) return false;
       if (s.season_number === 0) return false;
@@ -173,7 +105,6 @@ export function calculateStatistics(shows) {
       totalShows += 1;
       totalSeasons += showSeasons;
 
-      // Track watch time for top shows
       showWatchTime.push({
         title: show.title,
         minutes: showEpisodes * runtime,
@@ -181,7 +112,6 @@ export function calculateStatistics(shows) {
         episodes: showEpisodes,
       });
 
-      // Count genres
       (show.genres ?? "")
         .split(",")
         .filter(Boolean)
@@ -191,13 +121,11 @@ export function calculateStatistics(shows) {
     }
   });
 
-  // Get top 3 genres
   const topGenres = Object.entries(genreCounts)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3)
     .map(([genre, count]) => ({ genre, episodes: count }));
 
-  // Get top 3 shows by watch time
   const topShows = showWatchTime
     .sort((a, b) => b.minutes - a.minutes)
     .slice(0, 3)
