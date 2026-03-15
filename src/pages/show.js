@@ -1,21 +1,11 @@
-// ========================================================
-// pages/show.js - Render single show details page
-// ========================================================
-
-import { getShowDetails } from "../api.js";
-import { renderShowDetails } from "../ui.js";
+import { getShowDetails } from "../api/shows.js";
+import { renderShowDetails } from "../ui/showDetails.js";
 
 /**
  * Render the single show details page.
  *
- * - Shows a loading state
- * - Loads show data using a database-first strategy
- * - Renders show details or a fallback error message
- *
  * @param {HTMLElement} main - Main application container
- * @param {string} [traktIdentifier] - Trakt show identifier.
- * Can be a Trakt slug (e.g. "game-of-thrones") or a numeric Trakt ID.
- * @returns {Promise<void>}
+ * @param {string} [traktIdentifier] - Trakt show identifier (slug or numeric ID).
  */
 export async function renderShow(main, traktIdentifier) {
   const container = document.createElement("div");

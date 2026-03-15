@@ -3,11 +3,11 @@
 // ========================================================
 
 import fetch from "node-fetch";
-import { TRAKT_BASE_URL, getTraktHeaders } from "../lib/traktService.js";
+import { TRAKT_BASE_URL, getTraktHeaders } from "../lib/trakt.js";
 import {
   resolveUserIdFromToken,
   getValidTraktToken,
-} from "../lib/supabaseService.js";
+} from "../lib/supabase.js";
 
 /**
  * Netlify serverless function to search for TV shows on Trakt API.

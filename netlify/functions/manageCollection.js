@@ -7,7 +7,7 @@ import {
   removeShowFromList,
   getDefaultListId,
   resolveUserIdFromToken,
-} from "../lib/supabaseService.js";
+} from "../lib/supabase.js";
 
 /**
  * Netlify serverless function to add or remove a show from user's Trakt collection.

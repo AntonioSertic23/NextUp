@@ -3,14 +3,14 @@
 // ========================================================
 
 import fetch from "node-fetch";
-import { TRAKT_BASE_URL, getTraktHeaders } from "../lib/traktService.js";
+import { TRAKT_BASE_URL, getTraktHeaders } from "../lib/trakt.js";
 import {
   saveShow,
   saveShowSeasonsAndEpisodes,
   getShowWithSeasonsAndEpisodes,
   resolveUserIdFromToken,
   getValidTraktToken,
-} from "../lib/supabaseService.js";
+} from "../lib/supabase.js";
 
 /**
  * Netlify serverless function to fetch a show's details from Trakt API and store them in the database.
