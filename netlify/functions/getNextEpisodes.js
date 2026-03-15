@@ -3,11 +3,16 @@
 // ========================================================
 
 import fetch from "node-fetch";
-
-const BASE_URL = "https://api.trakt.tv";
+import { TRAKT_BASE_URL, getTraktHeaders } from "../lib/traktService.js";
+import {
+  resolveUserIdFromToken,
+  getValidTraktToken,
+} from "../lib/supabaseService.js";
 
 /**
  * Fetches next episode information for multiple shows from Trakt API.
+ * Authenticates via Supabase JWT and reads Trakt token from the database.
+ *
  * @param {Object} event - Netlify event object
  * @returns {Promise<Object>} Response with next episode data for each show
  */
@@ -26,14 +31,17 @@ export async function handler(event) {
     };
   }
 
-  const { token, showIds } = body;
-
-  if (!token) {
+  let userId;
+  try {
+    userId = await resolveUserIdFromToken(event.headers.authorization);
+  } catch (err) {
     return {
-      statusCode: 400,
-      body: JSON.stringify({ error: "Missing 'token' in request body." }),
+      statusCode: 401,
+      body: JSON.stringify({ error: err.message }),
     };
   }
+
+  const { showIds } = body;
 
   if (!Array.isArray(showIds) || showIds.length === 0) {
     return {
@@ -43,24 +51,18 @@ export async function handler(event) {
   }
 
   try {
-    // Fetch next episode for each show with limited concurrency
+    const traktToken = await getValidTraktToken(userId);
     const concurrency = 5;
     const results = [];
 
     async function fetchNextEpisode(showId) {
       try {
-        const res = await fetch(`${BASE_URL}/shows/${showId}/next_episode`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "trakt-api-version": "2",
-            "trakt-api-key": process.env.TRAKT_CLIENT_ID,
-            "Content-Type": "application/json",
-            "User-Agent": "NextUp/1.0.0",
-          },
-        });
+        const res = await fetch(
+          `${TRAKT_BASE_URL}/shows/${showId}/next_episode`,
+          { headers: getTraktHeaders(traktToken) }
+        );
 
         if (!res.ok) {
-          // If show has no next episode, return null (not an error)
           if (res.status === 404) {
             return { showId, nextEpisode: null };
           }
@@ -81,14 +83,11 @@ export async function handler(event) {
       }
     }
 
-    // Process in batches to limit concurrency
     for (let i = 0; i < showIds.length; i += concurrency) {
       const batch = showIds.slice(i, i + concurrency);
       const promises = batch.map((showId) => fetchNextEpisode(showId));
-      /* eslint-disable no-await-in-loop */
       const batchResults = await Promise.all(promises);
       results.push(...batchResults);
-      /* eslint-enable no-await-in-loop */
     }
 
     return { statusCode: 200, body: JSON.stringify(results) };

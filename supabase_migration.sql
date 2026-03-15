@@ -20,9 +20,15 @@ CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT NOT NULL UNIQUE,
   trakt_token TEXT,
+  trakt_refresh_token TEXT,
+  trakt_token_expires_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Migration for existing tables:
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS trakt_refresh_token TEXT;
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS trakt_token_expires_at TIMESTAMP WITH TIME ZONE;
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;

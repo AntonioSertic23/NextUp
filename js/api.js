@@ -2,8 +2,19 @@
 // api.js - Handles all API communication with Trakt and caching logic
 // ========================================================
 
-import { getToken } from "./services/authService.js";
 import { getSession } from "./stores/userStore.js";
+
+/**
+ * Returns standard headers with Supabase JWT for authenticated requests.
+ * @returns {Object} Headers object
+ */
+function getAuthHeaders() {
+  const { access_token } = getSession();
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${access_token}`,
+  };
+}
 
 /**
  * Fetches show details from Supabase and if it is not there fetches it from Trakt and saves in database.
@@ -14,17 +25,11 @@ import { getSession } from "./stores/userStore.js";
  * @returns {Promise<Object|null>} Show data if successful, otherwise null
  */
 export async function getShowDetails(traktIdentifier) {
-  const traktToken = await getToken();
-  const { access_token } = getSession();
-
   try {
     const res = await fetch("/.netlify/functions/getShowDetails", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${access_token}`,
-      },
-      body: JSON.stringify({ traktToken, traktIdentifier }),
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ traktIdentifier }),
     });
 
     if (!res.ok) {
@@ -32,9 +37,7 @@ export async function getShowDetails(traktIdentifier) {
       throw new Error(`getShowDetails failed: ${res.status} ${text}`);
     }
 
-    const data = await res.json();
-
-    return data;
+    return await res.json();
   } catch (error) {
     console.error("Error fetching show details:", error);
     return null;
@@ -50,19 +53,14 @@ export async function getShowDetails(traktIdentifier) {
  * @returns {Promise<Object>} Object with `results` array and `pagination` info.
  */
 export async function searchShows(query, page = 1, limit = 10) {
-  const token = await getToken();
-
-  if (!token || !query || !query.trim()) {
-    throw new Error("Token and query are required");
+  if (!query || !query.trim()) {
+    throw new Error("Query is required");
   }
 
   const res = await fetch("/.netlify/functions/searchShows", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: getAuthHeaders(),
     body: JSON.stringify({
-      token,
       query: query.trim(),
       page,
       limit,
@@ -74,8 +72,7 @@ export async function searchShows(query, page = 1, limit = 10) {
     throw new Error(`Search failed: ${res.status} ${text}`);
   }
 
-  const data = await res.json();
-  return data;
+  return await res.json();
 }
 
 /**
@@ -89,17 +86,10 @@ export async function searchShows(query, page = 1, limit = 10) {
  * @throws {Error} If the request fails or the server returns an error.
  */
 export async function markEpisodes(showId, episodeIds, markAsWatched) {
-  const token = await getToken();
-  const { access_token } = getSession();
-
   const res = await fetch("/.netlify/functions/markEpisodes", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${access_token}`,
-    },
+    headers: getAuthHeaders(),
     body: JSON.stringify({
-      token,
       action: markAsWatched ? "mark" : "unmark",
       showId,
       episodeIds,
@@ -115,79 +105,6 @@ export async function markEpisodes(showId, episodeIds, markAsWatched) {
 }
 
 /**
- * Mark/unmark all episodes in a season.
- * @param {string} token
- * @param {string|number} showId
- * @param {number} seasonNumber
- * @param {boolean} mark
- * @param {Array} episodeIds array of trakt episode ids
- * @returns {Object|null} updated show or null
- */
-export async function markSeasonWatched(
-  token,
-  showId,
-  seasonNumber,
-  mark,
-  episodeIds
-) {
-  // Call markEpisodes endpoint for each episode trakt id sequentially to avoid rate spikes
-  for (const traktId of episodeIds) {
-    try {
-      const res = await fetch("/.netlify/functions/markEpisodes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token,
-          action: mark ? "mark" : "unmark",
-          traktId,
-        }),
-      });
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        console.warn(
-          `markSeasonWatched: episode ${traktId} failed: ${res.status} ${text}`
-        );
-      } else {
-        // consume body to avoid connection leaks
-        await res.json().catch(() => null);
-      }
-    } catch (err) {
-      console.warn(
-        "markSeasonWatched: network error for episode",
-        traktId,
-        err.message
-      );
-    }
-  }
-
-  // Update cache locally by matching episode trakt ids
-  const cache = loadCache();
-  const show = cache[showId];
-  if (!show) return null;
-
-  const season = (show.seasons || []).find((s) => s.number === seasonNumber);
-  if (!season) return null;
-
-  const idsSet = new Set(episodeIds.map((id) => String(id)));
-  for (const ep of season.episodes || []) {
-    if (ep.ids && idsSet.has(String(ep.ids.trakt))) {
-      ep.watched = !!mark;
-      if (mark) {
-        ep.plays = (ep.plays ?? 0) + 1;
-        ep.last_watched = new Date().toISOString();
-      } else {
-        ep.plays = 0;
-        delete ep.last_watched;
-      }
-    }
-  }
-
-  updateCache(showId, show);
-  return show;
-}
-
-/**
  * Adds or removes a show from the user's default list.
  *
  * @async
@@ -197,14 +114,9 @@ export async function markSeasonWatched(
  * @throws {Error} If the request fails
  */
 export async function manageCollection(showId, addToCollection) {
-  const { access_token } = getSession();
-
   const res = await fetch("/.netlify/functions/manageCollection", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${access_token}`,
-    },
+    headers: getAuthHeaders(),
     body: JSON.stringify({
       showId,
       action: addToCollection ? "add" : "remove",
@@ -216,30 +128,24 @@ export async function manageCollection(showId, addToCollection) {
     throw new Error(`manageCollection failed: ${res.status} ${text}`);
   }
 
-  const data = await res.json();
-
-  return data;
+  return await res.json();
 }
 
 /**
  * Fetches next episode information for multiple shows from Trakt API.
  *
- * @param {string} token - Trakt access token
  * @param {Array<string|number>} showIds - Array of Trakt show IDs
  * @returns {Promise<Array>} Array of objects with showId and nextEpisode
  */
-export async function getNextEpisodes(token, showIds) {
-  if (!token || !Array.isArray(showIds) || showIds.length === 0) {
-    throw new Error("Token and non-empty showIds array are required");
+export async function getNextEpisodes(showIds) {
+  if (!Array.isArray(showIds) || showIds.length === 0) {
+    throw new Error("Non-empty showIds array is required");
   }
 
   const res = await fetch("/.netlify/functions/getNextEpisodes", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      token,
-      showIds,
-    }),
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ showIds }),
   });
 
   if (!res.ok) {
@@ -247,6 +153,5 @@ export async function getNextEpisodes(token, showIds) {
     throw new Error(`getNextEpisodes failed: ${res.status} ${text}`);
   }
 
-  const data = await res.json();
-  return data;
+  return await res.json();
 }

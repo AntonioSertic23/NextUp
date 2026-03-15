@@ -3,14 +3,15 @@
 // ========================================================
 
 import fetch from "node-fetch";
+import { TRAKT_BASE_URL, getTraktHeaders } from "../lib/traktService.js";
 import {
   saveUserEpisodes,
   deleteUserEpisodes,
   updateListShows,
   resolveUserIdFromToken,
+  getValidTraktToken,
 } from "../lib/supabaseService.js";
 
-const BASE_URL = "https://api.trakt.tv";
 /**
  * Marks one or more episodes as watched on Trakt.
  *
@@ -26,15 +27,9 @@ async function markOnTrakt(token, traktIds) {
     episodes: traktIds.map((id) => ({ ids: { trakt: Number(id) } })),
   };
 
-  const res = await fetch(`${BASE_URL}/sync/history`, {
+  const res = await fetch(`${TRAKT_BASE_URL}/sync/history`, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "trakt-api-version": "2",
-      "trakt-api-key": process.env.TRAKT_CLIENT_ID,
-      "Content-Type": "application/json",
-      "User-Agent": "NextUp/1.0.0",
-    },
+    headers: getTraktHeaders(token),
     body: JSON.stringify(payload),
   });
 
@@ -61,15 +56,9 @@ async function unmarkOnTrakt(token, traktIds) {
     episodes: traktIds.map((id) => ({ ids: { trakt: Number(id) } })),
   };
 
-  const res = await fetch(`${BASE_URL}/sync/history/remove`, {
+  const res = await fetch(`${TRAKT_BASE_URL}/sync/history/remove`, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "trakt-api-version": "2",
-      "trakt-api-key": process.env.TRAKT_CLIENT_ID,
-      "Content-Type": "application/json",
-      "User-Agent": "NextUp/1.0.0",
-    },
+    headers: getTraktHeaders(token),
     body: JSON.stringify(payload),
   });
 
@@ -84,13 +73,9 @@ async function unmarkOnTrakt(token, traktIds) {
 /**
  * Netlify function handler for marking or unmarking an episode as watched.
  *
- * Handles POST requests that:
- * - persist episode watch state in Supabase
- * - sync watch state with Trakt.tv
+ * Authenticates via Supabase JWT and reads Trakt token from the database.
  *
  * @param {Object} event - Netlify function event object
- * @param {string} event.httpMethod - HTTP method used for the request
- * @param {string} event.body - JSON-encoded request body
  * @returns {Promise<{statusCode: number, body: string}>}
  */
 export async function handler(event) {
@@ -119,14 +104,9 @@ export async function handler(event) {
     };
   }
 
-  const { token, action, showId, episodeIds } = body;
+  const { action, showId, episodeIds } = body;
 
-  if (
-    !token ||
-    !Array.isArray(episodeIds) ||
-    episodeIds.length === 0 ||
-    !action
-  ) {
+  if (!Array.isArray(episodeIds) || episodeIds.length === 0 || !action) {
     return {
       statusCode: 400,
       body: JSON.stringify({ error: "Missing required fields" }),
@@ -134,17 +114,19 @@ export async function handler(event) {
   }
 
   try {
+    const traktToken = await getValidTraktToken(userId);
+
     switch (action) {
       case "mark": {
         const traktIds = await saveUserEpisodes(userId, episodeIds);
-        await markOnTrakt(token, traktIds);
+        await markOnTrakt(traktToken, traktIds);
         await updateListShows(userId, showId, "increment", traktIds.length);
         break;
       }
 
       case "unmark": {
         const traktIds = await deleteUserEpisodes(userId, episodeIds);
-        await unmarkOnTrakt(token, traktIds);
+        await unmarkOnTrakt(traktToken, traktIds);
         await updateListShows(userId, showId, "decrement", traktIds.length);
         break;
       }

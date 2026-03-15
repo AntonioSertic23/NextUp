@@ -3,26 +3,25 @@
 // ========================================================
 
 import fetch from "node-fetch";
+import { TRAKT_BASE_URL, getTraktHeaders } from "../lib/traktService.js";
 import {
   saveShow,
   saveShowSeasonsAndEpisodes,
   getShowWithSeasonsAndEpisodes,
   resolveUserIdFromToken,
+  getValidTraktToken,
 } from "../lib/supabaseService.js";
-
-const BASE_URL = "https://api.trakt.tv";
 
 /**
  * Netlify serverless function to fetch a show's details from Trakt API and store them in the database.
  *
  * - Only accepts POST requests; returns 405 otherwise.
  * - Expects a JSON body containing:
- *   - `traktToken`: user's Trakt access token
  *   - `traktIdentifier`: Trakt show identifier
+ * - Authenticates via Supabase JWT and reads Trakt token from the database.
  * - Fetches show details and seasons with episodes from Trakt.
  * - Saves the show and its seasons/episodes to the database.
  * - Returns the nested show object with seasons and episodes.
- * - Returns appropriate HTTP status codes and error messages on failure.
  *
  * @async
  * @function handler
@@ -30,12 +29,10 @@ const BASE_URL = "https://api.trakt.tv";
  * @returns {Promise<{statusCode: number, body: string}>} Response object with status code and JSON body.
  */
 export async function handler(event) {
-  // Only allow POST requests
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, body: "Method Not Allowed" };
   }
 
-  // Parse request body
   let body;
   try {
     body = JSON.parse(event.body);
@@ -57,14 +54,7 @@ export async function handler(event) {
     };
   }
 
-  const { traktToken, traktIdentifier } = body;
-
-  if (!traktToken) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: "Missing Trakt token in request body." }),
-    };
-  }
+  const { traktIdentifier } = body;
 
   if (!traktIdentifier) {
     return {
@@ -86,19 +76,14 @@ export async function handler(event) {
 
   // If not in DB, fallback to Trakt
   try {
+    const traktToken = await getValidTraktToken(userId);
+
     // Fetch show details
     const showRes = await fetch(
-      `${BASE_URL}/shows/${encodeURIComponent(
+      `${TRAKT_BASE_URL}/shows/${encodeURIComponent(
         traktIdentifier.trim()
       )}?extended=full,images`,
-      {
-        headers: {
-          Authorization: `Bearer ${traktToken}`,
-          "trakt-api-version": "2",
-          "trakt-api-key": process.env.TRAKT_CLIENT_ID,
-          "Content-Type": "application/json",
-        },
-      }
+      { headers: getTraktHeaders(traktToken) }
     );
 
     if (!showRes.ok) {
@@ -113,15 +98,8 @@ export async function handler(event) {
 
     // Fetch seasons with episodes
     const seasonsRes = await fetch(
-      `${BASE_URL}/shows/${traktIdentifier}/seasons?extended=episodes,images&specials=false&count_specials=false`,
-      {
-        headers: {
-          Authorization: `Bearer ${traktToken}`,
-          "trakt-api-version": "2",
-          "trakt-api-key": process.env.TRAKT_CLIENT_ID,
-          "Content-Type": "application/json",
-        },
-      }
+      `${TRAKT_BASE_URL}/shows/${traktIdentifier}/seasons?extended=episodes,images&specials=false&count_specials=false`,
+      { headers: getTraktHeaders(traktToken) }
     );
 
     if (!seasonsRes.ok) {

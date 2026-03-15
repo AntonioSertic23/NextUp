@@ -2,59 +2,60 @@
 // services/traktService.js
 // ========================================================
 
-import { getSupabaseClient } from "./supabaseService.js";
-import { getUser, getSession } from "../stores/userStore.js";
+import { getSession } from "../stores/userStore.js";
 
 /**
- * Persist the authenticated user's Trakt OAuth token.
+ * Handle Trakt OAuth redirect callback (authorization code flow).
  *
- * @param {string} token - Trakt OAuth access token
- * @throws {Error} If user is not authenticated or DB update fails
- */
-async function saveTraktToken(token) {
-  const SUPABASE = await getSupabaseClient();
-
-  const { id: userId } = getUser();
-
-  const { error } = await SUPABASE.from("users")
-    .update({ trakt_token: token })
-    .eq("id", userId);
-
-  if (error) throw error;
-}
-
-/**
- * Handle Trakt OAuth redirect callback.
- *
- * - Extracts access_token from URL hash
- * - Saves token to database
- * - Removes OAuth data from URL
+ * - Extracts the authorization `code` from the URL query string
+ * - Sends it to the server to exchange for access + refresh tokens
+ * - Cleans up the URL
  *
  * Should be called once on app startup.
  */
 export async function handleTraktAuthRedirect() {
-  const hash = window.location.hash;
-  if (!hash.includes("access_token")) return;
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get("code");
+  if (!code) return;
 
-  const params = new URLSearchParams(hash.substring(1));
-  const token = params.get("access_token");
-  if (!token) return;
+  const { access_token } = getSession() || {};
+  if (!access_token) {
+    console.error("Cannot exchange Trakt code: no Supabase session");
+    return;
+  }
 
   try {
-    await saveTraktToken(token);
-    console.info("Trakt token saved");
+    const res = await fetch("/.netlify/functions/traktAuth", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${access_token}`,
+      },
+      body: JSON.stringify({
+        code,
+        redirectUri: window.location.origin,
+      }),
+    });
 
-    // Clean URL without reloading
-    window.history.replaceState({}, document.title, window.location.pathname);
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text);
+    }
+
+    console.info("Trakt account connected successfully");
   } catch (err) {
-    console.error("Failed to store Trakt token:", err.message);
+    console.error("Failed to exchange Trakt code:", err.message);
   }
+
+  // Clean URL without reloading (remove ?code=... from the address bar)
+  window.history.replaceState({}, document.title, window.location.pathname);
 }
 
 /**
  * Redirect the user to Trakt OAuth authorization page.
  *
- * Uses implicit OAuth flow (response_type=token).
+ * Uses the authorization code flow (response_type=code) which provides
+ * refresh tokens for automatic token renewal.
  */
 export async function connectTraktAccount() {
   try {
@@ -66,7 +67,7 @@ export async function connectTraktAccount() {
 
     const authUrl =
       `https://trakt.tv/oauth/authorize` +
-      `?response_type=token` +
+      `?response_type=code` +
       `&client_id=${clientId}` +
       `&redirect_uri=${encodeURIComponent(redirectUri)}`;
 
@@ -80,7 +81,7 @@ export async function connectTraktAccount() {
  * Trigger backend synchronization of Trakt data.
  *
  * - Authenticates request using Supabase session
- * - Backend reads Trakt token from database
+ * - Backend reads and auto-refreshes Trakt token from the database
  *
  * @throws {Error} If request fails
  */
@@ -98,4 +99,27 @@ export async function syncTraktAccount() {
     const message = await res.text();
     throw new Error(`Sync failed: ${message}`);
   }
+}
+
+/**
+ * Trigger backend check for new episodes across all tracked shows.
+ *
+ * Calls the scheduled syncNextEpisodes function manually.
+ * No authentication needed — the function uses the server-side
+ * Trakt API key and Supabase service role.
+ *
+ * @returns {Promise<Object>} Sync results with updated/skipped/errors arrays
+ * @throws {Error} If the request fails
+ */
+export async function syncNextEpisodes() {
+  const res = await fetch("/.netlify/functions/syncNextEpisodes", {
+    method: "POST",
+  });
+
+  if (!res.ok) {
+    const message = await res.text();
+    throw new Error(`Episode sync failed: ${message}`);
+  }
+
+  return res.json();
 }

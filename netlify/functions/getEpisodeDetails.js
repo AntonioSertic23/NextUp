@@ -3,11 +3,16 @@
 // ========================================================
 
 import fetch from "node-fetch";
-
-const BASE_URL = "https://api.trakt.tv";
+import { TRAKT_BASE_URL, getTraktHeaders } from "../lib/traktService.js";
+import {
+  resolveUserIdFromToken,
+  getValidTraktToken,
+} from "../lib/supabaseService.js";
 
 /**
  * Fetches detailed information for a specific episode from Trakt API.
+ * Authenticates via Supabase JWT and reads Trakt token from the database.
+ *
  * @param {Object} event - Netlify event object
  * @returns {Promise<Object>} Response with episode details
  */
@@ -26,29 +31,33 @@ export async function handler(event) {
     };
   }
 
-  const { token, showId, season, episode } = body;
+  let userId;
+  try {
+    userId = await resolveUserIdFromToken(event.headers.authorization);
+  } catch (err) {
+    return {
+      statusCode: 401,
+      body: JSON.stringify({ error: err.message }),
+    };
+  }
 
-  if (!token || !showId || season == null || episode == null) {
+  const { showId, season, episode } = body;
+
+  if (!showId || season == null || episode == null) {
     return {
       statusCode: 400,
       body: JSON.stringify({
-        error: "Missing token, showId, season, or episode",
+        error: "Missing showId, season, or episode",
       }),
     };
   }
 
   try {
+    const traktToken = await getValidTraktToken(userId);
+
     const res = await fetch(
-      `${BASE_URL}/shows/${showId}/seasons/${season}/episodes/${episode}?extended=full,images`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "trakt-api-version": "2",
-          "trakt-api-key": process.env.TRAKT_CLIENT_ID,
-          "Content-Type": "application/json",
-          "User-Agent": "NextUp/1.0.0",
-        },
-      }
+      `${TRAKT_BASE_URL}/shows/${showId}/seasons/${season}/episodes/${episode}?extended=full,images`,
+      { headers: getTraktHeaders(traktToken) }
     );
 
     if (!res.ok) {

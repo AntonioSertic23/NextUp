@@ -7,6 +7,7 @@ import {
   handleTraktAuthRedirect,
   connectTraktAccount,
   syncTraktAccount,
+  syncNextEpisodes,
 } from "./services/traktService.js";
 import { isAuthenticated, initUserStore } from "./stores/userStore.js";
 import { updateActiveNav } from "./ui.js";
@@ -160,18 +161,21 @@ async function loadComponent(selector, path) {
 
     const traktConnectBtn = container.querySelector("#trakt-connect-btn");
     const traktSyncBtn = container.querySelector("#trakt-sync-btn");
+    const syncEpisodesBtn = container.querySelector("#sync-episodes-btn");
 
     const token = await getToken();
 
     // Update Trakt options based on token status
     if (!!token) {
-      // User has Trakt token - show "Sync with Trakt"
+      // User has Trakt token - show sync buttons
       if (traktConnectBtn) traktConnectBtn.style.display = "none";
       if (traktSyncBtn) traktSyncBtn.style.display = "block";
+      if (syncEpisodesBtn) syncEpisodesBtn.style.display = "block";
     } else {
       // User doesn't have Trakt token - show "Sign in to Trakt"
       if (traktConnectBtn) traktConnectBtn.style.display = "block";
       if (traktSyncBtn) traktSyncBtn.style.display = "none";
+      if (syncEpisodesBtn) syncEpisodesBtn.style.display = "none";
     }
 
     // Logout button
@@ -199,7 +203,7 @@ async function loadComponent(selector, path) {
     if (traktSyncBtn) {
       traktSyncBtn.addEventListener("click", async () => {
         try {
-          await syncTraktAccount(token);
+          await syncTraktAccount();
           alert("Sync successful!");
         } catch (error) {
           alert(error.message);
@@ -209,6 +213,27 @@ async function loadComponent(selector, path) {
       // TODO: Add a loading spinner, as the sync may take a while for large lists.
       // TODO: Add a confirmation modal when clicking sync, allowing the user to choose the sync direction
       //       (sync from database to Trakt, from Trakt to database, or only sync new items for existing shows).
+    }
+
+    // Sync new episodes button
+    if (syncEpisodesBtn) {
+      syncEpisodesBtn.addEventListener("click", async () => {
+        try {
+          const result = await syncNextEpisodes();
+          const parts = [];
+          if (result.updated?.length)
+            parts.push(`Updated: ${result.updated.join(", ")}`);
+          if (result.skipped?.length)
+            parts.push(`Skipped (no changes): ${result.skipped.length} shows`);
+          if (result.errors?.length)
+            parts.push(
+              `Errors: ${result.errors.map((e) => e.show).join(", ")}`
+            );
+          alert(parts.length ? parts.join("\n") : "Sync completed.");
+        } catch (error) {
+          alert(error.message);
+        }
+      });
     }
   }
 }
