@@ -2,7 +2,6 @@
 // database.js - Supabase client and data utilities
 // ========================================================
 
-import { getToken } from "./services/authService.js";
 import { getSupabaseClient } from "./services/supabaseService.js";
 import { getUser } from "./stores/userStore.js";
 import {
@@ -23,14 +22,13 @@ import {
  */
 export async function getWatchlistData() {
   const listId = await getDefaultListId();
-  const token = await getToken();
 
   const res = await fetch("/.netlify/functions/getWatchlistData", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ token, listId }),
+    body: JSON.stringify({ listId }),
   });
 
   return await res.json();

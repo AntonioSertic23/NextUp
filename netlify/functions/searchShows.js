@@ -3,30 +3,30 @@
 // ========================================================
 
 import fetch from "node-fetch";
-
-const BASE_URL = "https://api.trakt.tv";
+import { TRAKT_BASE_URL, getTraktHeaders } from "../lib/traktService.js";
+import {
+  resolveUserIdFromToken,
+  getValidTraktToken,
+} from "../lib/supabaseService.js";
 
 /**
  * Netlify serverless function to search for TV shows on Trakt API.
+ *
+ * - Only allows POST requests (returns 405 otherwise).
+ * - Authenticates via Supabase JWT and reads Trakt token from the database.
+ * - Expects a JSON body with `query` (search term).
+ * - Returns 500 with an error message if a network or API issue occurs.
  *
  * @async
  * @function handler
  * @param {object} event - Netlify event object containing request details.
  * @returns {Promise<object>} - Response object with `statusCode` and `body` (JSON string).
- *
- * Notes:
- * - Only allows POST requests (returns 405 otherwise).
- * - Expects a JSON body with `token` (user's Trakt access token) and `query` (search term).
- * - Uses `process.env.TRAKT_CLIENT_ID` for API authentication.
- * - Returns 500 with an error message if a network or API issue occurs.
  */
 export async function handler(event) {
-  // Only allow POST requests
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, body: "Method Not Allowed" };
   }
 
-  // Parse request body
   let body;
   try {
     body = JSON.parse(event.body);
@@ -37,14 +37,17 @@ export async function handler(event) {
     };
   }
 
-  const { token, query, page = 1, limit = 10 } = body;
-
-  if (!token) {
+  let userId;
+  try {
+    userId = await resolveUserIdFromToken(event.headers.authorization);
+  } catch (err) {
     return {
-      statusCode: 400,
-      body: JSON.stringify({ error: "Missing 'token' in request body." }),
+      statusCode: 401,
+      body: JSON.stringify({ error: err.message }),
     };
   }
+
+  const { query, page = 1, limit = 10 } = body;
 
   if (!query || !query.trim()) {
     return {
@@ -56,20 +59,13 @@ export async function handler(event) {
   }
 
   try {
-    // Search for shows on Trakt with pagination
+    const traktToken = await getValidTraktToken(userId);
+
     const searchRes = await fetch(
-      `${BASE_URL}/search/show?query=${encodeURIComponent(
+      `${TRAKT_BASE_URL}/search/show?query=${encodeURIComponent(
         query.trim()
       )}&extended=full,images&page=${page}&limit=${limit}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "trakt-api-version": "2",
-          "trakt-api-key": process.env.TRAKT_CLIENT_ID,
-          "Content-Type": "application/json",
-          "User-Agent": "NextUp/1.0.0",
-        },
-      }
+      { headers: getTraktHeaders(traktToken) }
     );
 
     if (!searchRes.ok) {

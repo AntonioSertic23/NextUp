@@ -15,13 +15,12 @@ const SUPABASE = createClient(
  * Behavior:
  * - Only returns shows that are not completed (is_completed = false)
  * - Requires POST method
- * - Expects { token, listId } in JSON body
+ * - Expects { listId } in JSON body
  *
  * @param {import('@netlify/functions').HandlerEvent} event - Netlify function event
  * @returns {Promise<{statusCode: number, body: string}>} Response
  */
 export async function handler(event) {
-  // Only allow POST requests
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, body: "Method Not Allowed" };
   }
@@ -36,14 +35,15 @@ export async function handler(event) {
     };
   }
 
-  const { token, listId } = body;
+  const { listId } = body;
 
-  if (!token) {
+  if (!listId) {
     return {
       statusCode: 400,
-      body: JSON.stringify({ error: "Missing 'token' in request body." }),
+      body: JSON.stringify({ error: "Missing 'listId' in request body." }),
     };
   }
+
   try {
     const { data, error } = await SUPABASE.from("list_shows")
       .select(
