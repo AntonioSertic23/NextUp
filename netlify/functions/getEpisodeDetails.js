@@ -3,11 +3,11 @@
 // ========================================================
 
 import fetch from "node-fetch";
-import { TRAKT_BASE_URL, getTraktHeaders } from "../lib/traktService.js";
+import { TRAKT_BASE_URL, getTraktHeaders } from "../lib/trakt.js";
 import {
   resolveUserIdFromToken,
   getValidTraktToken,
-} from "../lib/supabaseService.js";
+} from "../lib/supabase.js";
 
 /**
  * Fetches detailed information for a specific episode from Trakt API.

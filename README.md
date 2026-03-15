@@ -26,6 +26,111 @@ NextUp is a modern **TV show tracker** built with Vanilla JavaScript and Supabas
 
   [![Skills](https://skillicons.dev/icons?i=html,css,js,supabase,netlify)](https://skillicons.dev)
 
+## Project Architecture
+
+```
+NextUp/
+├── index.html                          # Main SPA shell
+├── login.html                          # Login / registration page
+├── netlify.toml                        # Netlify build & function config
+├── package.json
+├── .env                                # Environment variables (not committed)
+│
+├── css/
+│   └── style.css                       # Global styles
+│
+├── components/                         # Reusable HTML fragments loaded at runtime
+│   ├── header.html                     # Navbar, dropdown actions
+│   └── footer.html
+│
+├── db/
+│   └── migration.sql                   # Supabase schema & seed (tables, RLS, triggers)
+│
+├── src/                                # Client-side JavaScript (ES modules)
+│   ├── app.js                          # Entry point: auth check, hash router, component loader
+│   ├── login.js                        # Login / register form logic
+│   │
+│   ├── api/                            # Server communication layer (one file per domain)
+│   │   ├── shows.js                    #   getShowDetails, searchShows, manageCollection
+│   │   ├── episodes.js                 #   markEpisodes
+│   │   ├── watchlist.js                #   getWatchlistData, getShowNextEpisode, upcoming & collection queries
+│   │   ├── stats.js                    #   getStatsData (aggregates + calculations)
+│   │   └── sync.js                     #   Trakt OAuth redirect, connect, syncTraktAccount
+│   │
+│   ├── ui/                             # DOM rendering (one file per page section / concern)
+│   │   ├── navigation.js              #   updateActiveNav
+│   │   ├── watchlist.js               #   renderWatchlist, renderSortControls
+│   │   ├── showDetails.js            #   renderShowDetails, renderShowSeasons
+│   │   ├── discover.js               #   renderDiscoverElements, search + pagination
+│   │   ├── myShows.js                #   renderUpcomingEpisodes, renderAllCollectionShows
+│   │   ├── statistics.js             #   renderStatistics
+│   │   └── episodeModal.js           #   Episode info modal, mark/unmark, shared UI helpers
+│   │
+│   ├── pages/                          # Page renderers (called by the router)
+│   │   ├── home.js                     #   Watchlist page
+│   │   ├── show.js                     #   Single show details page
+│   │   ├── discover.js                 #   Search / discover page
+│   │   ├── myShows.js                  #   Upcoming episodes + full collection
+│   │   └── stats.js                    #   Statistics dashboard
+│   │
+│   ├── stores/                         # Client-side state management (in-memory singletons)
+│   │   ├── userStore.js                #   Authenticated user, session, claims
+│   │   ├── watchlistStore.js           #   Watchlist items, sort/order state
+│   │   ├── myShowsStore.js             #   Upcoming episodes + collection cache
+│   │   ├── discoverStore.js            #   Search query, results, pagination
+│   │   └── statsStore.js               #   Computed statistics cache
+│   │
+│   ├── services/                       # Client-side infrastructure
+│   │   ├── auth.js                     #   login, register, logout, getToken (Trakt token from DB)
+│   │   └── supabase.js                 #   Supabase client singleton (lazy-initialized from config endpoint)
+│   │
+│   └── utils/                          # Pure helper functions (no side effects)
+│       ├── format.js                   #   formatDate, formatEpisodeInfo, getTimeUntil
+│       └── stats.js                    #   calculateStatistics, convertMinutesToTime, formatTimeBreakdown
+│
+└── netlify/
+    ├── lib/                            # Shared server-side libraries
+    │   ├── supabase.js                 #   Supabase admin client, DB helpers (saveShow, saveEpisodes, etc.)
+    │   └── trakt.js                    #   Trakt API config, headers, OAuth token exchange/refresh
+    │
+    └── functions/                      # Serverless API endpoints (flat — Netlify requirement)
+        ├── getClientId.js              #   Returns Trakt client ID to the browser
+        ├── getSupabaseConfig.js        #   Returns Supabase URL + anon key
+        ├── traktAuth.js                #   Exchanges Trakt auth code for tokens
+        ├── syncTraktAccount.js         #   Full Trakt → DB sync (shows, episodes, progress)
+        ├── syncNextEpisodes.js         #   Scheduled: weekly check for new episodes
+        ├── getShowDetails.js           #   Fetch or cache show with seasons/episodes
+        ├── searchShows.js              #   Trakt show search with pagination
+        ├── getNextEpisodes.js          #   Next episode data for multiple shows
+        ├── getEpisodeDetails.js        #   Single episode details from Trakt
+        ├── getWatchlistData.js         #   Watchlist query (Supabase)
+        ├── markEpisodes.js             #   Mark/unmark watched + Trakt sync
+        └── manageCollection.js         #   Add/remove show from user's list
+```
+
+### How the layers connect
+
+```
+Browser
+  │
+  ├─ index.html ──► src/app.js (router)
+  │                   ├─ src/pages/*        ← page renderers
+  │                   │    ├─ src/api/*     ← data fetching (calls Netlify Functions or Supabase directly)
+  │                   │    └─ src/ui/*      ← DOM rendering
+  │                   ├─ src/stores/*       ← in-memory state
+  │                   ├─ src/services/*     ← auth & Supabase client
+  │                   └─ src/utils/*        ← pure helpers
+  │
+  ├─ /.netlify/functions/* ◄── HTTP calls from src/api/
+  │     └─ netlify/lib/*       ← shared server-side Supabase + Trakt logic
+  │
+  └─ Supabase (PostgreSQL + Auth + RLS)
+```
+
+**Data flow**: Pages call **api/** modules, which either query Supabase directly (for list/watchlist data) or call **Netlify Functions** (for Trakt-dependent operations). Functions use shared **lib/** modules for database writes and Trakt API communication.
+
+**State flow**: Pages read from and write to **stores/** (in-memory singletons). **UI/** modules read store state to render the DOM. Stores are populated once per page visit and cached until navigation.
+
 ## Quick Start
 
 1. **Clone the repository**

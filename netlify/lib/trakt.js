@@ -1,5 +1,5 @@
 // ========================================================
-// lib/traktService.js
+// lib/trakt.js
 // Shared Trakt API configuration used by all Netlify functions.
 // ========================================================
 
@@ -22,7 +22,7 @@ export function getTraktHeaders(token) {
     "trakt-api-version": "2",
     "trakt-api-key": process.env.TRAKT_CLIENT_ID,
     "Content-Type": "application/json",
-    "User-Agent": "NextUp/2.0.0",
+    "User-Agent": "NextUp/2.3.0",
   };
 
   if (token) {

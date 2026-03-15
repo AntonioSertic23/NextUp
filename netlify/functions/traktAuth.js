@@ -2,11 +2,11 @@
 // functions/traktAuth.js - Exchanges a Trakt authorization code for tokens
 // ========================================================
 
-import { exchangeTraktCode } from "../lib/traktService.js";
+import { exchangeTraktCode } from "../lib/trakt.js";
 import {
   resolveUserIdFromToken,
   saveTraktTokens,
-} from "../lib/supabaseService.js";
+} from "../lib/supabase.js";
 
 /**
  * Exchanges a Trakt OAuth authorization code for access + refresh tokens
