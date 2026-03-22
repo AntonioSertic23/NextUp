@@ -2,7 +2,15 @@ import {
   getUpcomingEpisodes,
   getAllCollectionShows,
 } from "../stores/myShowsStore.js";
-import { formatEpisodeInfo, getTimeUntil } from "../utils/format.js";
+import { formatDate, formatEpisodeInfo, getTimeUntil } from "../utils/format.js";
+
+function escapeHtml(text) {
+  return String(text ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
 
 /**
  * Renders upcoming episodes for shows in the user's collection.
@@ -18,29 +26,49 @@ export function renderUpcomingEpisodes() {
     return;
   }
 
-  container.innerHTML = upcomingEpisodes
+  const sorted = [...upcomingEpisodes].sort(
+    (a, b) => new Date(a.first_aired) - new Date(b.first_aired)
+  );
+
+  container.innerHTML = sorted
     .map((episode) => {
-      const nextEpisodeInfo = formatEpisodeInfo(
+      const showTitle = escapeHtml(episode.shows?.title || "Unknown show");
+      const epTitle = escapeHtml(episode.title || "Untitled episode");
+      const slugId = escapeHtml(episode.shows?.slug_id ?? "");
+      const epCode = formatEpisodeInfo(
         episode.season_number,
         episode.episode_number,
-        episode.title
+        null
       );
-
-      const timeText = getTimeUntil(episode.first_aired);
+      const epCodeSafe = escapeHtml(epCode);
+      const airDate = formatDate(episode.first_aired);
+      const airDateSafe = escapeHtml(airDate);
+      const countdown = escapeHtml(getTimeUntil(episode.first_aired));
+      const posterPath = episode.shows?.image_poster;
+      const posterSrc = posterPath ? `https://${posterPath}` : "";
 
       return `
-        <div class="show-card" data-id="${episode.shows.slug_id}">
-          <div class="poster-container">
-            <img
-              class="poster"
-              src="https://${episode.shows.image_poster}"
-              alt="${episode.title} poster"
-            />
+        <div class="show-card upcoming-episode-row" data-id="${slugId}">
+          <div class="upcoming-row-poster">
+            ${
+              posterSrc
+                ? `<img
+              class="upcoming-row-poster-img"
+              src="${posterSrc}"
+              alt=""
+              loading="lazy"
+            />`
+                : `<div class="upcoming-row-poster-placeholder"></div>`
+            }
           </div>
-          <div class="info-container">
-            <p class="title">${episode.title}</p>
-            <p class="next_episode">${nextEpisodeInfo}</p>
-            <p class="days_until_next">Next episode in: <span class="days_badge">${timeText}</span></p>
+          <div class="upcoming-row-content">
+            <p class="upcoming-row-series">${showTitle}</p>
+            <p class="upcoming-row-episode-name">${epTitle}</p>
+            <p class="upcoming-row-episode-code">${epCodeSafe}</p>
+            <div class="upcoming-row-footer">
+              <span class="upcoming-row-date" title="Air date">${airDateSafe}</span>
+              <span class="upcoming-row-countdown">${countdown}</span>
+            </div>
           </div>
         </div>
       `;
@@ -49,7 +77,7 @@ export function renderUpcomingEpisodes() {
 }
 
 /**
- * Renders all shows in the user's collection.
+ * Renders all shows in the user's collection (poster + title + year, same card style as Discover).
  */
 export function renderAllCollectionShows() {
   const allCollectionShows = getAllCollectionShows();
@@ -62,22 +90,28 @@ export function renderAllCollectionShows() {
     return;
   }
 
-  allCollectionShows.forEach((show) => {
-    const card = document.createElement("div");
-    card.className = "show-card";
-    card.dataset.id = show.shows.slug_id;
+  container.innerHTML = allCollectionShows
+    .map((item) => {
+      const s = item.shows;
+      const title = escapeHtml(s.title);
+      const year = s.year != null && s.year !== "" ? escapeHtml(String(s.year)) : "";
+      const slugId = s.slug_id != null ? String(s.slug_id) : "";
+      const posterPath = s.image_poster;
+      const posterSrc = posterPath ? `https://${posterPath}` : "";
 
-    const posterContainer = document.createElement("div");
-    posterContainer.className = "poster-container";
-
-    const img = document.createElement("img");
-    img.className = "poster";
-    img.src = `https://${show.shows.image_poster}`;
-    img.alt = "show poster";
-
-    posterContainer.appendChild(img);
-    card.appendChild(posterContainer);
-
-    container.appendChild(card);
-  });
+      return `
+        <div class="discover-card my-shows-collection-card" data-id="${escapeHtml(slugId)}">
+          <div class="discover-card-poster">
+            ${
+              posterSrc
+                ? `<img src="${posterSrc}" alt="${title || "Show"} poster" loading="lazy" />`
+                : ""
+            }
+          </div>
+          <p class="discover-card-title">${title || "Untitled"}</p>
+          <p class="discover-card-year">${year}</p>
+        </div>
+      `;
+    })
+    .join("");
 }
