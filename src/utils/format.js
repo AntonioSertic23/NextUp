@@ -33,10 +33,10 @@ export function formatEpisodeInfo(seasonNumber, episodeNumber, title) {
 }
 
 /**
- * Returns time remaining until a future date in days and hours.
+ * Returns a short English phrase for time remaining until a future date.
  *
  * @param {string} isoDate - ISO datetime string
- * @returns {string} Formatted time text or "Aired" if date is in the past
+ * @returns {string} e.g. "in 3 days", "in 5 hours", "Aired" if in the past
  */
 export function getTimeUntil(isoDate) {
   if (!isoDate) return "N/A";
@@ -48,13 +48,23 @@ export function getTimeUntil(isoDate) {
 
   if (diffMs <= 0) return "Aired";
 
+  const totalMinutes = Math.floor(diffMs / (1000 * 60));
   const totalHours = Math.floor(diffMs / (1000 * 60 * 60));
   const days = Math.floor(totalHours / 24);
   const hours = totalHours % 24;
+  const minutes = totalMinutes % 60;
 
-  if (days > 0) {
-    return `${days}d ${hours}h`;
+  if (days >= 1) {
+    return `in ${days} day${days === 1 ? "" : "s"}${
+      hours > 0 ? `, ${hours} hr` : ""
+    }`;
   }
 
-  return `${hours}h`;
+  if (totalHours >= 1) {
+    return minutes > 0
+      ? `in ${totalHours} hr ${minutes} min`
+      : `in ${totalHours} hour${totalHours === 1 ? "" : "s"}`;
+  }
+
+  return `in ${Math.max(1, totalMinutes)} min`;
 }

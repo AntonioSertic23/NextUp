@@ -97,6 +97,38 @@ export async function getTraktShows(type = "trending", page = 1, limit = 10) {
 }
 
 /**
+ * Fetches Trakt “related” shows for a given show (recommendations-style).
+ *
+ * @param {string} traktIdentifier - Trakt slug or numeric id of the current show.
+ * @param {number} [page=1] - Page number.
+ * @param {number} [limit=20] - Results per page.
+ * @returns {Promise<Object>} Object with `shows` array and `pagination` info.
+ */
+export async function getRelatedShows(
+  traktIdentifier,
+  page = 1,
+  limit = 20
+) {
+  const { access_token } = getSession();
+
+  const res = await fetch("/.netlify/functions/getRelatedShows", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${access_token}`,
+    },
+    body: JSON.stringify({ traktIdentifier, page, limit }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`getRelatedShows failed: ${res.status} ${text}`);
+  }
+
+  return await res.json();
+}
+
+/**
  * Adds or removes a show from the user's default list.
  *
  * @param {string} showId - Internal show ID

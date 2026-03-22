@@ -100,6 +100,7 @@ export async function getUpcomingEpisodesData() {
         first_aired,
         shows (
           slug_id,
+          title,
           image_poster
         )
         `,
@@ -141,6 +142,8 @@ export async function getAllCollectionShowsData() {
         shows (
           id,
           slug_id,
+          title,
+          year,
           image_poster
         )
         `,

@@ -1,4 +1,4 @@
-import { manageCollection } from "../api/shows.js";
+import { manageCollection, getRelatedShows } from "../api/shows.js";
 import { markEpisodes } from "../api/episodes.js";
 import {
   attachEpisodeInfoHandler,
@@ -139,6 +139,7 @@ export function renderShowDetails(show) {
       </div>
     </div>
     <div id="seasons"></div>
+    <div id="related-shows-section" class="related-shows-section" aria-live="polite"></div>
   `;
 
   const collectionBtn = showContainer.querySelector("#collection-btn");
@@ -169,6 +170,125 @@ export function renderShowDetails(show) {
   }
 
   renderShowSeasons(showContainer, show.seasons, show.id);
+  void renderRecommendedShows(showContainer, show);
+}
+
+/** Trakt slug preferred for routing / DB lookup; fallback to numeric trakt id. */
+function traktShowLookupId(show) {
+  if (show.slug_id) return String(show.slug_id).trim();
+  if (show.trakt_id != null && show.trakt_id !== "") return String(show.trakt_id);
+  return null;
+}
+
+const RELATED_SLIDER_THRESHOLD = 6;
+
+/**
+ * Loads Trakt related shows and renders them below seasons (grid or slider).
+ *
+ * @param {HTMLElement} container - #show-container
+ * @param {Object} show - Current show from API
+ */
+async function renderRecommendedShows(container, show) {
+  const sectionEl = container.querySelector("#related-shows-section");
+  if (!sectionEl) return;
+
+  const lookupId = traktShowLookupId(show);
+  if (!lookupId) {
+    sectionEl.remove();
+    return;
+  }
+
+  sectionEl.innerHTML = `<p class="loading-text related-shows-loading">Loading recommendations…</p>`;
+
+  try {
+    const { shows } = await getRelatedShows(lookupId, 1, 24);
+    const currentTrakt = show.trakt_id != null ? Number(show.trakt_id) : null;
+    const filtered = (shows || []).filter((s) => {
+      if (currentTrakt == null || !s?.ids?.trakt) return true;
+      return Number(s.ids.trakt) !== currentTrakt;
+    });
+
+    if (!filtered.length) {
+      sectionEl.remove();
+      return;
+    }
+
+    const useSlider = filtered.length >= RELATED_SLIDER_THRESHOLD;
+
+    const cardsHtml = filtered
+      .map((s) => {
+        const poster = s.images?.poster?.[0];
+        const posterSrc = poster ? `https://${poster}` : "";
+        const navId = s.ids?.slug ?? s.ids?.trakt ?? "";
+        const safeTitle = (s.title || "").replace(/</g, "&lt;");
+        const encNav = encodeURIComponent(String(navId));
+        return `
+          <div class="discover-card" data-nav-id="${encNav}">
+            <div class="discover-card-poster">
+              ${posterSrc ? `<img src="${posterSrc}" alt="${safeTitle}" loading="lazy" />` : ""}
+            </div>
+            <p class="discover-card-title">${safeTitle}</p>
+            <p class="discover-card-year">${s.year ?? ""}</p>
+          </div>`;
+      })
+      .join("");
+
+    if (useSlider) {
+      sectionEl.innerHTML = `
+        <section class="discover-section related-shows-inner">
+          <h2 class="discover-section-title">Recommended shows</h2>
+          <div class="discover-slider-wrapper">
+            <button type="button" class="slider-arrow slider-arrow-left" aria-label="Scroll left">&#8249;</button>
+            <div class="discover-slider">${cardsHtml}</div>
+            <button type="button" class="slider-arrow slider-arrow-right" aria-label="Scroll right">&#8250;</button>
+          </div>
+        </section>
+      `;
+
+      const slider = sectionEl.querySelector(".discover-slider");
+      const leftArrow = sectionEl.querySelector(".slider-arrow-left");
+      const rightArrow = sectionEl.querySelector(".slider-arrow-right");
+      const scrollAmount = 500;
+
+      leftArrow.addEventListener("click", () => {
+        slider.scrollBy({ left: -scrollAmount, behavior: "smooth" });
+      });
+      rightArrow.addEventListener("click", () => {
+        slider.scrollBy({ left: scrollAmount, behavior: "smooth" });
+      });
+
+      function updateArrowVisibility() {
+        const maxScroll = slider.scrollWidth - slider.clientWidth;
+        leftArrow.classList.toggle("hidden", slider.scrollLeft <= 0);
+        rightArrow.classList.toggle(
+          "hidden",
+          slider.scrollLeft >= maxScroll - 1
+        );
+      }
+      slider.addEventListener("scroll", updateArrowVisibility);
+      requestAnimationFrame(updateArrowVisibility);
+    } else {
+      sectionEl.innerHTML = `
+        <section class="discover-section related-shows-inner">
+          <h2 class="discover-section-title">Recommended shows</h2>
+          <div class="related-shows-grid">${cardsHtml}</div>
+        </section>
+      `;
+    }
+
+    sectionEl.querySelectorAll(".discover-card").forEach((card) => {
+      card.addEventListener("click", () => {
+        const enc = card.getAttribute("data-nav-id");
+        if (enc) {
+          const id = decodeURIComponent(enc);
+          location.hash = `show?traktIdentifier=${encodeURIComponent(id)}`;
+        }
+      });
+    });
+  } catch (err) {
+    console.error("Failed to load related shows:", err);
+    sectionEl.innerHTML = `<p class="error-text related-shows-error">Recommendations are unavailable right now.</p>`;
+  }
 }
 
 /**
