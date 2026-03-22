@@ -1,6 +1,14 @@
-// ========================================================
-// services/auth.js - Supabase authentication with email/password
-// ========================================================
+/**
+ * @module services/auth
+ *
+ * Handles Supabase email/password authentication and Trakt token retrieval.
+ *
+ * Auth lifecycle:
+ *   login / register  →  Supabase stores session in localStorage
+ *   getToken           →  reads Trakt token from `users` table
+ *   logout             →  signs out of Supabase, clears state, replaces history
+ *   setupAuthGuard     →  listens to onAuthStateChange for session expiry / cross-tab logout
+ */
 
 import { getSupabaseClient } from "./supabase.js";
 import { getUser, clearUserStore } from "../stores/userStore.js";
@@ -8,31 +16,25 @@ import { getUser, clearUserStore } from "../stores/userStore.js";
 /**
  * Retrieves the current user's Trakt OAuth token from the database.
  *
- * NOTE:
- * - This is NOT a Supabase auth token.
- * - The token is stored in the `users.trakt_token` column.
- * - Returns null if the user is not authenticated or the token is missing.
- *
  * @returns {Promise<string|null>} Trakt OAuth token or null
  */
 export async function getToken() {
   try {
     const SUPABASE = await getSupabaseClient();
+    const user = getUser();
+    if (!user) return null;
 
-    const { id: userId } = getUser();
-
-    // Fetch user data to get trakt_token
-    const { data: userData, error } = await SUPABASE.from("users")
+    const { data, error } = await SUPABASE.from("users")
       .select("trakt_token")
-      .eq("id", userId)
+      .eq("id", user.id)
       .single();
 
-    if (error || !userData) {
-      console.error("Error fetching user data:", error);
+    if (error || !data) {
+      console.error("Error fetching Trakt token:", error);
       return null;
     }
 
-    return userData.trakt_token || null;
+    return data.trakt_token || null;
   } catch (error) {
     console.error("Error getting token:", error);
     return null;
@@ -40,32 +42,20 @@ export async function getToken() {
 }
 
 /**
- * Registers a new user using email and password authentication.
+ * Registers a new user. A corresponding `users` row is created
+ * automatically by a database trigger (see db/migration.sql).
  *
- * Notes:
- * - Supabase authentication handles user creation.
- * - A corresponding user record is automatically created
- *   via a database trigger.
- *
- * @param {string} email - User email address.
- * @param {string} password - User password.
+ * @param {string} email
+ * @param {string} password
  * @returns {Promise<{success: boolean, error?: string}>}
  */
 export async function register(email, password) {
   try {
     const SUPABASE = await getSupabaseClient();
 
-    const { data, error } = await SUPABASE.auth.signUp({
-      email,
-      password,
-    });
+    const { error } = await SUPABASE.auth.signUp({ email, password });
 
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    // User record is automatically created by database trigger
-    // See supabase_migration.sql for the trigger definition
+    if (error) return { success: false, error: error.message };
 
     return { success: true };
   } catch (error) {
@@ -74,24 +64,22 @@ export async function register(email, password) {
 }
 
 /**
- * Logs in a user using email and password authentication.
+ * Logs in a user with email and password.
  *
- * @param {string} email - User email address.
- * @param {string} password - User password.
+ * @param {string} email
+ * @param {string} password
  * @returns {Promise<{success: boolean, error?: string}>}
  */
 export async function login(email, password) {
   try {
     const SUPABASE = await getSupabaseClient();
 
-    const { data, error } = await SUPABASE.auth.signInWithPassword({
+    const { error } = await SUPABASE.auth.signInWithPassword({
       email,
       password,
     });
 
-    if (error) {
-      return { success: false, error: error.message };
-    }
+    if (error) return { success: false, error: error.message };
 
     return { success: true };
   } catch (error) {
@@ -100,28 +88,49 @@ export async function login(email, password) {
 }
 
 /**
- * Logs out the currently authenticated user.
+ * Logs the user out, clears all client state, and redirects to the login page.
  *
- * Behavior:
- * - Signs the user out from Supabase.
- * - Reloads the page to clear all in-memory application state.
- *
- * @returns {Promise<void>}
+ * Uses `location.replace` so the authenticated page is removed from the
+ * browser history stack — pressing "back" after logout will NOT return
+ * to the app.
  */
 export async function logout() {
   try {
     const SUPABASE = await getSupabaseClient();
-
-    // Sign out from Supabase
     await SUPABASE.auth.signOut();
-
-    clearUserStore();
-
-    // Reload page to clear state
-    window.location.reload();
   } catch (error) {
-    console.error("Error during logout:", error);
-    // Still reload even if there's an error
-    window.location.reload();
+    console.error("Error during sign-out:", error);
   }
+
+  clearUserStore();
+
+  window.location.replace("/login.html");
+}
+
+/**
+ * Subscribes to Supabase auth state changes.
+ *
+ * Handles:
+ * - SIGNED_OUT: clears state and redirects to login (covers token expiry,
+ *   session revocation, and sign-out from another tab).
+ * - TOKEN_REFRESHED: no action needed — Supabase updates localStorage automatically.
+ *
+ * @returns {Function} Unsubscribe callback
+ */
+export async function setupAuthGuard() {
+  const SUPABASE = await getSupabaseClient();
+
+  const {
+    data: { subscription },
+  } = SUPABASE.auth.onAuthStateChange((event) => {
+    if (event === "SIGNED_OUT") {
+      clearUserStore();
+
+      if (!window.location.pathname.includes("login.html")) {
+        window.location.replace("/login.html");
+      }
+    }
+  });
+
+  return () => subscription.unsubscribe();
 }

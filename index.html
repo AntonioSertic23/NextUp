@@ -1,14 +1,23 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>NextUp</title>
 
+    <!-- Prevent caching of authenticated pages -->
+    <meta http-equiv="Cache-Control" content="no-store" />
+
     <!-- Main stylesheet -->
     <link rel="stylesheet" href="./css/style.css" />
   </head>
 
+  <!--
+    The body starts without the "authenticated" class.
+    Content (header, main, footer) is hidden via CSS until app.js
+    confirms the session is valid and adds the class. This prevents
+    a flash of the app shell when navigating back after logout.
+  -->
   <body>
     <!-- Header section: navbar will be loaded dynamically -->
     <header></header>

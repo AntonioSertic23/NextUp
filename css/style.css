@@ -33,6 +33,17 @@ body.login-page {
   justify-content: center;
 }
 
+/*
+ * Auth guard: hide app content until authentication is confirmed.
+ * app.js adds the "authenticated" class after verifying the session.
+ * This prevents a flash of the app shell when pressing back after logout.
+ */
+body:not(.login-page):not(.authenticated) header,
+body:not(.login-page):not(.authenticated) main,
+body:not(.login-page):not(.authenticated) footer {
+  display: none;
+}
+
 /* ========================================================
    Authentication Styles
    ======================================================== */
@@ -41,29 +52,38 @@ body.login-page {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 60vh;
+  min-height: 80vh;
   padding: 2rem;
   width: 100%;
 }
 
-.auth-form {
+.auth-card {
   background-color: #1e1f26;
-  border-radius: 8px;
-  padding: 2rem;
+  border-radius: 12px;
+  padding: 2.5rem;
   width: 100%;
-  max-width: 400px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  max-width: 420px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
-.auth-form h1 {
+.auth-title {
   text-align: center;
-  margin-bottom: 1.5rem;
+  font-size: 2rem;
+  font-weight: 700;
   color: #fff;
+  margin-bottom: 0.25rem;
+}
+
+.auth-subtitle {
+  text-align: center;
+  color: #888;
+  font-size: 0.95rem;
+  margin-bottom: 2rem;
 }
 
 .auth-tabs {
   display: flex;
-  gap: 0.5rem;
+  gap: 0;
   margin-bottom: 1.5rem;
   border-bottom: 1px solid #333;
 }
@@ -73,19 +93,21 @@ body.login-page {
   padding: 0.75rem;
   background: none;
   border: none;
-  color: #999;
+  border-bottom: 2px solid transparent;
+  color: #666;
   cursor: pointer;
   font-size: 1rem;
-  transition: color 0.2s;
+  font-weight: 500;
+  transition: color 0.2s, border-color 0.2s;
 }
 
 .auth-tab:hover {
-  color: #fff;
+  color: #ccc;
 }
 
 .auth-tab.active {
   color: #fff;
-  border-bottom: 2px solid #4a9eff;
+  border-bottom-color: #4a9eff;
 }
 
 .auth-content {
@@ -100,9 +122,7 @@ body.login-page {
   visibility: hidden;
   position: absolute;
   width: 100%;
-  transition:
-    opacity 0.2s,
-    visibility 0.2s;
+  transition: opacity 0.2s, visibility 0.2s;
 }
 
 .auth-form-content.active-form {
@@ -111,40 +131,115 @@ body.login-page {
   position: relative;
 }
 
+/* Input group: wraps input + optional toggle button */
+.input-group {
+  position: relative;
+}
+
 .auth-form-content input {
-  padding: 0.75rem;
+  width: 100%;
+  padding: 0.8rem 1rem;
+  padding-right: 2.75rem;
   background-color: #15161b;
   border: 1px solid #333;
-  border-radius: 4px;
+  border-radius: 8px;
   color: #fff;
   font-size: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .auth-form-content input:focus {
   outline: none;
   border-color: #4a9eff;
+  box-shadow: 0 0 0 3px rgba(74, 158, 255, 0.15);
 }
 
-.auth-form-content button {
-  padding: 0.75rem;
+.auth-form-content input:disabled {
+  opacity: 0.5;
+}
+
+/* Password visibility toggle */
+.password-toggle {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s;
+}
+
+.password-toggle:hover {
+  color: #aaa;
+}
+
+/* Submit button */
+.auth-submit-btn {
+  padding: 0.85rem;
   background-color: #4a9eff;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   color: #fff;
   font-size: 1rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.2s, transform 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 48px;
 }
 
-.auth-form-content button:hover {
+.auth-submit-btn:hover:not(:disabled) {
   background-color: #3a8eef;
 }
 
-.error-message {
-  color: #ff4444;
+.auth-submit-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.auth-submit-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Loading spinner inside buttons */
+.btn-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Auth messages (error / success) */
+.auth-message {
   font-size: 0.9rem;
-  margin-top: 0.5rem;
-  min-height: 1.5rem;
+  margin-top: 0.25rem;
+  min-height: 1.4rem;
+  text-align: center;
+  transition: color 0.2s;
+}
+
+.auth-message.error {
+  color: #ff5555;
+}
+
+.auth-message.success {
+  color: #50c878;
 }
 
 /* ========================================================
