@@ -12,30 +12,6 @@ import { renderStats } from "./pages/stats.js";
 import { renderDiscover } from "./pages/discover.js";
 import { renderMyShows } from "./pages/myShows.js";
 
-await handleTraktAuthRedirect();
-
-await initUserStore();
-
-async function initAuth() {
-  const authenticated = isAuthenticated();
-
-  if (!authenticated) {
-    if (!window.location.pathname.includes("login.html")) {
-      window.location.href = "/login.html";
-      return;
-    }
-  } else {
-    if (window.location.pathname.includes("login.html")) {
-      window.location.href = "/";
-      return;
-    }
-    console.log("User logged in.");
-    initRouter();
-  }
-}
-
-initAuth();
-
 const routes = {
   home: renderHome,
   show: renderShow,
@@ -43,6 +19,16 @@ const routes = {
   discover: renderDiscover,
   myshows: renderMyShows,
 };
+
+await initUserStore();
+
+await handleTraktAuthRedirect();
+
+if (!isAuthenticated()) {
+  window.location.href = "/login.html";
+} else {
+  initRouter();
+}
 
 /**
  * Router - Loads the correct page based on hash route.

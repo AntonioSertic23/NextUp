@@ -1,40 +1,47 @@
-import { getSupabaseClient } from "../services/supabase.js";
-import { getUser, getSession } from "../stores/userStore.js";
+import { getSession } from "../stores/userStore.js";
 
 /**
- * Handle Trakt OAuth redirect callback.
+ * Handle Trakt OAuth redirect callback (authorization code flow).
  *
- * Extracts access_token from URL hash, saves it to the database,
- * and cleans the URL. Should be called once on app startup.
+ * After the user authorizes on Trakt, they are redirected back with
+ * `?code=AUTH_CODE` in the query string. This function detects that code,
+ * sends it to the backend for token exchange, and cleans the URL.
+ *
+ * Must run after initUserStore() so the Supabase session is available.
  */
 export async function handleTraktAuthRedirect() {
-  const hash = window.location.hash;
-  if (!hash.includes("access_token")) return;
-
-  const params = new URLSearchParams(hash.substring(1));
-  const token = params.get("access_token");
-  if (!token) return;
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get("code");
+  if (!code) return;
 
   try {
-    const SUPABASE = await getSupabaseClient();
-    const { id: userId } = getUser();
+    const { access_token } = getSession();
+    const redirectUri = window.location.origin;
 
-    const { error } = await SUPABASE.from("users")
-      .update({ trakt_token: token })
-      .eq("id", userId);
+    const res = await fetch("/.netlify/functions/traktAuth", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${access_token}`,
+      },
+      body: JSON.stringify({ code, redirectUri }),
+    });
 
-    if (error) throw error;
+    if (!res.ok) {
+      const { error } = await res.json();
+      throw new Error(error || `Token exchange failed (${res.status})`);
+    }
 
-    console.info("Trakt token saved");
-
-    window.history.replaceState({}, document.title, window.location.pathname);
+    console.info("Trakt account connected");
   } catch (err) {
-    console.error("Failed to store Trakt token:", err.message);
+    console.error("Failed to exchange Trakt auth code:", err.message);
   }
+
+  window.history.replaceState({}, document.title, window.location.pathname);
 }
 
 /**
- * Redirect the user to Trakt OAuth authorization page.
+ * Redirect the user to Trakt OAuth authorization page (code flow).
  */
 export async function connectTraktAccount() {
   try {
@@ -46,7 +53,7 @@ export async function connectTraktAccount() {
 
     const authUrl =
       `https://trakt.tv/oauth/authorize` +
-      `?response_type=token` +
+      `?response_type=code` +
       `&client_id=${clientId}` +
       `&redirect_uri=${encodeURIComponent(redirectUri)}`;
 
