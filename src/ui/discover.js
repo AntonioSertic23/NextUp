@@ -3,7 +3,13 @@ import {
   getDiscoverState,
   setDiscoverState,
 } from "../stores/discoverStore.js";
-import { searchShows } from "../api/shows.js";
+import { searchShows, getTraktShows } from "../api/shows.js";
+
+const BROWSE_SECTIONS = [
+  { type: "trending", title: "Trending Now" },
+  { type: "popular", title: "Most Popular" },
+  { type: "anticipated", title: "Most Anticipated" },
+];
 
 /**
  * Renders the Discover page with search functionality.
@@ -43,9 +49,13 @@ export async function renderDiscoverElements() {
   paginationDiv.className = "pagination-container";
   paginationDiv.id = "pagination-container";
 
+  const browseDiv = document.createElement("div");
+  browseDiv.id = "discover-browse";
+
   container.appendChild(searchForm);
   container.appendChild(resultsDiv);
   container.appendChild(paginationDiv);
+  container.appendChild(browseDiv);
 
   const searchBtn = searchForm.querySelector("#search-btn");
   const searchInput = searchForm.querySelector("#search-input");
@@ -55,6 +65,7 @@ export async function renderDiscoverElements() {
     const query = searchInput.value.trim();
     if (!query) return;
 
+    browseDiv.style.display = "none";
     await performSearch(query, 1, paginationDiv);
     clearBtn.style.display = "block";
   });
@@ -71,17 +82,114 @@ export async function renderDiscoverElements() {
     resultsDiv.innerHTML = "";
     paginationDiv.innerHTML = "";
     resetDiscoverStore();
+    browseDiv.style.display = "";
   });
 
   if (discoverState.results.length > 0) {
+    browseDiv.style.display = "none";
     displaySearchResults(discoverState.results);
     renderPagination(
       paginationDiv,
       discoverState.currentQuery,
       discoverState.paginationInfo
     );
+  } else {
+    loadBrowseSections(browseDiv);
   }
 }
+
+// ————————————————————————————————————————————————————
+// Browse sections (trending / popular / anticipated)
+// ————————————————————————————————————————————————————
+
+async function loadBrowseSections(container) {
+  container.innerHTML = `<div class="discover-browse-loading"><p class="loading-text">Loading...</p></div>`;
+
+  try {
+    const results = await Promise.all(
+      BROWSE_SECTIONS.map((s) => getTraktShows(s.type, 1, 15))
+    );
+
+    container.innerHTML = "";
+
+    BROWSE_SECTIONS.forEach((section, i) => {
+      renderBrowseSection(container, section.title, results[i].shows);
+    });
+  } catch (err) {
+    console.error("Failed to load browse sections:", err);
+    container.innerHTML = `<p class='error-text'>Failed to load shows.</p>`;
+  }
+}
+
+function renderBrowseSection(parent, title, shows) {
+  if (!shows || !shows.length) return;
+
+  const section = document.createElement("section");
+  section.className = "discover-section";
+
+  section.innerHTML = `
+    <h2 class="discover-section-title">${title}</h2>
+    <div class="discover-slider-wrapper">
+      <button class="slider-arrow slider-arrow-left" aria-label="Scroll left">&#8249;</button>
+      <div class="discover-slider">
+        ${shows
+          .map((show) => {
+            const poster = show.images?.poster?.[0];
+            const posterSrc = poster
+              ? `https://${poster}`
+              : "";
+            return `
+            <div class="discover-card" data-id="${show.ids?.trakt || ""}">
+              <div class="discover-card-poster">
+                ${posterSrc ? `<img src="${posterSrc}" alt="${show.title}" loading="lazy" />` : ""}
+              </div>
+              <p class="discover-card-title">${show.title || ""}</p>
+              <p class="discover-card-year">${show.year || ""}</p>
+            </div>
+          `;
+          })
+          .join("")}
+      </div>
+      <button class="slider-arrow slider-arrow-right" aria-label="Scroll right">&#8250;</button>
+    </div>
+  `;
+
+  const slider = section.querySelector(".discover-slider");
+  const leftArrow = section.querySelector(".slider-arrow-left");
+  const rightArrow = section.querySelector(".slider-arrow-right");
+
+  const scrollAmount = 500;
+
+  leftArrow.addEventListener("click", () => {
+    slider.scrollBy({ left: -scrollAmount, behavior: "smooth" });
+  });
+
+  rightArrow.addEventListener("click", () => {
+    slider.scrollBy({ left: scrollAmount, behavior: "smooth" });
+  });
+
+  function updateArrowVisibility() {
+    const maxScroll = slider.scrollWidth - slider.clientWidth;
+    leftArrow.classList.toggle("hidden", slider.scrollLeft <= 0);
+    rightArrow.classList.toggle("hidden", slider.scrollLeft >= maxScroll - 1);
+  }
+
+  slider.addEventListener("scroll", updateArrowVisibility);
+  requestAnimationFrame(updateArrowVisibility);
+
+  section.querySelectorAll(".discover-card").forEach((card) => {
+    card.addEventListener("click", () => {
+      const id = card.dataset.id;
+      if (id) location.hash = `show?traktIdentifier=${id}`;
+    });
+  });
+
+  parent.appendChild(section);
+}
+
+// ————————————————————————————————————————————————————
+// Search
+// ————————————————————————————————————————————————————
 
 async function performSearch(query, page, paginationDiv) {
   const resultsDiv = document.getElementById("search-results");

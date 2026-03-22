@@ -69,6 +69,34 @@ export async function searchShows(query, page = 1, limit = 10) {
 }
 
 /**
+ * Fetches curated show lists from Trakt (trending, popular, anticipated).
+ *
+ * @param {"trending"|"popular"|"anticipated"} type - List type.
+ * @param {number} [page=1] - Page number for pagination.
+ * @param {number} [limit=10] - Results per page.
+ * @returns {Promise<Object>} Object with `shows` array and `pagination` info.
+ */
+export async function getTraktShows(type = "trending", page = 1, limit = 10) {
+  const { access_token } = getSession();
+
+  const res = await fetch("/.netlify/functions/getTraktShows", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${access_token}`,
+    },
+    body: JSON.stringify({ type, page, limit }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`getTraktShows failed: ${res.status} ${text}`);
+  }
+
+  return await res.json();
+}
+
+/**
  * Adds or removes a show from the user's default list.
  *
  * @param {string} showId - Internal show ID
