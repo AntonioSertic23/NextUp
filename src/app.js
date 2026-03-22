@@ -1,4 +1,18 @@
-import { logout, getToken } from "./services/auth.js";
+/**
+ * @module app
+ *
+ * Application entry point — runs on every page load of index.html.
+ *
+ * Boot sequence:
+ *   1. Initialize user store (reads Supabase session from localStorage)
+ *   2. Handle Trakt OAuth redirect if present
+ *   3. Auth guard: redirect unauthenticated users to /login.html
+ *   4. Start auth state listener (session expiry, cross-tab sign-out)
+ *   5. Initialize hash router
+ *   6. Load header and footer components
+ */
+
+import { logout, getToken, setupAuthGuard } from "./services/auth.js";
 import {
   handleTraktAuthRedirect,
   connectTraktAccount,
@@ -12,6 +26,32 @@ import { renderStats } from "./pages/stats.js";
 import { renderDiscover } from "./pages/discover.js";
 import { renderMyShows } from "./pages/myShows.js";
 
+// 1. Populate user store FIRST — everything else depends on this
+await initUserStore();
+
+// 2. Handle Trakt OAuth redirect (needs user ID from store)
+await handleTraktAuthRedirect();
+
+// 3. Auth guard
+if (!isAuthenticated()) {
+  window.location.replace("/login.html");
+} else {
+  // 4. Listen for session expiry / sign-out in other tabs
+  setupAuthGuard();
+
+  // 5. Boot the app
+  initRouter();
+  loadComponent("header", "/components/header.html");
+  loadComponent("footer", "/components/footer.html");
+
+  // Show page content now that auth is confirmed
+  document.body.classList.add("authenticated");
+}
+
+// ————————————————————————————————————————————————————
+// Router
+// ————————————————————————————————————————————————————
+
 const routes = {
   home: renderHome,
   show: renderShow,
@@ -20,23 +60,9 @@ const routes = {
   myshows: renderMyShows,
 };
 
-await initUserStore();
-
-await handleTraktAuthRedirect();
-
-if (!isAuthenticated()) {
-  window.location.href = "/login.html";
-} else {
-  initRouter();
-}
-
-/**
- * Router - Loads the correct page based on hash route.
- */
 async function router() {
-  const authenticated = await isAuthenticated();
-  if (!authenticated) {
-    window.location.href = "/login.html";
+  if (!isAuthenticated()) {
+    window.location.replace("/login.html");
     return;
   }
 
@@ -62,20 +88,14 @@ function initRouter() {
     updateActiveNav();
   });
 
-  window.addEventListener("load", () => {
-    router();
-    updateActiveNav();
-  });
-
   router();
   updateActiveNav();
 }
 
-/**
- * Dynamically loads HTML component into a given selector.
- * @param {string} selector - Target DOM selector
- * @param {string} path - Path to HTML component file
- */
+// ————————————————————————————————————————————————————
+// Component loader
+// ————————————————————————————————————————————————————
+
 async function loadComponent(selector, path) {
   const container = document.querySelector(selector);
   const res = await fetch(path);
@@ -83,72 +103,60 @@ async function loadComponent(selector, path) {
   container.innerHTML = html;
 
   if (selector === "header") {
-    const dropdown = container.querySelector(".dropdown");
-    const dropdownToggle = container.querySelector("#dropdown-toggle");
-    const dropdownMenu = container.querySelector("#dropdown-menu");
-
-    if (dropdownToggle && dropdownMenu) {
-      dropdownToggle.addEventListener("click", (e) => {
-        e.stopPropagation();
-        dropdown.classList.toggle("active");
-      });
-
-      document.addEventListener("click", (e) => {
-        if (!dropdown.contains(e.target)) {
-          dropdown.classList.remove("active");
-        }
-      });
-
-      dropdownMenu.addEventListener("click", (e) => {
-        if (e.target.classList.contains("dropdown-item")) {
-          dropdown.classList.remove("active");
-        }
-      });
-    }
-
-    const traktConnectBtn = container.querySelector("#trakt-connect-btn");
-    const traktSyncBtn = container.querySelector("#trakt-sync-btn");
-
-    const token = await getToken();
-
-    if (!!token) {
-      if (traktConnectBtn) traktConnectBtn.style.display = "none";
-      if (traktSyncBtn) traktSyncBtn.style.display = "block";
-    } else {
-      if (traktConnectBtn) traktConnectBtn.style.display = "block";
-      if (traktSyncBtn) traktSyncBtn.style.display = "none";
-    }
-
-    const logoutBtn = container.querySelector("#logout-btn");
-    if (logoutBtn) {
-      logoutBtn.addEventListener("click", () => logout());
-    }
-
-    const refreshBtn = container.querySelector("#refresh-btn");
-    if (refreshBtn) {
-      refreshBtn.addEventListener("click", () => {
-        window.location.reload();
-      });
-    }
-
-    if (traktConnectBtn) {
-      traktConnectBtn.addEventListener("click", () => {
-        connectTraktAccount();
-      });
-    }
-
-    if (traktSyncBtn) {
-      traktSyncBtn.addEventListener("click", async () => {
-        try {
-          await syncTraktAccount(token);
-          alert("Sync successful!");
-        } catch (error) {
-          alert(error.message);
-        }
-      });
-    }
+    setupHeaderActions(container);
   }
 }
 
-loadComponent("header", "/components/header.html");
-loadComponent("footer", "/components/footer.html");
+async function setupHeaderActions(header) {
+  const dropdown = header.querySelector(".dropdown");
+  const dropdownToggle = header.querySelector("#dropdown-toggle");
+  const dropdownMenu = header.querySelector("#dropdown-menu");
+
+  if (dropdownToggle && dropdownMenu) {
+    dropdownToggle.addEventListener("click", (e) => {
+      e.stopPropagation();
+      dropdown.classList.toggle("active");
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!dropdown.contains(e.target)) {
+        dropdown.classList.remove("active");
+      }
+    });
+
+    dropdownMenu.addEventListener("click", (e) => {
+      if (e.target.classList.contains("dropdown-item")) {
+        dropdown.classList.remove("active");
+      }
+    });
+  }
+
+  const traktConnectBtn = header.querySelector("#trakt-connect-btn");
+  const traktSyncBtn = header.querySelector("#trakt-sync-btn");
+  const token = await getToken();
+
+  if (token) {
+    if (traktConnectBtn) traktConnectBtn.style.display = "none";
+    if (traktSyncBtn) traktSyncBtn.style.display = "block";
+  } else {
+    if (traktConnectBtn) traktConnectBtn.style.display = "block";
+    if (traktSyncBtn) traktSyncBtn.style.display = "none";
+  }
+
+  header.querySelector("#logout-btn")?.addEventListener("click", () => logout());
+
+  header.querySelector("#refresh-btn")?.addEventListener("click", () => {
+    window.location.reload();
+  });
+
+  traktConnectBtn?.addEventListener("click", () => connectTraktAccount());
+
+  traktSyncBtn?.addEventListener("click", async () => {
+    try {
+      await syncTraktAccount();
+      alert("Sync successful!");
+    } catch (error) {
+      alert(error.message);
+    }
+  });
+}
