@@ -25,6 +25,9 @@ import { renderShow } from "./pages/show.js";
 import { renderStats } from "./pages/stats.js";
 import { renderDiscover } from "./pages/discover.js";
 import { renderMyShows } from "./pages/myShows.js";
+import { registerServiceWorker } from "./pwa/registerServiceWorker.js";
+
+registerServiceWorker();
 
 // ————————————————————————————————————————————————————
 // Route table (must be declared before boot sequence)
