@@ -152,11 +152,22 @@ async function setupHeaderActions(header) {
   traktConnectBtn?.addEventListener("click", () => connectTraktAccount());
 
   traktSyncBtn?.addEventListener("click", async () => {
+    traktSyncBtn.disabled = true;
+    const origText = traktSyncBtn.textContent;
+    traktSyncBtn.textContent = "Syncing…";
+
     try {
-      await syncTraktAccount();
-      alert("Sync successful!");
+      const result = await syncTraktAccount();
+      let msg = result?.message || "Sync completed";
+      if (result?.errors?.length) {
+        msg += "\n\nErrors:\n" + result.errors.join("\n");
+      }
+      alert(msg);
     } catch (error) {
       alert(error.message);
+    } finally {
+      traktSyncBtn.disabled = false;
+      traktSyncBtn.textContent = origText;
     }
   });
 }

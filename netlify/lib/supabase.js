@@ -7,7 +7,7 @@ import { refreshTraktAccessToken } from "./trakt.js";
 
 const SUPABASE = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
 );
 
 /**
@@ -22,7 +22,7 @@ const SUPABASE = createClient(
  */
 export async function saveTraktTokens(userId, tokenData) {
   const expiresAt = new Date(
-    (tokenData.created_at + tokenData.expires_in) * 1000
+    (tokenData.created_at + tokenData.expires_in) * 1000,
   ).toISOString();
 
   const { error } = await SUPABASE.from("users")
@@ -69,7 +69,9 @@ export async function getValidTraktToken(userId) {
 
   // Token expired or no expiry info — try to refresh
   if (!user.trakt_refresh_token) {
-    throw new Error("Trakt token expired and no refresh token available. Please reconnect your Trakt account.");
+    throw new Error(
+      "Trakt token expired and no refresh token available. Please reconnect your Trakt account.",
+    );
   }
 
   console.log(`Trakt token expired for user ${userId}, refreshing...`);
@@ -143,17 +145,17 @@ export async function saveShow(show, lastWatchedAt) {
           network: show.network ?? null,
           updated_at: show.updated_at ?? null,
           language: show.language ?? null,
-          genres: show.genres.join(",") ?? null,
-          subgenres: show.subgenres.join(",") ?? null,
+          genres: show.genres?.join(",") ?? null,
+          subgenres: show.subgenres?.join(",") ?? null,
           aired_episodes: show.aired_episodes ?? null,
-          image_fanart: show.images?.fanart[0] ?? null,
-          image_poster: show.images?.poster[0] ?? null,
-          image_logo: show.images?.logo[0] ?? null,
-          image_clearart: show.images?.clearart[0] ?? null,
-          image_banner: show.images?.banner[0] ?? null,
-          image_thumb: show.images?.thumb[0] ?? null,
+          image_fanart: show.images?.fanart?.[0] ?? null,
+          image_poster: show.images?.poster?.[0] ?? null,
+          image_logo: show.images?.logo?.[0] ?? null,
+          image_clearart: show.images?.clearart?.[0] ?? null,
+          image_banner: show.images?.banner?.[0] ?? null,
+          image_thumb: show.images?.thumb?.[0] ?? null,
         },
-        { onConflict: "trakt_id", returning: "representation" }
+        { onConflict: "trakt_id" },
       )
       .select("id, slug_id")
       .single();
@@ -176,121 +178,140 @@ export async function saveShow(show, lastWatchedAt) {
 }
 
 /**
- * Gets episode ID from database
- * @param {number} showId
- * @param {number} seasonNumber
- * @param {number} episodeNumber
- * @returns {Promise<number|null>} Episode ID or null if not found
+ * Saves user watch progress for a show in batch.
+ *
+ * Instead of querying each episode individually (N+1), fetches all episode
+ * IDs for the show in one query, maps the Trakt watch data, and batch-upserts.
+ *
+ * @param {Array} traktSeasons - Seasons array from Trakt watched response
+ * @param {string} showId - Supabase show UUID
+ * @param {string} userId - Supabase user UUID
  */
-async function getEpisodeId(showId, seasonNumber, episodeNumber) {
-  const { data, error } = await SUPABASE.from("episodes")
-    .select("id")
-    .eq("show_id", showId)
-    .eq("season_number", seasonNumber)
-    .eq("episode_number", episodeNumber)
-    .single();
+export async function saveTraktUserEpisodes(traktSeasons, showId, userId) {
+  const { data: dbEpisodes, error } = await SUPABASE.from("episodes")
+    .select("id, season_number, episode_number")
+    .eq("show_id", showId);
 
-  if (error || !data) {
-    console.warn(
-      `Episode not found: show ${showId}, season ${seasonNumber}, episode ${episodeNumber}`
-    );
-    return null;
-  }
+  if (error || !dbEpisodes?.length) return;
 
-  return data.id;
-}
+  const episodeMap = new Map(
+    dbEpisodes.map((ep) => [`${ep.season_number}-${ep.episode_number}`, ep.id]),
+  );
 
-/**
- * Saves all user episode watch data
- * @param {Array} seasons - Array of season objects from Trakt
- * @param {number} showId - Supabase show id
- * @param {string} userId - Supabase user id
- * @returns {Promise<void>}
- */
-export async function saveTraktUserEpisodes(seasons, showId, userId) {
-  for (const season of seasons) {
+  const rows = [];
+  for (const season of traktSeasons) {
     for (const episode of season.episodes) {
-      const episodeId = await getEpisodeId(
-        showId,
-        season.number,
-        episode.number
-      );
+      const episodeId = episodeMap.get(`${season.number}-${episode.number}`);
+      if (!episodeId) continue;
 
-      if (!episodeId) {
-        console.warn("Skipping episode:", season.number, episode.number);
-        continue;
-      }
-
-      await SUPABASE.from("user_episodes").upsert(
-        {
-          user_id: userId,
-          episode_id: episodeId,
-          watched_at: episode.last_watched_at ?? null,
-        },
-        { onConflict: "user_id,episode_id" }
-      );
+      rows.push({
+        user_id: userId,
+        episode_id: episodeId,
+        watched_at: episode.last_watched_at ?? null,
+      });
     }
   }
+
+  if (!rows.length) return;
+
+  const { error: upsertError } = await SUPABASE.from("user_episodes").upsert(
+    rows,
+    { onConflict: "user_id,episode_id" },
+  );
+
+  if (upsertError) {
+    console.error("Batch upsert user_episodes failed:", upsertError.message);
+  }
 }
 
 /**
- * Saves all seasons and episodes for a show
- * @param {Array} seasons - Array of season objects from Trakt
- * @param {number} showId - Supabase show id
- * @returns {Promise<void>}
+ * Saves all seasons and episodes for a show using batch upserts.
+ *
+ * 1. Batch-upsert all seasons → get back their DB IDs
+ * 2. Map season trakt_id → DB id
+ * 3. Batch-upsert all episodes with correct season_id foreign keys
+ *
+ * @param {Array} seasons - Season objects from Trakt API
+ * @param {string} showId - Supabase show UUID
  */
 export async function saveShowSeasonsAndEpisodes(seasons, showId) {
-  for (const season of seasons) {
-    const { data } = await SUPABASE.from("seasons")
-      .upsert(
-        {
-          tmdb_id: season.ids?.tmdb ?? null,
-          tvdb_id: season.ids?.tvdb ?? null,
-          trakt_id: season.ids?.trakt,
-          show_id: showId,
-          season_number: season.number,
-          title: season.title ?? null,
-          episode_count: season.episode_count ?? null,
-          aired_episodes: season.aired_episodes ?? null,
-          votes: season.votes ?? null,
-          rating: season.rating ?? null,
-          image_thumb: season.images?.thumb[0] ?? null,
-          image_poster: season.images?.poster[0] ?? null,
-          overview: season.overview ?? null,
-          updated_at: season.updated_at ?? null,
-          first_aired: season.first_aired ?? null,
-        },
-        { onConflict: "trakt_id", returning: "representation" }
-      )
-      .select("id")
-      .single();
+  if (!seasons?.length) return;
 
-    let seasonId = data?.id;
+  const seasonRows = seasons
+    .filter((s) => s.ids?.trakt)
+    .map((season) => ({
+      tmdb_id: season.ids?.tmdb ?? null,
+      tvdb_id: season.ids?.tvdb ?? null,
+      trakt_id: season.ids.trakt,
+      show_id: showId,
+      season_number: season.number,
+      title: season.title ?? null,
+      episode_count: season.episode_count ?? null,
+      aired_episodes: season.aired_episodes ?? null,
+      votes: season.votes ?? null,
+      rating: season.rating ?? null,
+      image_thumb: season.images?.thumb?.[0] ?? null,
+      image_poster: season.images?.poster?.[0] ?? null,
+      overview: season.overview ?? null,
+      updated_at: season.updated_at ?? null,
+      first_aired: season.first_aired ?? null,
+    }));
+
+  if (!seasonRows.length) return;
+
+  const { data: savedSeasons, error: seasonError } = await SUPABASE.from(
+    "seasons",
+  )
+    .upsert(seasonRows, { onConflict: "trakt_id" })
+    .select("id, trakt_id");
+
+  if (seasonError) {
+    throw new Error(`Seasons upsert failed: ${seasonError.message}`);
+  }
+
+  const seasonIdMap = new Map(
+    (savedSeasons || []).map((s) => [s.trakt_id, s.id]),
+  );
+
+  const episodeRows = [];
+  for (const season of seasons) {
+    const seasonId = seasonIdMap.get(season.ids?.trakt);
+    if (!seasonId || !season.episodes?.length) continue;
 
     for (const episode of season.episodes) {
-      await SUPABASE.from("episodes").upsert(
-        {
-          show_id: showId,
-          season_id: seasonId,
-          trakt_id: episode.ids?.trakt,
-          imdb_id: episode.ids?.imdb ?? null,
-          tmdb_id: episode.ids?.tmdb ?? null,
-          tvdb_id: episode.ids?.tvdb ?? null,
-          title: episode.title ?? null,
-          votes: episode.votes ?? null,
-          image_screenshot: episode.images?.screenshot[0] ?? null,
-          episode_number: episode.number,
-          rating: episode.rating ?? null,
-          season_number: episode.season,
-          runtime: episode.runtime ?? null,
-          overview: episode.overview ?? null,
-          updated_at: episode.updated_at ?? null,
-          first_aired: episode.first_aired ?? null,
-          episode_type: episode.episode_type ?? null,
-        },
-        { onConflict: "trakt_id" }
-      );
+      if (!episode.ids?.trakt) continue;
+
+      episodeRows.push({
+        show_id: showId,
+        season_id: seasonId,
+        trakt_id: episode.ids.trakt,
+        imdb_id: episode.ids?.imdb ?? null,
+        tmdb_id: episode.ids?.tmdb ?? null,
+        tvdb_id: episode.ids?.tvdb ?? null,
+        title: episode.title ?? null,
+        votes: episode.votes ?? null,
+        image_screenshot: episode.images?.screenshot?.[0] ?? null,
+        episode_number: episode.number,
+        rating: episode.rating ?? null,
+        season_number: episode.season,
+        runtime: episode.runtime ?? null,
+        overview: episode.overview ?? null,
+        updated_at: episode.updated_at ?? null,
+        first_aired: episode.first_aired ?? null,
+        episode_type: episode.episode_type ?? null,
+      });
     }
+  }
+
+  if (!episodeRows.length) return;
+
+  const { error: episodeError } = await SUPABASE.from("episodes").upsert(
+    episodeRows,
+    { onConflict: "trakt_id" },
+  );
+
+  if (episodeError) {
+    throw new Error(`Episodes upsert failed: ${episodeError.message}`);
   }
 }
 
@@ -335,7 +356,7 @@ export async function getShowWithSeasonsAndEpisodes(userId, traktIdentifier) {
 
     // Fetch seasons for this show
     const { data: seasons, error: seasonsError } = await SUPABASE.from(
-      "seasons"
+      "seasons",
     )
       .select("*")
       .eq("show_id", show.id)
@@ -346,30 +367,25 @@ export async function getShowWithSeasonsAndEpisodes(userId, traktIdentifier) {
       return { ...show, seasons: [] };
     }
 
-    const seasonIds = seasons.map((s) => s.id);
-
-    // Fetch episodes for these seasons
+    // Fetch episodes for this show directly (avoids large .in() filter on season IDs)
     const { data: episodes, error: episodesError } = await SUPABASE.from(
-      "episodes"
+      "episodes",
     )
       .select("*")
-      .in("season_id", seasonIds)
+      .eq("show_id", show.id)
       .order("episode_number", { ascending: true });
 
     if (episodesError) {
       console.error("Error fetching episodes:", episodesError.message);
     }
 
-    // Fetch user episodes for show
-    const episodeIds = episodes?.map((ep) => ep.id) ?? [];
-
-    // Count watched episodes from user_episodes
+    // Fetch user watch data via inner join (avoids large .in() on episode IDs)
     const { data: watchedData, error: watchedError } = await SUPABASE.from(
-      "user_episodes"
+      "user_episodes",
     )
-      .select("episode_id, watched_at")
+      .select("episode_id, watched_at, episodes!inner(id)")
       .eq("user_id", userId)
-      .in("episode_id", episodeIds || []);
+      .eq("episodes.show_id", show.id);
 
     if (watchedError) {
       console.error("Error fetching watched episodes:", watchedError);
@@ -416,7 +432,7 @@ export async function getShowWithSeasonsAndEpisodes(userId, traktIdentifier) {
     if (lsError) {
       console.error(
         "Error checking if show is in collection:",
-        lsError.message
+        lsError.message,
       );
       return { ...show, seasons: seasonsWithEpisodes, in_collection };
     }
@@ -454,7 +470,7 @@ export async function saveUserEpisodes(userId, episodeIds) {
     //  Bulk upsert
     const { error: upsertError } = await SUPABASE.from("user_episodes").upsert(
       rows,
-      { onConflict: "user_id,episode_id" }
+      { onConflict: "user_id,episode_id" },
     );
 
     if (upsertError) {
@@ -526,20 +542,18 @@ export async function deleteUserEpisodes(userId, episodeIds) {
  */
 export async function getNextUnwatchedEpisode(showId, watchedIds) {
   try {
-    const { data: nextEpisode, error } = await SUPABASE.from("episodes")
+    const { data: episodes, error } = await SUPABASE.from("episodes")
       .select("id")
       .eq("show_id", showId)
-      .not("id", "in", `(${watchedIds.join(",")})`)
       .order("season_number", { ascending: true })
-      .order("episode_number", { ascending: true })
-      .limit(1)
-      .maybeSingle();
+      .order("episode_number", { ascending: true });
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
-    return nextEpisode?.id ?? null;
+    const watchedSet = new Set(watchedIds ?? []);
+    const next = episodes.find((ep) => !watchedSet.has(ep.id));
+
+    return next?.id ?? null;
   } catch (err) {
     console.error("getNextUnwatchedEpisode failed:", err);
     throw err;
@@ -576,7 +590,7 @@ export async function updateListShows(userId, showId, direction, count = 0) {
 
     // Fetch current list_shows row
     const { data: listShow, error: fetchError } = await SUPABASE.from(
-      "list_shows"
+      "list_shows",
     )
       .select("id, watched_episodes, total_episodes")
       .eq("list_id", listId)
@@ -594,16 +608,16 @@ export async function updateListShows(userId, showId, direction, count = 0) {
     const isCompleted =
       direction === "increment" && newWatchedCount >= listShow.total_episodes;
 
-    // Fetch all episodes already watched by the user
+    // Fetch watched episodes for this show via inner join
     const { data: watchedEpisodes, error: watchedError } = await SUPABASE.from(
-      "user_episodes"
+      "user_episodes",
     )
-      .select("episode_id")
-      .eq("user_id", userId);
+      .select("episode_id, episodes!inner(id)")
+      .eq("user_id", userId)
+      .eq("episodes.show_id", showId);
 
     if (watchedError) throw watchedError;
 
-    // Convert the result to a simple array of IDs
     const watchedIds = watchedEpisodes.map((ep) => ep.episode_id);
 
     const nextEpisodeId = await getNextUnwatchedEpisode(showId, watchedIds);
@@ -611,7 +625,7 @@ export async function updateListShows(userId, showId, direction, count = 0) {
     // Build update payload
     const updatePayload = {
       watched_episodes: newWatchedCount,
-      next_episode: nextEpisodeId,
+      next_episode_id: nextEpisodeId,
     };
 
     updatePayload.is_completed = isCompleted;
@@ -834,64 +848,39 @@ export async function refreshListShowsForShow(showId) {
  * @returns {Promise<Object>} Object containing list-show information
  */
 async function getListShowInformation(showId, listId, userId) {
-  // Get all episode IDs of the show
-  const { data: allEpisodes, error: episodesError } = await SUPABASE.from(
-    "episodes"
+  // Count total episodes (head: true = count only, no rows transferred)
+  const { count: totalEpisodes, error: totalError } = await SUPABASE.from(
+    "episodes",
   )
-    .select("id")
+    .select("*", { count: "exact", head: true })
     .eq("show_id", showId);
 
-  if (episodesError) {
-    console.error("Error fetching episodes:", episodesError);
-    throw episodesError;
-  }
+  if (totalError) throw totalError;
 
-  const episodeIds = allEpisodes?.map((ep) => ep.id);
-
-  // Count watched episodes from user_episodes
+  // Get watched episodes for this show via inner join (avoids large .in() filter)
   const { data: watchedData, error: watchedError } = await SUPABASE.from(
-    "user_episodes"
+    "user_episodes",
   )
-    .select("episode_id, watched_at")
+    .select("episode_id, watched_at, episodes!inner(id)")
     .eq("user_id", userId)
-    .in("episode_id", episodeIds || []);
+    .eq("episodes.show_id", showId);
 
-  if (watchedError) {
-    console.error("Error fetching watched episodes:", watchedError);
-    throw watchedError;
-  }
+  if (watchedError) throw watchedError;
 
-  const watchedEpisodes = watchedData?.length || 0;
+  const watchedCount = watchedData?.length || 0;
+  const isCompleted = watchedCount >= (totalEpisodes || 0);
 
-  // Total episodes for the show
-  const { data: totalData, error: totalError } = await SUPABASE.from("episodes")
-    .select("id")
-    .eq("show_id", showId);
-
-  if (totalError) {
-    console.error("Error fetching total episodes:", totalError);
-    throw totalError;
-  }
-
-  const totalEpisodes = totalData?.length || 0;
-
-  // Determine if the show is completed
-  const isCompleted = watchedEpisodes >= totalEpisodes;
-
-  // Determine completed_at
   let completedAt = null;
-  if (isCompleted) {
+  if (isCompleted && watchedData?.length) {
     const lastWatched = watchedData
       .map((ep) => new Date(ep.watched_at))
-      .sort((a, b) => b - a)[0]; // most recent watched episode
+      .sort((a, b) => b - a)[0];
     completedAt = lastWatched ? lastWatched.toISOString() : null;
   }
 
-  // Find next episode if not completed
   let nextEpisodeId = null;
   if (!isCompleted) {
-    const watchedIds = watchedData.map((ep) => ep.episode_id);
-
+    const watchedIds = watchedData?.map((ep) => ep.episode_id) ?? [];
     nextEpisodeId = await getNextUnwatchedEpisode(showId, watchedIds);
   }
 
@@ -900,8 +889,8 @@ async function getListShowInformation(showId, listId, userId) {
     show_id: showId,
     is_completed: isCompleted,
     completed_at: completedAt,
-    watched_episodes: watchedEpisodes,
-    total_episodes: totalEpisodes,
-    next_episode: nextEpisodeId,
+    watched_episodes: watchedCount,
+    total_episodes: totalEpisodes || 0,
+    next_episode_id: nextEpisodeId,
   };
 }

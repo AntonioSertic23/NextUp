@@ -80,8 +80,11 @@ export async function syncTraktAccount() {
     },
   });
 
+  const data = await res.json().catch(() => null);
+
   if (!res.ok) {
-    const message = await res.text();
-    throw new Error(`Sync failed: ${message}`);
+    throw new Error(data?.error || `Sync failed (${res.status})`);
   }
+
+  return data;
 }

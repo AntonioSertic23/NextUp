@@ -53,7 +53,7 @@ export async function handler(event) {
         completed_at,
         watched_episodes,
         total_episodes,
-        next_episode (
+        next_episode:episodes!next_episode_id (
           id,
           episode_number,
           season_number,

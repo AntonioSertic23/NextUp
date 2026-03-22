@@ -52,6 +52,12 @@ export async function initUserStore() {
   claims = claimsData;
   session = sessionData;
   initialized = true;
+
+  SUPABASE.auth.onAuthStateChange((event, updatedSession) => {
+    if (event === "TOKEN_REFRESHED" && updatedSession) {
+      session = updatedSession;
+    }
+  });
 }
 
 /**
