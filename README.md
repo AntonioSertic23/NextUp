@@ -1,6 +1,14 @@
 # NextUp - Smart Show Tracker
 
-![NextUp Project](img/nextup-project.png)
+<p align="center">
+  <img src="img/1.png" alt="Home watchlist with sorting and progress" width="33%" />
+  <img src="img/2.png" alt="Discover — search and Trakt trending sections" width="33%" />
+  <img src="img/3.png" alt="My Shows — upcoming episodes and collection grid" width="33%" />
+</p>
+<p align="center">
+  <img src="img/4.png" alt="Show details — seasons and recommended shows" width="33%" />
+  <img src="img/5.png" alt="Statistics dashboard" width="33%" />
+</p>
 
 ## Project Description
 
@@ -18,13 +26,6 @@ NextUp is a modern **TV show tracker** built with Vanilla JavaScript and Supabas
 - **Trakt.tv Sync**: Optionally link your Trakt account to import existing shows and sync progress.
 - **Automatic Episode Sync**: A weekly scheduled function checks for new episodes across all tracked shows and updates the database automatically (seasons, episodes, and user progress).
 - **Secure Token Management**: Trakt OAuth uses the authorization code flow with automatic token refresh — no manual re-authentication needed.
-
-## Release 2.4.0 (highlights)
-
-- Home watchlist **sort controls** with persisted order.
-- Discover **browse rows** (trending / popular / anticipated) via new Netlify function `getTraktShows`.
-- Show details **recommended / related shows** via `getRelatedShows`.
-- My Shows **UI refresh**: titles, upcoming cards, collection cards aligned with Discover styling.
 
 ## Tech Stack
 
