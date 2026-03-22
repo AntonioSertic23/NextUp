@@ -143,11 +143,12 @@ export async function handler(event) {
       body: JSON.stringify({ success: true }),
     };
   } catch (err) {
-    console.error("markEpisodes handler failed:", err);
+    const detail = err.message || err.details || JSON.stringify(err);
+    console.error("markEpisodes handler failed:", detail);
 
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: err.message }),
+      body: JSON.stringify({ error: detail }),
     };
   }
 }

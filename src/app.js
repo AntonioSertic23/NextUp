@@ -26,30 +26,8 @@ import { renderStats } from "./pages/stats.js";
 import { renderDiscover } from "./pages/discover.js";
 import { renderMyShows } from "./pages/myShows.js";
 
-// 1. Populate user store FIRST — everything else depends on this
-await initUserStore();
-
-// 2. Handle Trakt OAuth redirect (needs user ID from store)
-await handleTraktAuthRedirect();
-
-// 3. Auth guard
-if (!isAuthenticated()) {
-  window.location.replace("/login.html");
-} else {
-  // 4. Listen for session expiry / sign-out in other tabs
-  setupAuthGuard();
-
-  // 5. Boot the app
-  initRouter();
-  loadComponent("header", "/components/header.html");
-  loadComponent("footer", "/components/footer.html");
-
-  // Show page content now that auth is confirmed
-  document.body.classList.add("authenticated");
-}
-
 // ————————————————————————————————————————————————————
-// Router
+// Route table (must be declared before boot sequence)
 // ————————————————————————————————————————————————————
 
 const routes = {
@@ -59,6 +37,26 @@ const routes = {
   discover: renderDiscover,
   myshows: renderMyShows,
 };
+
+// ————————————————————————————————————————————————————
+// Boot sequence (top-level await)
+// ————————————————————————————————————————————————————
+
+await initUserStore();
+
+await handleTraktAuthRedirect();
+
+if (!isAuthenticated()) {
+  window.location.replace("/login.html");
+} else {
+  setupAuthGuard();
+
+  initRouter();
+  loadComponent("header", "/components/header.html");
+  loadComponent("footer", "/components/footer.html");
+
+  document.body.classList.add("authenticated");
+}
 
 async function router() {
   if (!isAuthenticated()) {
@@ -143,7 +141,9 @@ async function setupHeaderActions(header) {
     if (traktSyncBtn) traktSyncBtn.style.display = "none";
   }
 
-  header.querySelector("#logout-btn")?.addEventListener("click", () => logout());
+  header
+    .querySelector("#logout-btn")
+    ?.addEventListener("click", () => logout());
 
   header.querySelector("#refresh-btn")?.addEventListener("click", () => {
     window.location.reload();
@@ -152,11 +152,22 @@ async function setupHeaderActions(header) {
   traktConnectBtn?.addEventListener("click", () => connectTraktAccount());
 
   traktSyncBtn?.addEventListener("click", async () => {
+    traktSyncBtn.disabled = true;
+    const origText = traktSyncBtn.textContent;
+    traktSyncBtn.textContent = "Syncing…";
+
     try {
-      await syncTraktAccount();
-      alert("Sync successful!");
+      const result = await syncTraktAccount();
+      let msg = result?.message || "Sync completed";
+      if (result?.errors?.length) {
+        msg += "\n\nErrors:\n" + result.errors.join("\n");
+      }
+      alert(msg);
     } catch (error) {
       alert(error.message);
+    } finally {
+      traktSyncBtn.disabled = false;
+      traktSyncBtn.textContent = origText;
     }
   });
 }

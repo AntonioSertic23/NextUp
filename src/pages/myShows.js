@@ -25,21 +25,17 @@ export async function renderMyShows(main) {
   main.appendChild(upcomingEpisodesDiv);
   main.appendChild(allCollectionShowsDiv);
 
-  const upcomingEpisodes = getUpcomingEpisodes();
-
-  if (!upcomingEpisodes.length) {
-    setUpcomingEpisodes(await getUpcomingEpisodesData());
+  if (!getUpcomingEpisodes().length) {
+    setUpcomingEpisodes((await getUpcomingEpisodesData()) || []);
   }
 
   renderUpcomingEpisodes();
 
-  const allCollectionShows = getAllCollectionShows();
-
-  if (!upcomingEpisodes.length) {
-    setAllCollectionShows(await getAllCollectionShowsData());
+  if (!getAllCollectionShows().length) {
+    setAllCollectionShows((await getAllCollectionShowsData()) || []);
   }
 
-  renderAllCollectionShows(allCollectionShows);
+  renderAllCollectionShows();
 
   main.addEventListener("click", (e) => {
     const card = e.target.closest(".show-card");

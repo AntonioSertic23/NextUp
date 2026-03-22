@@ -3,8 +3,8 @@
 // ========================================================
 
 let watchlist = [];
-let sortBy = "added_at";
-let sortOrder = "desc";
+let sortBy = localStorage.getItem("watchlist_sort") || "added_at";
+let sortOrder = localStorage.getItem("watchlist_order") || "desc";
 
 /**
  * Initializes the watchlist state and applies the current sort.

@@ -1,4 +1,3 @@
-import { getToken } from "../services/auth.js";
 import { getSession } from "../stores/userStore.js";
 
 /**
@@ -9,7 +8,6 @@ import { getSession } from "../stores/userStore.js";
  * @returns {Promise<Object|null>} Show data if successful, otherwise null
  */
 export async function getShowDetails(traktIdentifier) {
-  const traktToken = await getToken();
   const { access_token } = getSession();
 
   try {
@@ -19,7 +17,7 @@ export async function getShowDetails(traktIdentifier) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${access_token}`,
       },
-      body: JSON.stringify({ traktToken, traktIdentifier }),
+      body: JSON.stringify({ traktIdentifier }),
     });
 
     if (!res.ok) {
@@ -43,19 +41,19 @@ export async function getShowDetails(traktIdentifier) {
  * @returns {Promise<Object>} Object with `results` array and `pagination` info.
  */
 export async function searchShows(query, page = 1, limit = 10) {
-  const token = await getToken();
-
-  if (!token || !query || !query.trim()) {
-    throw new Error("Token and query are required");
+  if (!query || !query.trim()) {
+    throw new Error("Query is required");
   }
+
+  const { access_token } = getSession();
 
   const res = await fetch("/.netlify/functions/searchShows", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      Authorization: `Bearer ${access_token}`,
     },
     body: JSON.stringify({
-      token,
       query: query.trim(),
       page,
       limit,
@@ -65,6 +63,34 @@ export async function searchShows(query, page = 1, limit = 10) {
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`Search failed: ${res.status} ${text}`);
+  }
+
+  return await res.json();
+}
+
+/**
+ * Fetches curated show lists from Trakt (trending, popular, anticipated).
+ *
+ * @param {"trending"|"popular"|"anticipated"} type - List type.
+ * @param {number} [page=1] - Page number for pagination.
+ * @param {number} [limit=10] - Results per page.
+ * @returns {Promise<Object>} Object with `shows` array and `pagination` info.
+ */
+export async function getTraktShows(type = "trending", page = 1, limit = 10) {
+  const { access_token } = getSession();
+
+  const res = await fetch("/.netlify/functions/getTraktShows", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${access_token}`,
+    },
+    body: JSON.stringify({ type, page, limit }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`getTraktShows failed: ${res.status} ${text}`);
   }
 
   return await res.json();

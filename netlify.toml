@@ -4,3 +4,10 @@
 
 [functions]
   node_bundler = "esbuild"
+
+[functions."syncTraktAccount"]
+  timeout = 120
+
+[functions."syncNextEpisodes"]
+  timeout = 120
+

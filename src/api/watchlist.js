@@ -1,4 +1,3 @@
-import { getToken } from "../services/auth.js";
 import { getSupabaseClient } from "../services/supabase.js";
 import { getUser } from "../stores/userStore.js";
 
@@ -9,17 +8,17 @@ import { getUser } from "../stores/userStore.js";
  */
 export async function getWatchlistData() {
   const listId = await getDefaultListId();
-  const token = await getToken();
 
   const res = await fetch("/.netlify/functions/getWatchlistData", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ token, listId }),
+    body: JSON.stringify({ listId }),
   });
 
-  return await res.json();
+  const data = await res.json();
+  return (Array.isArray(data) ? data : []).filter((item) => item.shows);
 }
 
 /**
@@ -39,7 +38,7 @@ export async function getShowNextEpisode(showId) {
         is_completed,
         watched_episodes,
         total_episodes,
-        next_episode (
+        next_episode:episodes!next_episode_id (
           id,
           episode_number,
           season_number,
@@ -52,9 +51,12 @@ export async function getShowNextEpisode(showId) {
           id,
           slug_id,
           title,
+          year,
+          rating,
+          last_watched_at,
           image_poster
         )
-        `
+        `,
       )
       .eq("list_id", listId)
       .eq("show_id", showId)
@@ -100,17 +102,19 @@ export async function getUpcomingEpisodesData() {
           slug_id,
           image_poster
         )
-        `
+        `,
       )
       .in("show_id", showIds)
       .gt("first_aired", currentDate)
       .order("first_aired");
 
+    const validEpisodes = (episodes || []).filter((ep) => ep.shows);
+
     const nextEpisodes = Object.values(
-      episodes.reduce((acc, ep) => {
+      validEpisodes.reduce((acc, ep) => {
         acc[ep.show_id] ??= ep;
         return acc;
-      }, {})
+      }, {}),
     );
 
     return nextEpisodes;
@@ -139,11 +143,11 @@ export async function getAllCollectionShowsData() {
           slug_id,
           image_poster
         )
-        `
+        `,
       )
       .eq("list_id", listId);
 
-    return data;
+    return (data || []).filter((item) => item.shows);
   } catch (err) {
     console.error("Unexpected error fetching all collection shows:", err);
     return null;
