@@ -35,6 +35,21 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS trakt_refresh_token TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS trakt_token_expires_at TIMESTAMP WITH TIME ZONE;
 ```
 
+If RLS policies for `shows`, `seasons`, or `episodes` are missing (client-side queries return `null` for joined data), apply them:
+
+```sql
+CREATE POLICY "Public read for shows" ON shows FOR SELECT USING (true);
+CREATE POLICY "Public read for seasons" ON seasons FOR SELECT USING (true);
+CREATE POLICY "Public read for episodes" ON episodes FOR SELECT USING (true);
+```
+
+You can verify existing policies with:
+
+```sql
+SELECT tablename, policyname, cmd FROM pg_policies
+WHERE tablename IN ('shows', 'seasons', 'episodes', 'user_episodes', 'users', 'lists', 'list_shows');
+```
+
 **Important:** Passwords are NOT stored in the custom `users` table. Supabase Auth manages passwords (hashed and secured) in the built-in `auth.users` table. The custom `users` table only stores additional data like Trakt tokens. The `id` column references `auth.users(id)` via foreign key.
 
 ## Environment Variables

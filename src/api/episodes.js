@@ -1,4 +1,3 @@
-import { getToken } from "../services/auth.js";
 import { getSession } from "../stores/userStore.js";
 
 /**
@@ -11,7 +10,6 @@ import { getSession } from "../stores/userStore.js";
  * @returns {Promise<boolean>} True on success.
  */
 export async function markEpisodes(showId, episodeIds, markAsWatched) {
-  const token = await getToken();
   const { access_token } = getSession();
 
   const res = await fetch("/.netlify/functions/markEpisodes", {
@@ -21,7 +19,6 @@ export async function markEpisodes(showId, episodeIds, markAsWatched) {
       Authorization: `Bearer ${access_token}`,
     },
     body: JSON.stringify({
-      token,
       action: markAsWatched ? "mark" : "unmark",
       showId,
       episodeIds,

@@ -12,10 +12,9 @@ export async function renderStats(main) {
   statsDiv.innerHTML = "<p class='loading-text'>Loading statistics...</p>";
   main.appendChild(statsDiv);
 
-  const statsData = getStats();
-
-  if (!statsData.length) {
-    setStats(await getStatsData());
+  if (!getStats() || !Object.keys(getStats()).length) {
+    const data = await getStatsData();
+    if (data) setStats(data);
   }
 
   renderStatistics();
