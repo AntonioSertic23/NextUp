@@ -19,7 +19,7 @@ function computeShowProgress(show) {
   const nextEpisodeInfo = formatEpisodeInfo(
     show.next_episode.season_number,
     show.next_episode.episode_number,
-    show.next_episode.title
+    show.next_episode.title,
   );
 
   const total = show.total_episodes || 0;
@@ -45,20 +45,19 @@ export async function renderSortControls(main) {
   const sortDiv = document.createElement("div");
   sortDiv.className = "sort-controls";
   sortDiv.innerHTML = `
-  <label for="sort-by">Sort by:
+  <label for="sort-by">Sort by:</label>
   <select id="sort-by">
   ${sortOptions
     .map((opt) => `<option value="${opt.value}">${opt.label}</option>`)
     .join("")}
     </select>
-    </label>
     <button
     id="sort-order-btn"
     class="sort-order-btn"
     data-order="${savedOrder}"
     aria-label="Toggle sort order"
     title="Toggle sort order"
-    >${savedOrder === "desc" ? "↓" : "↑"}</button>
+    ><img src="/img/down-arrow.png" alt="sort order" class="sort-order-icon ${savedOrder === "asc" ? "flipped" : ""}" /></button>
     `;
 
   main.prepend(sortDiv);
@@ -82,7 +81,8 @@ export async function renderSortControls(main) {
     const newOrder = currentOrder === "desc" ? "asc" : "desc";
 
     orderBtn.dataset.order = newOrder;
-    orderBtn.textContent = newOrder === "desc" ? "↓" : "↑";
+    const icon = orderBtn.querySelector(".sort-order-icon");
+    icon.classList.toggle("flipped", newOrder === "asc");
 
     changeOrder(newOrder);
     renderWatchlist();

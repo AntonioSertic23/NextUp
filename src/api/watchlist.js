@@ -51,6 +51,9 @@ export async function getShowNextEpisode(showId) {
           id,
           slug_id,
           title,
+          year,
+          rating,
+          last_watched_at,
           image_poster
         )
         `,
