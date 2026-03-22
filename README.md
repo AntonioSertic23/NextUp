@@ -1,9 +1,9 @@
 # NextUp - Smart Show Tracker
 
 <p align="center">
-  <img src="img/1.png" alt="Home watchlist with sorting and progress" width="33%" />
-  <img src="img/2.png" alt="Discover — search and Trakt trending sections" width="33%" />
-  <img src="img/3.png" alt="My Shows — upcoming episodes and collection grid" width="33%" />
+  <img src="img/1.png" alt="Home watchlist with sorting and progress" width="32%" />
+  <img src="img/2.png" alt="Discover — search and Trakt trending sections" width="32%" />
+  <img src="img/3.png" alt="My Shows — upcoming episodes and collection grid" width="32%" />
 </p>
 <p align="center">
   <img src="img/4.png" alt="Show details — seasons and recommended shows" width="33%" />
@@ -33,6 +33,7 @@ NextUp is a modern **TV show tracker** built with Vanilla JavaScript and Supabas
 - **Backend / Database**: Netlify Functions, Supabase
 - **APIs**: Trakt.tv (show & episode data)
 - **Deployment**: Netlify / Vercel-ready
+- **PWA**: Web App Manifest + service worker — install on phone (**Add to Home Screen** / **Install app**); shortcuts to Discover and My Shows.
 
   [![Skills](https://skillicons.dev/icons?i=html,css,js,supabase,netlify)](https://skillicons.dev)
 
@@ -42,6 +43,8 @@ NextUp is a modern **TV show tracker** built with Vanilla JavaScript and Supabas
 NextUp/
 ├── index.html                          # Main SPA shell
 ├── login.html                          # Login / registration page
+├── manifest.webmanifest                # PWA manifest (name, icons, shortcuts)
+├── sw.js                               # Service worker (installability, network-first)
 ├── netlify.toml                        # Netlify build & function config
 ├── package.json
 ├── .env                                # Environment variables (not committed)
@@ -59,6 +62,8 @@ NextUp/
 ├── src/                                # Client-side JavaScript (ES modules)
 │   ├── app.js                          # Entry point: auth check, hash router, component loader
 │   ├── login.js                        # Login / register form logic
+│   ├── pwa/
+│   │   └── registerServiceWorker.js    # Registers /sw.js for PWA install
 │   │
 │   ├── api/                            # Server communication layer (one file per domain)
 │   │   ├── shows.js                    #   getShowDetails, searchShows, getTraktShows, getRelatedShows, manageCollection
@@ -182,6 +187,8 @@ Browser
 
 5. **Open** the displayed localhost URL in your browser.
 
+   **PWA / install on phone**: On **HTTPS** (e.g. production on Netlify), use the browser menu — **Install app** (Chrome/Android) or **Share → Add to Home Screen** (Safari/iOS). Local `netlify dev` over **http://localhost** may not offer install; use your deployed URL to test.
+
 ## Usage Overview
 
 - **Home watchlist**: Open the app to see your list; use **Sort by** and the order toggle to reorder; click a show for details.
@@ -192,6 +199,7 @@ Browser
 - **Persistent Data**: Supabase handles all user-specific data securely.
 - **Trakt.tv Sync**: Optional import of shows and progress from Trakt.tv; syncing is **explicitly triggered** by the user.
 - **Sync New Episodes**: A scheduled Netlify function runs every Monday at 5:00 AM UTC to check all tracked shows for new episodes. It can also be triggered manually from the Actions dropdown ("Sync New Episodes"). When new episodes are found, the database is updated and user watchlist progress is recalculated automatically.
+- **Install as app (PWA)**: Add NextUp to your home screen for a fullscreen, app-like experience (see Quick Start note above).
 
 ## Security & Privacy
 
