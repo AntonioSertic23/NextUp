@@ -8,14 +8,23 @@ NextUp is a modern **TV show tracker** built with Vanilla JavaScript and Supabas
 
 ## Features
 
-- **Watchlist / My Shows**: Browse your collection, sort by next episode, mark watched/unwatched.
-- **Discover & Add Shows**: Search shows, explore new releases, add them to your collection.
+- **Home watchlist**: Your default list on the home page with **sorting** (last added, title, year, rating, last watched, episodes left) and **ascending/descending** order — preferences persist in the browser (`localStorage`).
+- **My Shows**: **Upcoming episodes** (future air dates) with show title, episode title, season/episode code, air date, and a **countdown**; **all shows in your list** in a poster grid with **title and year**. Section **headings** separate the two blocks.
+- **Discover**: **Search** with pagination plus Trakt **Trending**, **Popular**, and **Most Anticipated** rows below the search bar (horizontal carousels).
+- **Show page**: Full details, seasons/episodes, and **Recommended shows** (Trakt related) under the seasons — grid or carousel depending on how many results are returned.
 - **Statistics Dashboard**: Visual overview of watched episodes, total watch time, top genres, and top shows.
-- **Show Details & Episodes**: Episode modals with air dates, screenshots, and watch toggles.
+- **Episode experience**: Modals with air dates, screenshots, and watch toggles.
 - **Persistent Data**: Supabase handles all user-specific data with secure Row-Level Security (RLS).
 - **Trakt.tv Sync**: Optionally link your Trakt account to import existing shows and sync progress.
 - **Automatic Episode Sync**: A weekly scheduled function checks for new episodes across all tracked shows and updates the database automatically (seasons, episodes, and user progress).
 - **Secure Token Management**: Trakt OAuth uses the authorization code flow with automatic token refresh — no manual re-authentication needed.
+
+## Release 2.4.0 (highlights)
+
+- Home watchlist **sort controls** with persisted order.
+- Discover **browse rows** (trending / popular / anticipated) via new Netlify function `getTraktShows`.
+- Show details **recommended / related shows** via `getRelatedShows`.
+- My Shows **UI refresh**: titles, upcoming cards, collection cards aligned with Discover styling.
 
 ## Tech Stack
 
@@ -51,7 +60,7 @@ NextUp/
 │   ├── login.js                        # Login / register form logic
 │   │
 │   ├── api/                            # Server communication layer (one file per domain)
-│   │   ├── shows.js                    #   getShowDetails, searchShows, manageCollection
+│   │   ├── shows.js                    #   getShowDetails, searchShows, getTraktShows, getRelatedShows, manageCollection
 │   │   ├── episodes.js                 #   markEpisodes
 │   │   ├── watchlist.js                #   getWatchlistData, getShowNextEpisode, upcoming & collection queries
 │   │   ├── stats.js                    #   getStatsData (aggregates + calculations)
@@ -60,8 +69,8 @@ NextUp/
 │   ├── ui/                             # DOM rendering (one file per page section / concern)
 │   │   ├── navigation.js              #   updateActiveNav
 │   │   ├── watchlist.js               #   renderWatchlist, renderSortControls
-│   │   ├── showDetails.js            #   renderShowDetails, renderShowSeasons
-│   │   ├── discover.js               #   renderDiscoverElements, search + pagination
+│   │   ├── showDetails.js            #   renderShowDetails, seasons, recommended shows (Trakt related)
+│   │   ├── discover.js               #   search, pagination, trending/popular/anticipated carousels
 │   │   ├── myShows.js                #   renderUpcomingEpisodes, renderAllCollectionShows
 │   │   ├── statistics.js             #   renderStatistics
 │   │   └── episodeModal.js           #   Episode info modal, mark/unmark, shared UI helpers
@@ -101,6 +110,8 @@ NextUp/
         ├── syncNextEpisodes.js         #   Scheduled: weekly check for new episodes
         ├── getShowDetails.js           #   Fetch or cache show with seasons/episodes
         ├── searchShows.js              #   Trakt show search with pagination
+        ├── getTraktShows.js            #   Trakt trending / popular / anticipated lists
+        ├── getRelatedShows.js          #   Trakt related shows for a given show
         ├── getNextEpisodes.js          #   Next episode data for multiple shows
         ├── getEpisodeDetails.js        #   Single episode details from Trakt
         ├── getWatchlistData.js         #   Watchlist query (Supabase)
@@ -172,8 +183,9 @@ Browser
 
 ## Usage Overview
 
-- **Watchlist / My Shows**: Browse your collection, sort by next episode, mark watched/unwatched.
-- **Discover & Add Shows**: Search shows, explore new releases, add them to your collection.
+- **Home watchlist**: Open the app to see your list; use **Sort by** and the order toggle to reorder; click a show for details.
+- **My Shows**: See **upcoming** air dates and the **full list** with posters, titles, and years; click any item to open the show.
+- **Discover**: Search or scroll **Trending / Popular / Most Anticipated**; add shows to your collection from the show page.
 - **Statistics Dashboard**: Visual overview of watched episodes, total watch time, top genres, and top shows.
 - **Show Details & Episodes**: Episode modals with air dates, screenshots, and watch toggles.
 - **Persistent Data**: Supabase handles all user-specific data securely.
