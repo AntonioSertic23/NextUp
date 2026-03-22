@@ -1,6 +1,6 @@
 # Supabase Setup Guide
 
-This guide explains how to set up Supabase for NextUp authentication.
+This guide explains how to set up Supabase for NextUp.
 
 ## Prerequisites
 
@@ -11,41 +11,53 @@ This guide explains how to set up Supabase for NextUp authentication.
 
 1. Go to your Supabase project dashboard
 2. Navigate to **SQL Editor**
-3. Copy and paste the contents of `supabase_migration.sql` into the SQL editor
+3. Copy and paste the contents of `db/migration.sql` into the SQL editor
 4. Run the migration script
 
 This will create:
 
-- `users` table - extends Supabase's built-in `auth.users` with additional data (Trakt token)
-- `sessions` table - tracks active sessions for multi-device support
-- Row Level Security (RLS) policies
+- `users` — extends Supabase `auth.users` with Trakt OAuth fields (`trakt_token`, `trakt_refresh_token`, `trakt_token_expires_at`)
+- `shows` — TV show metadata from Trakt
+- `seasons` — season metadata per show
+- `episodes` — episode metadata per season
+- `user_episodes` — per-user watch progress (which episodes are watched)
+- `lists` — user-created lists (each user gets a default "Collection" list)
+- `list_shows` — shows added to lists, with progress tracking
+- Row Level Security (RLS) policies for all tables
 - Triggers for automatic user record creation and timestamp updates
 
-**Important:** Passwords are NOT stored in the custom `users` table. Supabase Auth automatically manages passwords (hashed and secured) in the built-in `auth.users` table. Our custom `users` table only stores additional data like the Trakt token. The `id` column references `auth.users(id)` via foreign key.
+### Migrating an existing database
 
-## Configuration
+If you already have the `users` table and need to add the Trakt token refresh columns:
 
-1. Go to your Supabase project dashboard
-2. In the left sidebar, click on **Settings**
-3. Click on **API** in the settings menu
-4. You should see:
-   - **Project URL** - copy this value
-   - **API Keys** section with two options:
-     - **New API Keys** (publishable/secret) - Supabase's new key system
-     - **Legacy API Keys** (anon/service_role) - the old key system
-5. In the **API Keys** section, look for **Publishable key** (or click "Create new API Keys" if you don't see any)
-6. Copy the **Publishable key** - this is the new equivalent of the old "anon" key
-7. Copy the **Project URL** from the top of the page
+```sql
+ALTER TABLE users ADD COLUMN IF NOT EXISTS trakt_refresh_token TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS trakt_token_expires_at TIMESTAMP WITH TIME ZONE;
+```
 
-### Setting up Environment Variables
+**Important:** Passwords are NOT stored in the custom `users` table. Supabase Auth manages passwords (hashed and secured) in the built-in `auth.users` table. The custom `users` table only stores additional data like Trakt tokens. The `id` column references `auth.users(id)` via foreign key.
 
-The Supabase configuration is now fetched from Netlify environment variables (just like `TRAKT_CLIENT_ID`).
+## Environment Variables
 
-1. Go to your Netlify dashboard
-2. Navigate to your site → **Site settings** → **Environment variables**
-3. Add the following environment variables:
-   - `SUPABASE_URL` - Your Supabase Project URL
-   - `SUPABASE_ANON_KEY` - Your Supabase Publishable key (new) or anon key (legacy)
+The app reads configuration from environment variables. For local development, create a `.env` file in the project root:
+
+```sh
+TRAKT_CLIENT_ID="your_trakt_client_id_here"
+TRAKT_CLIENT_SECRET="your_trakt_client_secret_here"
+SUPABASE_URL="https://your-project.supabase.co"
+SUPABASE_ANON_KEY="your_supabase_anon_key"
+SUPABASE_SERVICE_ROLE_KEY="your_supabase_service_role_key"
+```
+
+| Variable | Where to find it | Used by |
+|---|---|---|
+| `SUPABASE_URL` | Supabase → Settings → API → Project URL | Client (via `getSupabaseConfig` function) |
+| `SUPABASE_ANON_KEY` | Supabase → Settings → API → Publishable key (or legacy anon key) | Client (via `getSupabaseConfig` function) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Settings → API → Secret key (or legacy service_role key) | Server-side Netlify functions only |
+| `TRAKT_CLIENT_ID` | [trakt.tv/oauth/applications](https://trakt.tv/oauth/applications) | Both client and server |
+| `TRAKT_CLIENT_SECRET` | [trakt.tv/oauth/applications](https://trakt.tv/oauth/applications) | Server-side token exchange only |
+
+For production, add these same variables in your Netlify dashboard: **Site settings → Environment variables**.
 
 ## Email Configuration (Optional)
 
@@ -54,23 +66,25 @@ By default, Supabase requires email verification. To disable this for developmen
 1. Go to **Authentication** → **Settings** in your Supabase dashboard
 2. Under **Email Auth**, you can configure email templates and verification settings
 
-## Testing
-
-1. Start your application
-2. You should see a login/register form
-3. Register a new account
-4. Check your email for verification (if enabled)
-5. Login with your credentials
-
 ## Connecting Trakt Account
 
-After logging in, users can connect their Trakt account by:
+NextUp uses Trakt's **OAuth 2.0 authorization code flow**:
 
-1. The app will handle Trakt OAuth redirects
-2. The Trakt token will be automatically saved to the `users` table
+1. The user clicks "Sign in to Trakt" in the Actions dropdown
+2. The browser redirects to Trakt's authorization page
+3. After the user authorizes, Trakt redirects back with a `?code=` query parameter
+4. The client sends the code to the `traktAuth` Netlify function
+5. The function exchanges the code for access + refresh tokens (using `TRAKT_CLIENT_SECRET`)
+6. Tokens are saved to the `users` table (`trakt_token`, `trakt_refresh_token`, `trakt_token_expires_at`)
+
+Tokens are automatically refreshed server-side when they expire — no manual re-authentication needed.
+
+### Trakt Application Setup
+
+Make sure your Trakt application (at [trakt.tv/oauth/applications](https://trakt.tv/oauth/applications)) has the correct **Redirect URI** set to your app's origin (e.g. `http://localhost:8888` for local dev, `https://your-site.netlify.app` for production).
 
 ## Security Notes
 
-- The `anon` key is safe to use in client-side code (it's protected by RLS policies)
-- Never commit your Supabase keys to version control
-- Consider using environment variables or Netlify environment variables for production
+- The `SUPABASE_ANON_KEY` is safe to expose to the client (protected by RLS policies)
+- `SUPABASE_SERVICE_ROLE_KEY` and `TRAKT_CLIENT_SECRET` must never be exposed to the client — they are only used in Netlify functions
+- Never commit your `.env` file with real credentials to version control

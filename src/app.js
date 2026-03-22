@@ -26,30 +26,8 @@ import { renderStats } from "./pages/stats.js";
 import { renderDiscover } from "./pages/discover.js";
 import { renderMyShows } from "./pages/myShows.js";
 
-// 1. Populate user store FIRST — everything else depends on this
-await initUserStore();
-
-// 2. Handle Trakt OAuth redirect (needs user ID from store)
-await handleTraktAuthRedirect();
-
-// 3. Auth guard
-if (!isAuthenticated()) {
-  window.location.replace("/login.html");
-} else {
-  // 4. Listen for session expiry / sign-out in other tabs
-  setupAuthGuard();
-
-  // 5. Boot the app
-  initRouter();
-  loadComponent("header", "/components/header.html");
-  loadComponent("footer", "/components/footer.html");
-
-  // Show page content now that auth is confirmed
-  document.body.classList.add("authenticated");
-}
-
 // ————————————————————————————————————————————————————
-// Router
+// Route table (must be declared before boot sequence)
 // ————————————————————————————————————————————————————
 
 const routes = {
@@ -59,6 +37,26 @@ const routes = {
   discover: renderDiscover,
   myshows: renderMyShows,
 };
+
+// ————————————————————————————————————————————————————
+// Boot sequence (top-level await)
+// ————————————————————————————————————————————————————
+
+await initUserStore();
+
+await handleTraktAuthRedirect();
+
+if (!isAuthenticated()) {
+  window.location.replace("/login.html");
+} else {
+  setupAuthGuard();
+
+  initRouter();
+  loadComponent("header", "/components/header.html");
+  loadComponent("footer", "/components/footer.html");
+
+  document.body.classList.add("authenticated");
+}
 
 async function router() {
   if (!isAuthenticated()) {
@@ -143,7 +141,9 @@ async function setupHeaderActions(header) {
     if (traktSyncBtn) traktSyncBtn.style.display = "none";
   }
 
-  header.querySelector("#logout-btn")?.addEventListener("click", () => logout());
+  header
+    .querySelector("#logout-btn")
+    ?.addEventListener("click", () => logout());
 
   header.querySelector("#refresh-btn")?.addEventListener("click", () => {
     window.location.reload();

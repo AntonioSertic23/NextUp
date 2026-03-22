@@ -139,7 +139,9 @@ Browser
    git clone git@github.com:AntonioSertic23/NextUp.git
    ```
 
-2. **Set up environment variables**
+2. **Set up Supabase and environment variables**
+
+   Follow the [Supabase Setup Guide](SUPABASE_SETUP.md) to create and configure your database.
 
    Create a `.env` file with your Trakt and Supabase credentials:
 
