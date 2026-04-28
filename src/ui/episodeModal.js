@@ -214,7 +214,8 @@ function showEpisodeInfoModal(episode, updateUICallback, isWatched = false) {
     ) || "";
 
   const date = modal.querySelector(".episode-info-date");
-  date.textContent = `Aired on ${formatDate(episode.first_aired)}`;
+  const airedStr = episode.first_aired ? formatDate(episode.first_aired) : "";
+  date.textContent = airedStr ? `Aired on ${airedStr}` : "Air date unknown";
 
   const overviewEl = modal.querySelector(".episode-info-overview");
   overviewEl.textContent = episode.overview || "";

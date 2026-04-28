@@ -24,16 +24,19 @@ function computeEpisodeProgress(episode) {
   const btnClass = epWatched ? "unmark-watched" : "mark-watched";
   const btnText = epWatched ? "Unmark" : "Mark";
 
-  const firstAiredDate = new Date(episode.first_aired);
-  let airedStr;
-  if (isNaN(firstAiredDate.getTime())) {
-    airedStr = "Unknown";
-  } else {
-    airedStr = new Intl.DateTimeFormat("en-GB", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    }).format(firstAiredDate);
+  // Treat null/undefined/empty/zero as "no air date". Without this,
+  // `new Date(null)` returns the Unix epoch (01/01/1970), which is a
+  // *valid* date so the isNaN check below would not catch it.
+  let airedStr = "Unknown";
+  if (episode.first_aired) {
+    const firstAiredDate = new Date(episode.first_aired);
+    if (!isNaN(firstAiredDate.getTime())) {
+      airedStr = new Intl.DateTimeFormat("en-GB", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }).format(firstAiredDate);
+    }
   }
 
   const episodeInfo = `S${String(episode.season_number).padStart(

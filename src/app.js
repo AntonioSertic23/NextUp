@@ -17,6 +17,7 @@ import {
   handleTraktAuthRedirect,
   connectTraktAccount,
   syncTraktAccount,
+  syncNewEpisodes,
 } from "./api/sync.js";
 import { isAuthenticated, initUserStore } from "./stores/userStore.js";
 import { updateActiveNav } from "./ui/navigation.js";
@@ -232,6 +233,41 @@ async function setupHeaderActions(header) {
     } finally {
       traktSyncBtn.disabled = false;
       traktSyncBtn.textContent = origText;
+    }
+  });
+
+  const syncEpisodesBtn = header.querySelector("#sync-episodes-btn");
+
+  syncEpisodesBtn?.addEventListener("click", async () => {
+    const labelSpan = syncEpisodesBtn.querySelector(
+      "span:not(.dropdown-icon)",
+    );
+    const origLabel = labelSpan?.textContent ?? "";
+
+    syncEpisodesBtn.disabled = true;
+    if (labelSpan) labelSpan.textContent = "Syncing…";
+
+    try {
+      const result = await syncNewEpisodes();
+      const updated = result?.updated?.length ?? 0;
+      const skipped = result?.skipped?.length ?? 0;
+      const errors = result?.errors ?? [];
+
+      let msg = result?.message || "Episode sync completed";
+      msg += `\n\nUpdated: ${updated}\nSkipped: ${skipped}`;
+      if (errors.length) {
+        msg +=
+          "\n\nErrors:\n" +
+          errors
+            .map((e) => (typeof e === "string" ? e : `${e.show}: ${e.error}`))
+            .join("\n");
+      }
+      alert(msg);
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      syncEpisodesBtn.disabled = false;
+      if (labelSpan) labelSpan.textContent = origLabel;
     }
   });
 }

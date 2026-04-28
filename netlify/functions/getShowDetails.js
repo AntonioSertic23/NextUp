@@ -96,9 +96,12 @@ export async function handler(event) {
 
     const show = await showRes.json();
 
-    // Fetch seasons with episodes
+    // Fetch seasons with episodes.
+    // `extended=full,episodes,images` is needed so episodes include
+    // `first_aired`, `overview`, `runtime` etc. Without `full` Trakt
+    // returns minimal episode data and these fields end up null in the DB.
     const seasonsRes = await fetch(
-      `${TRAKT_BASE_URL}/shows/${traktIdentifier}/seasons?extended=episodes,images&specials=false&count_specials=false`,
+      `${TRAKT_BASE_URL}/shows/${traktIdentifier}/seasons?extended=full,episodes,images&specials=false&count_specials=false`,
       { headers: getTraktHeaders(traktToken) }
     );
 
