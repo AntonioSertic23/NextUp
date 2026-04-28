@@ -29,7 +29,7 @@ NextUp is a modern **TV show tracker** built with Vanilla JavaScript and Supabas
 
 ## Tech Stack
 
-- **Frontend**: HTML5, CSS3, Vanilla JavaScript (ES6 modules), Single Page Application
+- **Frontend**: HTML5, CSS3, Vanilla JavaScript (ES6 modules), SPA, **responsive** layout (mobile / tablet / desktop) with safe-area insets for installed PWAs
 - **Backend / Database**: Netlify Functions, Supabase
 - **APIs**: Trakt.tv (show & episode data)
 - **Deployment**: Netlify / Vercel-ready
@@ -169,6 +169,8 @@ Browser
    SUPABASE_ANON_KEY="your_supabase_anon_key"
    SUPABASE_SERVICE_ROLE_KEY="your_supabase_service_role_key"
    ```
+
+   Optionally set **`TRAKT_REDIRECT_URI`** (e.g. `http://localhost:8888` for `netlify dev`, or your production origin) so it matches **Redirect URI** on your Trakt OAuth app — required for refreshing tokens if `trakt_oauth_redirect_uri` is not in the DB yet. After OAuth, the redirect used at login is saved per user (`trakt_oauth_redirect_uri` column; run the **`ALTER`** at the end of `db/migration.sql` on existing databases).
 
    You can find both `TRAKT_CLIENT_ID` and `TRAKT_CLIENT_SECRET` in your Trakt application settings at https://trakt.tv/oauth/applications.
 
