@@ -106,7 +106,66 @@ async function loadComponent(selector, path) {
 
   if (selector === "header") {
     setupHeaderActions(container);
+    setupHeaderScrollBehavior(container);
   }
+}
+
+/**
+ * Auto-hide the sticky header on scroll-down and bring it back on
+ * scroll-up. Always keep it visible near the top of the page, while the
+ * mobile menu is open, or while the Actions dropdown is open.
+ */
+function setupHeaderScrollBehavior(header) {
+  const navbar = header.querySelector(".navbar");
+  if (!navbar) return;
+
+  const TOP_OFFSET = 80;
+  const DELTA_THRESHOLD = 6;
+  let lastY = Math.max(0, window.scrollY);
+  let ticking = false;
+
+  const isMenuOpen = () =>
+    navbar.classList.contains("nav-open") ||
+    !!header.querySelector(".dropdown.active");
+
+  const updateHeader = () => {
+    ticking = false;
+    const currentY = Math.max(0, window.scrollY);
+    const delta = currentY - lastY;
+
+    if (currentY <= TOP_OFFSET || isMenuOpen()) {
+      header.classList.remove("is-hidden");
+      lastY = currentY;
+      return;
+    }
+
+    if (Math.abs(delta) < DELTA_THRESHOLD) return;
+
+    if (delta > 0) {
+      header.classList.add("is-hidden");
+    } else {
+      header.classList.remove("is-hidden");
+    }
+
+    lastY = currentY;
+  };
+
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (!ticking) {
+        window.requestAnimationFrame(updateHeader);
+        ticking = true;
+      }
+    },
+    { passive: true },
+  );
+
+  // Always reveal the header after a route change so navigation feels reliable
+  window.addEventListener("hashchange", () => {
+    header.classList.remove("is-hidden");
+    lastY = Math.max(0, window.scrollY);
+  });
 }
 
 async function setupHeaderActions(header) {

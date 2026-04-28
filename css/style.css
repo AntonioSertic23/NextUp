@@ -260,6 +260,22 @@ body:not(.login-page):not(.authenticated) footer {
    Navbar Styles
    ======================================================== */
 
+/* Sticky header: stays at the top while scrolling and slides
+   out of the way on scroll-down (toggled via .is-hidden by app.js).
+   Background matches the body so content scrolls under it cleanly. */
+header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background-color: #15161b;
+  transition: transform 0.25s ease;
+  will-change: transform;
+}
+
+header.is-hidden {
+  transform: translateY(-100%);
+}
+
 /* Main container */
 .navbar {
   display: flex;

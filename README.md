@@ -1,13 +1,8 @@
 # NextUp - Smart Show Tracker
 
 <p align="center">
-  <img src="img/1.png" alt="Home watchlist with sorting and progress" width="32%" />
-  <img src="img/2.png" alt="Discover — search and Trakt trending sections" width="32%" />
-  <img src="img/3.png" alt="My Shows — upcoming episodes and collection grid" width="32%" />
-</p>
-<p align="center">
-  <img src="img/4.png" alt="Show details — seasons and recommended shows" width="33%" />
-  <img src="img/5.png" alt="Statistics dashboard" width="33%" />
+  <img src="img/screenshots/2.png" alt="Show details — seasons progress and recommended shows" width="49%" />
+  <img src="img/screenshots/5.png" alt="Statistics dashboard — total time, top genres, top shows" width="49%" />
 </p>
 
 ## Project Description
@@ -16,12 +11,13 @@ NextUp is a modern **TV show tracker** built with Vanilla JavaScript and Supabas
 
 ## Features
 
-- **Home watchlist**: Your default list on the home page with **sorting** (last added, title, year, rating, last watched, episodes left) and **ascending/descending** order — preferences persist in the browser (`localStorage`).
-- **My Shows**: **Upcoming episodes** (future air dates) with show title, episode title, season/episode code, air date, and a **countdown**; **all shows in your list** in a poster grid with **title and year**. Section **headings** separate the two blocks.
-- **Discover**: **Search** with pagination plus Trakt **Trending**, **Popular**, and **Most Anticipated** rows below the search bar (horizontal carousels).
-- **Show page**: Full details, seasons/episodes, and **Recommended shows** (Trakt related) under the seasons — grid or carousel depending on how many results are returned.
-- **Statistics Dashboard**: Visual overview of watched episodes, total watch time, top genres, and top shows.
-- **Episode experience**: Modals with air dates, screenshots, and watch toggles.
+- **Home watchlist**: Your default list on the home page with **sorting** (last added, title, year, rating, last watched, episodes left) and **ascending/descending** order — preferences persist in the browser (`localStorage`). Cards show the next episode's overview (clamped) on desktop alongside a pill progress bar and an "X left" badge.
+- **My Shows**: **Upcoming episodes** (future air dates) in a 2-col responsive grid with show title, episode title, season/episode code, air date, and a **countdown**; **all shows in your list** in a poster grid with a **filter bar** (text search, sort by Last added / Title / Year, asc/desc toggle) — filter and sort state persist in `localStorage`.
+- **Discover**: Pill-shaped **search** with a built-in clear button and pagination, plus Trakt **Trending**, **Popular**, and **Most Anticipated** carousels with scroll-snap and floating arrow controls. A **Recent searches** panel below the search bar remembers the last 5 queries (deduped, most recent first) so they're one click away.
+- **Show page**: Full details, seasons/episodes, and **Recommended shows** (Trakt related) under the seasons — grid or carousel depending on how many results are returned. Per-episode and per-season actions use **icon-only mark/unmark buttons**, and the collection toggle uses a bookmark icon with the brand purple/pink gradient when active.
+- **Statistics Dashboard**: A redesigned overview with a hero card for total watch time (gradient text), tile grid for episodes / shows / seasons, and ranked **Top genres** and **Top shows** lists with circular gradient rank badges.
+- **Episode experience**: Refreshed episode modal — centred dialog on desktop, slide-up bottom sheet on phone — with air dates, screenshots, watch toggles, a dedicated close button, Escape-to-close and body-scroll lock.
+- **Responsive navbar**: Hamburger menu with animated icon and slide-down panel on phone/tablet; **auto-hides on scroll down and reappears on scroll up** so the content has more room to breathe (always visible near the top of the page).
 - **Persistent Data**: Supabase handles all user-specific data with secure Row-Level Security (RLS).
 - **Trakt.tv Sync**: Optionally link your Trakt account to import existing shows and sync progress.
 - **Automatic Episode Sync**: A weekly scheduled function checks for new episodes across all tracked shows and updates the database automatically (seasons, episodes, and user progress).
@@ -91,8 +87,9 @@ NextUp/
 │   ├── stores/                         # Client-side state management (in-memory singletons)
 │   │   ├── userStore.js                #   Authenticated user, session, claims
 │   │   ├── watchlistStore.js           #   Watchlist items, sort/order state
-│   │   ├── myShowsStore.js             #   Upcoming episodes + collection cache
+│   │   ├── myShowsStore.js             #   Upcoming episodes + collection cache, filter/sort state
 │   │   ├── discoverStore.js            #   Search query, results, pagination
+│   │   ├── recentSearchesStore.js      #   Last 5 Discover queries persisted in localStorage
 │   │   └── statsStore.js               #   Computed statistics cache
 │   │
 │   ├── services/                       # Client-side infrastructure
@@ -101,6 +98,7 @@ NextUp/
 │   │
 │   └── utils/                          # Pure helper functions (no side effects)
 │       ├── format.js                   #   formatDate, formatEpisodeInfo, getTimeUntil
+│       ├── icons.js                    #   Inline SVG strings for mark/unmark/bookmark icons
 │       └── stats.js                    #   calculateStatistics, convertMinutesToTime, formatTimeBreakdown
 │
 └── netlify/
