@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS users (
   trakt_token TEXT,
   trakt_refresh_token TEXT,
   trakt_token_expires_at TIMESTAMP WITH TIME ZONE,
+  trakt_oauth_redirect_uri TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -29,6 +30,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- Migration for existing tables:
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS trakt_refresh_token TEXT;
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS trakt_token_expires_at TIMESTAMP WITH TIME ZONE;
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS trakt_oauth_redirect_uri TEXT;
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
@@ -336,3 +338,6 @@ using (
     and lists.user_id = auth.uid()
   )
 );
+
+-- Existing databases: add OAuth redirect used for Trakt (refresh must use the same redirect_uri as authorize)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS trakt_oauth_redirect_uri TEXT;

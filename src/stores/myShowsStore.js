@@ -1,9 +1,13 @@
 // ========================================================
-// stores/myShowsStore.js - My Shows state & sorting logic
+// stores/myShowsStore.js - My Shows state, filtering & sorting
 // ========================================================
 
 let upcomingEpisodes = [];
 let allCollectionShows = [];
+
+let collectionFilter = "";
+let collectionSort = localStorage.getItem("my_shows_sort") || "added_at";
+let collectionOrder = localStorage.getItem("my_shows_order") || "desc";
 
 /**
  * Sets the myShows array in the store.
@@ -39,4 +43,80 @@ export function setAllCollectionShows(data) {
  */
 export function getAllCollectionShows() {
   return allCollectionShows;
+}
+
+// ----- Filter / sort state for "All shows in your list" -------------
+
+export function getCollectionFilter() {
+  return collectionFilter;
+}
+
+export function setCollectionFilter(value) {
+  collectionFilter = String(value ?? "");
+}
+
+export function getCollectionSort() {
+  return collectionSort;
+}
+
+export function setCollectionSort(value) {
+  collectionSort = value || "added_at";
+  try {
+    localStorage.setItem("my_shows_sort", collectionSort);
+  } catch {
+    /* ignore quota / privacy mode errors */
+  }
+}
+
+export function getCollectionOrder() {
+  return collectionOrder;
+}
+
+export function setCollectionOrder(value) {
+  collectionOrder = value === "asc" ? "asc" : "desc";
+  try {
+    localStorage.setItem("my_shows_order", collectionOrder);
+  } catch {
+    /* ignore quota / privacy mode errors */
+  }
+}
+
+/**
+ * Returns a copy of the collection filtered by the active text query
+ * and sorted by the active sort field/order.
+ *
+ * @returns {Array<Object>}
+ */
+export function getFilteredCollection() {
+  const query = collectionFilter.trim().toLowerCase();
+  const direction = collectionOrder === "asc" ? 1 : -1;
+
+  const filtered = query
+    ? allCollectionShows.filter((item) =>
+        (item.shows?.title || "").toLowerCase().includes(query),
+      )
+    : allCollectionShows.slice();
+
+  filtered.sort((a, b) => {
+    let av, bv;
+    switch (collectionSort) {
+      case "title":
+        av = (a.shows?.title || "").toLowerCase();
+        bv = (b.shows?.title || "").toLowerCase();
+        return av.localeCompare(bv) * direction;
+
+      case "year":
+        av = a.shows?.year ?? 0;
+        bv = b.shows?.year ?? 0;
+        return (av - bv) * direction;
+
+      case "added_at":
+      default:
+        av = a.added_at ? new Date(a.added_at).getTime() : 0;
+        bv = b.added_at ? new Date(b.added_at).getTime() : 0;
+        return (av - bv) * direction;
+    }
+  });
+
+  return filtered;
 }

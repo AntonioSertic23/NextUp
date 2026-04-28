@@ -51,8 +51,11 @@ async function processShow(show, results) {
       return;
     }
 
+    // `extended=full,episodes,images` ensures each episode includes
+    // `first_aired`, `overview`, `runtime` etc. Without `full` Trakt
+    // returns only minimal episode data, leaving these fields null.
     const seasonsRes = await fetch(
-      `${TRAKT_BASE_URL}/shows/${show.trakt_id}/seasons?extended=episodes,images&specials=false&count_specials=false`,
+      `${TRAKT_BASE_URL}/shows/${show.trakt_id}/seasons?extended=full,episodes,images&specials=false&count_specials=false`,
       { headers: getTraktHeaders() }
     );
 

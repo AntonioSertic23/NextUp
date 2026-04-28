@@ -80,10 +80,58 @@ export async function syncTraktAccount() {
     },
   });
 
-  const data = await res.json().catch(() => null);
+  const raw = await res.text();
+  let data = null;
+  try {
+    data = raw ? JSON.parse(raw) : null;
+  } catch {
+    /* non-JSON body from the function / proxy */
+  }
 
   if (!res.ok) {
-    throw new Error(data?.error || `Sync failed (${res.status})`);
+    const base =
+      data?.error ||
+      (raw && raw.length < 400 ? raw : null) ||
+      `Sync failed (${res.status})`;
+    const detail = data?.detail
+      ? typeof data.detail === "string"
+        ? data.detail.slice(0, 280)
+        : ""
+      : "";
+    throw new Error(detail ? `${base} ${detail}` : base);
+  }
+
+  return data;
+}
+
+/**
+ * Trigger the backend "new episodes" sync for all tracked shows.
+ *
+ * Hits the same handler as the weekly scheduled job, so it walks every
+ * tracked show, checks Trakt for newly aired episodes, and updates the DB.
+ *
+ * @returns {Promise<{message: string, updated?: string[], skipped?: string[], errors?: Array<{show: string, error: string}>}>}
+ * @throws {Error} If the request fails or the function returns a non-2xx status.
+ */
+export async function syncNewEpisodes() {
+  const res = await fetch("/.netlify/functions/syncNextEpisodes", {
+    method: "POST",
+  });
+
+  const raw = await res.text();
+  let data = null;
+  try {
+    data = raw ? JSON.parse(raw) : null;
+  } catch {
+    /* non-JSON body from the function / proxy */
+  }
+
+  if (!res.ok) {
+    const base =
+      data?.error ||
+      (raw && raw.length < 400 ? raw : null) ||
+      `Episode sync failed (${res.status})`;
+    throw new Error(base);
   }
 
   return data;

@@ -5,6 +5,12 @@ import {
   updateMarkButton,
   updateSeasonProgress,
 } from "./episodeModal.js";
+import {
+  MARK_ICON,
+  UNMARK_ICON,
+  BOOKMARK_OUTLINE_ICON,
+  BOOKMARK_FILLED_ICON,
+} from "../utils/icons.js";
 
 function computeSeasonProgress(episodes) {
   const total = episodes.length;
@@ -22,18 +28,22 @@ function computeSeasonProgress(episodes) {
 function computeEpisodeProgress(episode) {
   const epWatched = !!episode.watched_at;
   const btnClass = epWatched ? "unmark-watched" : "mark-watched";
-  const btnText = epWatched ? "Unmark" : "Mark";
+  const btnIcon = epWatched ? UNMARK_ICON : MARK_ICON;
+  const btnAria = epWatched ? "Unmark as watched" : "Mark as watched";
 
-  const firstAiredDate = new Date(episode.first_aired);
-  let airedStr;
-  if (isNaN(firstAiredDate.getTime())) {
-    airedStr = "Unknown";
-  } else {
-    airedStr = new Intl.DateTimeFormat("en-GB", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    }).format(firstAiredDate);
+  // Treat null/undefined/empty/zero as "no air date". Without this,
+  // `new Date(null)` returns the Unix epoch (01/01/1970), which is a
+  // *valid* date so the isNaN check below would not catch it.
+  let airedStr = "Unknown";
+  if (episode.first_aired) {
+    const firstAiredDate = new Date(episode.first_aired);
+    if (!isNaN(firstAiredDate.getTime())) {
+      airedStr = new Intl.DateTimeFormat("en-GB", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }).format(firstAiredDate);
+    }
   }
 
   const episodeInfo = `S${String(episode.season_number).padStart(
@@ -41,14 +51,15 @@ function computeEpisodeProgress(episode) {
     "0"
   )}E${String(episode.episode_number).padStart(2, "0")} - ${airedStr}`;
 
-  return { episodeInfo, btnClass, btnText };
+  return { episodeInfo, btnClass, btnIcon, btnAria };
 }
 
 function renderSeasonEpisodes(episodes) {
   return `
       ${episodes
         .map((ep) => {
-          const { episodeInfo, btnClass, btnText } = computeEpisodeProgress(ep);
+          const { episodeInfo, btnClass, btnIcon, btnAria } =
+            computeEpisodeProgress(ep);
 
           return `
           <div class="episode" data-episode-id="${ep.id}">
@@ -57,7 +68,12 @@ function renderSeasonEpisodes(episodes) {
               <p class="episode_info">${episodeInfo}</p>
             </div>
 
-            <button class="${btnClass}">${btnText}</button>
+            <button
+              type="button"
+              class="${btnClass}"
+              aria-label="${btnAria}"
+              title="${btnAria}"
+            >${btnIcon}</button>
           </div>`;
         })
         .join("")}
@@ -72,11 +88,18 @@ function renderSeason(season) {
   const { progressBarPercent, progressText, seasonCompleted } =
     computeSeasonProgress(season.episodes);
 
+  const seasonAria = seasonCompleted
+    ? "Unmark whole season"
+    : "Mark whole season as watched";
+
   seasonDiv.innerHTML = `
       <div class="season-container">
-        <button class="${
-          seasonCompleted ? "unmark-watched" : "mark-watched"
-        } season_mark_btn">${seasonCompleted ? "Unmark" : "Mark"}</button>
+        <button
+          type="button"
+          class="${seasonCompleted ? "unmark-watched" : "mark-watched"} season_mark_btn"
+          aria-label="${seasonAria}"
+          title="${seasonAria}"
+        >${seasonCompleted ? UNMARK_ICON : MARK_ICON}</button>
         <p class="season_number">Season ${season.season_number}</p>
         <div class="progress-container">
           <div class="progress-bar">
@@ -84,7 +107,7 @@ function renderSeason(season) {
           </div>
           <p class="progress_text">${progressText}</p>
         </div>
-        <button class="expand_btn">
+        <button type="button" class="expand_btn" aria-label="Toggle episodes" title="Toggle episodes">
           <svg class="icon" width="14" height="14" viewBox="0 0 24 24">
             <path d="M8 9l4 4 4-4" stroke="currentColor" stroke-width="2" fill="none" />
           </svg>
@@ -105,9 +128,12 @@ export function renderShowDetails(show) {
   const collectionBtnClass = show.in_collection
     ? "collection-btn in-collection"
     : "collection-btn";
-  const collectionBtnText = show.in_collection
-    ? "In Collection"
-    : "Add to Collection";
+  const collectionBtnAria = show.in_collection
+    ? "Remove from collection"
+    : "Add to collection";
+  const collectionBtnIcon = show.in_collection
+    ? BOOKMARK_FILLED_ICON
+    : BOOKMARK_OUTLINE_ICON;
 
   showContainer.innerHTML = `
     <div class="show_banner-container">
@@ -120,9 +146,14 @@ export function renderShowDetails(show) {
         <p class="status">Status: ${show.status}</p>
       </div>
     </div>
-    <button class="${collectionBtnClass}" id="collection-btn" data-show-id="${
-    show.id
-  }">${collectionBtnText}</button>
+    <button
+      type="button"
+      class="${collectionBtnClass}"
+      id="collection-btn"
+      data-show-id="${show.id}"
+      aria-label="${collectionBtnAria}"
+      title="${collectionBtnAria}"
+    >${collectionBtnIcon}</button>
     <div class="show_other_info-container">
       <p class="tagline">${show.tagline}</p>
       <br>
@@ -155,9 +186,14 @@ export function renderShowDetails(show) {
       try {
         await manageCollection(showId, shouldAdd);
 
-        collectionBtn.textContent = shouldAdd
-          ? "In Collection"
-          : "Add to Collection";
+        collectionBtn.innerHTML = shouldAdd
+          ? BOOKMARK_FILLED_ICON
+          : BOOKMARK_OUTLINE_ICON;
+        const nextAria = shouldAdd
+          ? "Remove from collection"
+          : "Add to collection";
+        collectionBtn.setAttribute("aria-label", nextAria);
+        collectionBtn.setAttribute("title", nextAria);
 
         collectionBtn.classList.toggle("in-collection", shouldAdd);
       } catch (error) {

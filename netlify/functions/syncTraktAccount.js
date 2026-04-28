@@ -54,9 +54,36 @@ async function runWithConcurrency(tasks, limit) {
   return results;
 }
 
+const JSON_HDR = { "Content-Type": "application/json;charset=utf-8" };
+
 export async function handler(event) {
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, body: "Method Not Allowed" };
+  }
+
+  if (
+    !String(process.env.SUPABASE_URL || "").trim() ||
+    !String(process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim()
+  ) {
+    return {
+      statusCode: 500,
+      headers: JSON_HDR,
+      body: JSON.stringify({
+        error:
+          "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY. For local dev, add them to .env in the project root (netlify dev loads it).",
+      }),
+    };
+  }
+
+  if (!String(process.env.TRAKT_CLIENT_ID || "").trim()) {
+    return {
+      statusCode: 500,
+      headers: JSON_HDR,
+      body: JSON.stringify({
+        error:
+          "Missing TRAKT_CLIENT_ID. Set it in .env / Netlify environment variables.",
+      }),
+    };
   }
 
   let userId;
@@ -65,20 +92,37 @@ export async function handler(event) {
   } catch (err) {
     return {
       statusCode: 401,
+      headers: JSON_HDR,
       body: JSON.stringify({ error: err.message }),
     };
   }
 
+  /** Trakt not linked / token refresh failed → 403 (not generic 500) */
+  let traktToken;
   try {
-    const traktToken = await getValidTraktToken(userId);
+    traktToken = await getValidTraktToken(userId);
+  } catch (err) {
+    console.warn("[syncTraktAccount] Trakt token:", err.message);
+    return {
+      statusCode: 403,
+      headers: JSON_HDR,
+      body: JSON.stringify({ error: err.message }),
+    };
+  }
 
-    const listId = await getDefaultListId(userId);
-    if (!listId) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ error: "Default list not found for user" }),
-      };
-    }
+  const listId = await getDefaultListId(userId);
+  if (!listId) {
+    return {
+      statusCode: 409,
+      headers: JSON_HDR,
+      body: JSON.stringify({
+        error:
+          "No default list found for your user. Ensure your DB migration created a default list for new users.",
+      }),
+    };
+  }
+
+  try {
 
     const watchedRes = await fetch(
       `${TRAKT_BASE_URL}/users/me/watched/shows?extended=full,images`,
@@ -86,9 +130,16 @@ export async function handler(event) {
     );
 
     if (!watchedRes.ok) {
+      const snippet = await watchedRes.text();
+      console.error("[syncTraktAccount] Trakt watched/shows:", watchedRes.status, snippet.slice(0, 300));
       return {
-        statusCode: watchedRes.status,
-        body: JSON.stringify({ error: "Failed to fetch watched shows" }),
+        statusCode: watchedRes.status >= 400 && watchedRes.status < 500 ? watchedRes.status : 502,
+        headers: JSON_HDR,
+        body: JSON.stringify({
+          error: "Trakt refused the watched-show list.",
+          detail: snippet.slice(0, 400),
+          status: watchedRes.status,
+        }),
       };
     }
 
@@ -123,6 +174,7 @@ export async function handler(event) {
 
     return {
       statusCode: 200,
+      headers: JSON_HDR,
       body: JSON.stringify({
         message: `Sync completed in ${elapsed}s: ${synced} synced, ${errors.length} failed`,
         synced,
@@ -134,7 +186,10 @@ export async function handler(event) {
     console.error("syncTraktAccount fatal error:", err);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: err.message }),
+      headers: JSON_HDR,
+      body: JSON.stringify({
+        error: err.message || "Unexpected error during sync",
+      }),
     };
   }
 }
@@ -149,8 +204,13 @@ async function syncSingleShow(entry, index, total, traktToken, listId, userId) {
 
     const { showId } = result;
 
+    // NOTE: `extended=full,episodes,images` is required so each episode
+    // includes `first_aired`, `overview`, `runtime`, etc. Using just
+    // `episodes,images` returns only the minimal episode shape (id,
+    // title, number), which leaves `first_aired` null in the DB and
+    // breaks Upcoming Episodes / shows 01/01/1970 in the UI.
     const seasonsRes = await fetch(
-      `${TRAKT_BASE_URL}/shows/${entry.show.ids.trakt}/seasons?extended=episodes,images&specials=false&count_specials=false`,
+      `${TRAKT_BASE_URL}/shows/${entry.show.ids.trakt}/seasons?extended=full,episodes,images&specials=false&count_specials=false`,
       { headers: getTraktHeaders(traktToken) },
     );
 

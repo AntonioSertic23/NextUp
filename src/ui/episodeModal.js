@@ -6,9 +6,13 @@ import {
 import { markEpisodes } from "../api/episodes.js";
 import { getShowNextEpisode } from "../api/watchlist.js";
 import { formatDate, formatEpisodeInfo } from "../utils/format.js";
+import { MARK_ICON, UNMARK_ICON } from "../utils/icons.js";
 
 /**
- * Updates the mark/unmark button text and classes based on watched status.
+ * Updates the mark/unmark button to reflect the watched state.
+ * The button is icon-only — labels are exposed via `aria-label` /
+ * `title` so screen readers and tooltips stay informative.
+ *
  * @param {HTMLElement} markBtn - The button element to update.
  * @param {boolean} watched - Whether the episode is marked as watched.
  */
@@ -16,11 +20,15 @@ export function updateMarkButton(markBtn, watched) {
   if (watched) {
     markBtn.classList.remove("mark-watched");
     markBtn.classList.add("unmark-watched");
-    markBtn.textContent = "Unmark";
+    markBtn.innerHTML = UNMARK_ICON;
+    markBtn.setAttribute("aria-label", "Unmark as watched");
+    markBtn.setAttribute("title", "Unmark as watched");
   } else {
     markBtn.classList.remove("unmark-watched");
     markBtn.classList.add("mark-watched");
-    markBtn.textContent = "Mark";
+    markBtn.innerHTML = MARK_ICON;
+    markBtn.setAttribute("aria-label", "Mark as watched");
+    markBtn.setAttribute("title", "Mark as watched");
   }
 }
 
@@ -200,10 +208,26 @@ function showEpisodeInfoModal(episode, updateUICallback, isWatched = false) {
 
   overlay.style.display = "flex";
   modal.style.display = "flex";
+  document.body.classList.add("modal-open");
+
+  function closeModal() {
+    overlay.style.display = "none";
+    modal.style.display = "none";
+    document.body.classList.remove("modal-open");
+    document.removeEventListener("keydown", onKeyDown);
+  }
+
+  function onKeyDown(e) {
+    if (e.key === "Escape") closeModal();
+  }
+  document.addEventListener("keydown", onKeyDown);
 
   overlay.onclick = (e) => {
-    if (e.target === overlay) overlay.style.display = "none";
+    if (e.target === overlay) closeModal();
   };
+
+  const closeBtn = modal.querySelector(".modal-close-btn");
+  if (closeBtn) closeBtn.onclick = closeModal;
 
   const info = modal.querySelector(".episode-info-info");
   info.textContent =
@@ -214,16 +238,22 @@ function showEpisodeInfoModal(episode, updateUICallback, isWatched = false) {
     ) || "";
 
   const date = modal.querySelector(".episode-info-date");
-  date.textContent = `Aired on ${formatDate(episode.first_aired)}`;
+  const airedStr = episode.first_aired ? formatDate(episode.first_aired) : "";
+  date.textContent = airedStr ? `Aired on ${airedStr}` : "Air date unknown";
 
   const overviewEl = modal.querySelector(".episode-info-overview");
   overviewEl.textContent = episode.overview || "";
 
   const imgTag = modal.querySelector(".modal-img-tag");
+  const imgWrap = modal.querySelector(".modal-img");
   if (episode.image_screenshot) {
     imgTag.src = `https://${episode.image_screenshot}`;
+    imgTag.style.display = "";
+    if (imgWrap) imgWrap.style.display = "";
   } else {
+    imgTag.removeAttribute("src");
     imgTag.style.display = "none";
+    if (imgWrap) imgWrap.style.display = "none";
   }
 
   const markBtn = modal.querySelector(".modal-mark-btn");
@@ -245,7 +275,7 @@ function showEpisodeInfoModal(episode, updateUICallback, isWatched = false) {
 
         if (typeof updateUICallback === "function") {
           updateUICallback();
-          overlay.style.display = "none";
+          closeModal();
         }
       }
     } catch (err) {

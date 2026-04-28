@@ -53,7 +53,7 @@ export async function handler(event) {
 
   try {
     const tokenData = await exchangeTraktCode(code, redirectUri);
-    await saveTraktTokens(userId, tokenData);
+    await saveTraktTokens(userId, tokenData, redirectUri);
 
     return {
       statusCode: 200,
