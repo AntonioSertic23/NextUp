@@ -48,16 +48,34 @@
 
     <!-- Episode Info Modal: exists in DOM, hidden by default -->
     <div id="episode-info-modal-overlay">
-      <div id="episode-info-modal">
+      <div
+        id="episode-info-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="episode-info-info"
+      >
+        <button
+          type="button"
+          class="modal-close-btn"
+          aria-label="Close"
+          title="Close"
+        >&times;</button>
         <div class="modal-row">
           <div class="modal-img">
             <img src="" alt="Episode screenshot" class="modal-img-tag" />
           </div>
           <div class="modal-details">
-            <div class="episode-info-info"></div>
-            <button class="modal-mark-btn mark-watched"></button>
-            <div class="episode-info-date"></div>
-            <div class="episode-info-overview"></div>
+            <h3 id="episode-info-info" class="episode-info-info"></h3>
+            <p class="episode-info-date"></p>
+            <p class="episode-info-overview"></p>
+            <div class="modal-actions">
+              <button
+                type="button"
+                class="modal-mark-btn mark-watched"
+                aria-label="Mark as watched"
+                title="Mark as watched"
+              ></button>
+            </div>
           </div>
         </div>
       </div>

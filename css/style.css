@@ -575,6 +575,23 @@ main {
   margin: 0;
 }
 
+/* Synopsis of the next episode — fills the previously empty space
+   between the title row and the progress / footer area on desktop.
+   Clamped to 4 lines to keep within the 270px poster height. */
+.info-container .next_episode_overview {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: #9b9da6;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 0 auto;
+}
+
 .info-container .days_until_next {
   font-size: 1rem;
   color: #bbb;
@@ -890,39 +907,62 @@ main {
   flex: 1;
 }
 
+/* Collection toggle — icon-only round-square button (bookmark).
+   Sits over the banner on desktop, becomes a static centred button
+   under the title on tablet/phone (see below in the responsive
+   blocks). */
 .collection-btn {
-  background-color: #4d4e53;
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  padding: 0.5rem 1rem;
-  font-size: 1rem;
-  font-weight: bold;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  white-space: nowrap;
   position: absolute;
-  overflow: hidden;
   right: 50px;
   top: 360px;
-  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  background-color: rgba(31, 32, 40, 0.92);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.1s ease;
+}
+
+.collection-btn svg {
+  width: 22px;
+  height: 22px;
+  pointer-events: none;
 }
 
 .collection-btn:hover {
-  background-color: #5d5e63;
+  background-color: rgba(58, 59, 69, 0.95);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.collection-btn:active {
+  transform: translateY(1px);
 }
 
 .collection-btn.in-collection {
-  background-color: #00ff00;
-  color: #222;
+  background-color: transparent;
+  background-image: linear-gradient(135deg, #857aff, #ef6bf3);
+  color: #fff;
+  border-color: transparent;
 }
 
 .collection-btn.in-collection:hover {
-  background-color: #00e600;
+  filter: brightness(1.08);
+  box-shadow: 0 6px 16px rgba(133, 122, 255, 0.4);
 }
 
 .collection-btn:disabled {
   background-color: #2f3035;
+  background-image: none;
   color: #aaa;
   cursor: not-allowed;
   opacity: 0.7;
@@ -930,6 +970,8 @@ main {
 
 .collection-btn:disabled:hover {
   background-color: #2f3035;
+  filter: none;
+  box-shadow: none;
 }
 
 .show-top-container {
@@ -949,17 +991,35 @@ main {
 
 .seasons_title {
   font-size: 1.6rem;
-  font-weight: bold;
-  margin: 1rem 0;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #fff;
+  margin: 1.5rem 0 1rem;
+}
+
+/* A "season" header card — looks consistent with watchlist/discover
+   cards. Inside lives mark btn + label + progress + expand toggle. */
+.season {
+  margin-bottom: 1rem;
+  background-color: #1a1b22;
+  border: 1px solid #2a2b32;
+  border-radius: 12px;
+  overflow: hidden;
 }
 
 .season-container {
   display: flex;
+  align-items: center;
   gap: 1rem;
+  padding: 0.85rem 1rem;
 }
 
 .season-container .season_number {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+  white-space: nowrap;
 }
 
 .season-container .progress-container {
@@ -968,11 +1028,8 @@ main {
 
 .season-container .progress-container .progress_text {
   text-align: center;
-  font-size: 1.2rem;
-}
-
-.season {
-  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+  color: #9b9da6;
 }
 
 .episodes {
@@ -983,20 +1040,24 @@ main {
 
 .episodes.open {
   max-height: 5000px;
+  border-top: 1px solid #2a2b32;
 }
 
 .episode:first-child {
-  margin-top: 1.5rem;
+  margin-top: 0;
 }
 
 .episode {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.5rem;
-  border-bottom: 1px solid #5d5e63;
+  gap: 0.85rem;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid #23242d;
   cursor: pointer;
+  transition: background-color 0.15s ease;
 }
+
 .episode:hover {
   background-color: #23242d;
 }
@@ -1005,61 +1066,145 @@ main {
   border-bottom: none;
 }
 
+.episode_info-container {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .episode_title {
-  font-size: 1rem;
-  font-weight: bold;
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: 0.005em;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.episode_info {
+  margin: 0.2rem 0 0;
+  font-size: 0.83rem;
+  color: #8a8b94;
+  letter-spacing: 0.02em;
+}
+
+/* Icon-only mark / unmark buttons. Used for both individual episodes
+   and the per-season toggle, plus the modal mark button. */
+.mark-watched,
+.unmark-watched {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0;
+  flex-shrink: 0;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.1s ease,
+    filter 0.2s ease;
+}
+
+.mark-watched svg,
+.unmark-watched svg {
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
 }
 
 .mark-watched {
-  background-color: #4d4e53;
-  color: #fff;
-  border: none;
-  border-radius: 3px;
-  padding: 0.2rem 0.5rem;
-  cursor: pointer;
+  background-color: transparent;
+  color: #c1c2c8;
+  border-color: #3a3b45;
 }
 
 .mark-watched:hover {
-  background-color: #5d5e63;
+  background-color: #2a2b32;
+  border-color: #4a9eff;
+  color: #fff;
 }
 
 .unmark-watched {
-  background-color: #00ff00;
-  color: #222;
-  border: none;
-  border-radius: 3px;
-  padding: 0.2rem 0.5rem;
-  cursor: pointer;
+  background-color: #6a5cff;
+  background-image: linear-gradient(135deg, #857aff, #ef6bf3);
+  color: #fff;
+  border-color: transparent;
 }
 
 .unmark-watched:hover {
-  background-color: #00e600;
+  filter: brightness(1.08);
+  box-shadow: 0 4px 14px rgba(133, 122, 255, 0.4);
+}
+
+.mark-watched:active,
+.unmark-watched:active {
+  transform: translateY(1px);
 }
 
 .mark-watched:disabled,
 .unmark-watched:disabled {
   background-color: #2f3035;
-  color: #aaa;
+  background-image: none;
+  color: #6a6b71;
+  border-color: transparent;
   cursor: not-allowed;
   opacity: 0.7;
+  filter: none;
+  box-shadow: none;
 }
 
 .mark-watched:disabled:hover,
 .unmark-watched:disabled:hover {
   background-color: #2f3035;
+  filter: none;
+  box-shadow: none;
+}
+
+/* Per-season mark btn slightly larger so it's easier to tap */
+.season_mark_btn {
+  width: 40px;
+  height: 40px;
+}
+
+.season_mark_btn svg {
+  width: 20px;
+  height: 20px;
 }
 
 .expand_btn {
   background: none;
-  border: none;
+  border: 0;
   cursor: pointer;
-  color: inherit;
+  color: #c1c2c8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.expand_btn:hover {
+  background-color: #23242d;
+  color: #fff;
 }
 
 .expand_btn .icon {
   transition: transform 0.3s ease;
-  width: 1.6rem;
-  height: 1.6rem;
+  width: 1.4rem;
+  height: 1.4rem;
 }
 
 .expand_btn.open .icon {
@@ -1080,102 +1225,175 @@ footer {
 }
 
 /* ========================================================
-   Modal overlay and modal for episode info
+   Episode info modal — centred card on desktop, full-width sheet
+   on phones. Shares the dark card aesthetic of the rest of the app.
    ======================================================== */
 
 #episode-info-modal-overlay {
   display: none;
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.5);
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   z-index: 1000;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
+  padding: 1rem;
 }
+
 #episode-info-modal {
   display: none;
   position: relative;
-  width: 100vw;
-  height: 60vh;
-  background: #222;
+  width: 100%;
+  max-width: 720px;
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  background: linear-gradient(180deg, #1f2028 0%, #1a1b22 100%);
   color: #fff;
-  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.25);
-  border-top-left-radius: 12px;
-  border-top-right-radius: 12px;
-  padding: 32px 24px 24px 24px;
+  border: 1px solid #2a2b32;
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  padding: 1.5rem;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  animation: modalSlideUp 0.16s cubic-bezier(0.4, 1.6, 0.63, 1.01);
-  overflow: auto;
-}
-@keyframes modalSlideUp {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
-  }
-}
-.episode-info-modal button {
-  position: absolute;
-  top: 8px;
-  right: 16px;
-  font-size: 2rem;
-  background: none;
-  border: none;
-  cursor: pointer;
-  line-height: 1;
+  overflow-y: auto;
+  animation: modalScaleIn 0.18s ease-out;
 }
 
-/* ----- Episode Info Modal Classes ----- */
+@keyframes modalScaleIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+body.modal-open {
+  overflow: hidden;
+}
+
+.modal-close-btn {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.7rem;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background-color: rgba(45, 46, 53, 0.85);
+  color: #d6d7db;
+  font-size: 1.5rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.1s ease;
+}
+
+.modal-close-btn:hover {
+  background-color: #3a3b45;
+  color: #fff;
+}
+
+.modal-close-btn:active {
+  transform: translateY(1px);
+}
+
+/* Two-column layout: screenshot on the left, details on the right */
 .modal-row {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 50vw;
-  height: 100%;
-  gap: 1rem;
+  flex-direction: row;
+  align-items: stretch;
+  width: 100%;
+  height: auto;
+  gap: 1.4rem;
 }
+
 .modal-img {
-  width: 80%;
-  height: 50%;
+  flex: 0 0 auto;
+  width: 280px;
+  aspect-ratio: 16 / 9;
+  border-radius: 10px;
+  overflow: hidden;
+  background-color: #181920;
 }
+
 .modal-img-tag {
   width: 100%;
   height: 100%;
-  border-radius: 8px;
-  background: #f5f5f5;
+  display: block;
   object-fit: cover;
 }
+
 .modal-details {
-  position: relative;
-  width: 100%;
-  flex: 1;
+  position: static;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0.55rem;
+  min-width: 0;
 }
+
 .episode-info-info {
+  margin: 0;
+  padding-right: 2.75rem; /* leave room for the close button */
   font-size: 1.2rem;
-  font-weight: bold;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.01em;
+  line-height: 1.3;
 }
-.modal-mark-btn {
-  position: absolute;
-  top: 0;
-  right: 0;
-}
+
 .episode-info-date {
-  margin: 1rem 0;
+  margin: 0;
+  font-size: 0.9rem;
+  color: #9b9da6;
+  letter-spacing: 0.02em;
 }
+
 .episode-info-overview {
-  width: 100%;
+  margin: 0;
+  font-size: 0.95rem;
+  color: #d6d7db;
+  line-height: 1.55;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 8;
+  line-clamp: 8;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.modal-actions {
+  margin-top: auto;
+  padding-top: 0.75rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Modal mark button — same icon styling as the inline ones, but
+   slightly larger and pinned in the action row. */
+.modal-mark-btn {
+  position: static;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+}
+
+.modal-mark-btn svg {
+  width: 22px;
+  height: 22px;
 }
 
 /* ========================================================
@@ -2294,6 +2512,12 @@ footer {
     color: #bbb;
   }
 
+  /* Episode overview is desktop-only — compact tablet/mobile cards
+     don't have the vertical room for it */
+  #watchlist-container .info-container .next_episode_overview {
+    display: none;
+  }
+
   /* Progress bar pinned to the bottom edge of the entire card */
   #watchlist-container .progress-container {
     position: absolute;
@@ -2381,13 +2605,18 @@ footer {
 
   .collection-btn {
     position: static;
-    display: block;
-    width: 100%;
-    max-width: 320px;
+    display: flex;
+    width: 48px;
+    height: 48px;
     margin: 1rem auto 0;
     right: auto;
     top: auto;
-    padding: 0.65rem 1rem;
+    padding: 0;
+  }
+
+  .collection-btn svg {
+    width: 24px;
+    height: 24px;
   }
 
   .show_other_info-container {
@@ -2475,23 +2704,53 @@ footer {
     font-size: 1.2rem;
   }
 
-  /* Episode modal */
-  .modal-row {
-    width: 100%;
+  /* Episode modal — stacks vertically on tablet/phone, screenshot
+     becomes a full-width banner above the text content. */
+  #episode-info-modal-overlay {
+    padding: 0.5rem;
+    align-items: flex-end;
+  }
+
+  #episode-info-modal {
     max-width: 100%;
+    padding: 1.1rem 1rem 1rem;
+    border-radius: 16px 16px 0 0;
+    max-height: calc(100dvh - 1rem);
+    max-height: calc(100vh - 1rem);
+    animation: modalSlideUp 0.2s cubic-bezier(0.4, 1.4, 0.5, 1);
+  }
+
+  @keyframes modalSlideUp {
+    from {
+      opacity: 0;
+      transform: translateY(40%);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .modal-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
   }
 
   .modal-img {
     width: 100%;
-    max-width: 320px;
-    height: auto;
-    min-height: 160px;
-    max-height: 40vh;
+    aspect-ratio: 16 / 9;
+    max-height: 38vh;
   }
 
-  #episode-info-modal {
-    height: min(75vh, 640px);
-    padding: 24px 16px 20px;
+  .episode-info-info {
+    font-size: 1.1rem;
+    padding-right: 2.5rem;
+  }
+
+  .episode-info-overview {
+    -webkit-line-clamp: 10;
+    line-clamp: 10;
   }
 
   /* Statistics */
@@ -2603,27 +2862,49 @@ footer {
     padding: 0.25rem 0.6rem;
   }
 
+  /* Seasons/episodes — keep horizontal layout even on phones since
+     mark/unmark/expand are now icon-only and easily fit on a single row. */
   .season-container {
-    flex-wrap: wrap;
-    row-gap: 0.5rem;
+    gap: 0.6rem;
+    padding: 0.7rem 0.85rem;
+  }
+
+  .season-container .season_number {
+    font-size: 1rem;
+  }
+
+  .season-container .progress-container .progress_text {
+    font-size: 0.85rem;
   }
 
   .episode {
-    flex-wrap: wrap;
-    align-items: flex-start;
-    gap: 0.5rem;
+    padding: 0.6rem 0.85rem;
+    gap: 0.7rem;
   }
 
   .episode .episode_info-container {
-    flex: 1 1 100%;
+    flex: 1 1 auto;
     min-width: 0;
   }
 
   .episode .mark-watched,
   .episode .unmark-watched {
     flex-shrink: 0;
-    min-height: 44px;
-    min-width: 72px;
+    width: 40px;
+    height: 40px;
+  }
+
+  .episode_title {
+    font-size: 0.94rem;
+  }
+
+  .episode_info {
+    font-size: 0.78rem;
+  }
+
+  .season_mark_btn {
+    width: 42px;
+    height: 42px;
   }
 
   .pagination-btn {
