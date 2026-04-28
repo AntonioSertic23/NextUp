@@ -1,9 +1,20 @@
 <nav class="navbar">
-  <!-- Left section (currently empty, can be used for logo or branding) -->
-  <div class="nav-left"></div>
+  <!-- Left section: hamburger menu toggle (visible on mobile) -->
+  <div class="nav-left">
+    <button
+      class="nav-toggle"
+      id="nav-toggle"
+      type="button"
+      aria-label="Open navigation menu"
+      aria-controls="nav-center"
+      aria-expanded="false"
+    >
+      <span class="nav-toggle-icon" aria-hidden="true"></span>
+    </button>
+  </div>
 
   <!-- Center section: main navigation links -->
-  <div class="nav-center">
+  <div class="nav-center" id="nav-center">
     <a href="#home" class="nav-link">Watchlist</a>
     <a href="#myshows" class="nav-link">My Shows</a>
     <a href="#discover" class="nav-link">Discover</a>
