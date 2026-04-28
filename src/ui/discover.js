@@ -3,7 +3,20 @@ import {
   getDiscoverState,
   setDiscoverState,
 } from "../stores/discoverStore.js";
+import {
+  getRecentSearches,
+  addRecentSearch,
+  removeRecentSearch,
+} from "../stores/recentSearchesStore.js";
 import { searchShows, getTraktShows } from "../api/shows.js";
+
+function escapeAttr(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
 
 const BROWSE_SECTIONS = [
   { type: "trending", title: "Trending Now" },
@@ -21,25 +34,28 @@ export async function renderDiscoverElements() {
   const searchForm = document.createElement("div");
   searchForm.className = "search-form";
   searchForm.innerHTML = `
-      <input 
-        type="text" 
-        id="search-input" 
-        class="search-input" 
-        placeholder="Enter show name..."
-        value="${discoverState.currentQuery}"
-      />
-      
-      <button 
-        type="button" 
-        id="clear-btn" 
-        class="clear-btn"
-        style="
-          display: ${discoverState.currentQuery ? "block" : "none"};
-        "
-      >X</button>
+      <div class="search-input-wrap">
+        <input
+          type="text"
+          id="search-input"
+          class="search-input"
+          placeholder="Search shows…"
+          value="${discoverState.currentQuery}"
+        />
+        <button
+          type="button"
+          id="clear-btn"
+          class="clear-btn"
+          aria-label="Clear search"
+          style="display: ${discoverState.currentQuery ? "flex" : "none"};"
+        >&times;</button>
+      </div>
 
       <button id="search-btn" class="search-btn">Search</button>
     `;
+
+  const recentSearchesDiv = document.createElement("div");
+  recentSearchesDiv.id = "recent-searches";
 
   const resultsDiv = document.createElement("div");
   resultsDiv.className = "search-results";
@@ -53,6 +69,7 @@ export async function renderDiscoverElements() {
   browseDiv.id = "discover-browse";
 
   container.appendChild(searchForm);
+  container.appendChild(recentSearchesDiv);
   container.appendChild(resultsDiv);
   container.appendChild(paginationDiv);
   container.appendChild(browseDiv);
@@ -61,13 +78,81 @@ export async function renderDiscoverElements() {
   const searchInput = searchForm.querySelector("#search-input");
   const clearBtn = searchForm.querySelector("#clear-btn");
 
-  searchBtn.addEventListener("click", async () => {
-    const query = searchInput.value.trim();
-    if (!query) return;
+  function renderRecentSearches() {
+    const recent = getRecentSearches();
+    if (!recent.length) {
+      recentSearchesDiv.innerHTML = "";
+      return;
+    }
+
+    const wasOpen =
+      recentSearchesDiv.querySelector(".recent-searches")?.hasAttribute("open");
+
+    recentSearchesDiv.innerHTML = `
+      <details class="recent-searches"${wasOpen ? " open" : ""}>
+        <summary class="recent-searches-summary">
+          <span class="recent-searches-summary-label">Recent searches</span>
+          <span class="recent-searches-count" aria-label="${recent.length} saved searches">${recent.length}</span>
+        </summary>
+        <ul class="recent-searches-list">
+          ${recent
+            .map((q) => {
+              const safe = escapeAttr(q);
+              return `
+                <li class="recent-search-item">
+                  <button class="recent-search-text" type="button" data-query="${safe}" title="Search again">
+                    <span class="recent-search-icon" aria-hidden="true">🔍</span>
+                    <span class="recent-search-label">${safe}</span>
+                  </button>
+                  <button class="recent-search-remove" type="button" data-query="${safe}" aria-label="Remove “${safe}” from recent searches">&times;</button>
+                </li>
+              `;
+            })
+            .join("")}
+        </ul>
+      </details>
+    `;
+
+    recentSearchesDiv
+      .querySelectorAll(".recent-search-text")
+      .forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const query = btn.dataset.query;
+          if (!query) return;
+          runSearchFromHistory(query);
+        });
+      });
+
+    recentSearchesDiv
+      .querySelectorAll(".recent-search-remove")
+      .forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          removeRecentSearch(btn.dataset.query);
+          renderRecentSearches();
+        });
+      });
+  }
+
+  async function runSearch(query) {
+    addRecentSearch(query);
+    renderRecentSearches();
 
     browseDiv.style.display = "none";
     await performSearch(query, 1, paginationDiv);
-    clearBtn.style.display = "block";
+    clearBtn.style.display = "flex";
+  }
+
+  function runSearchFromHistory(query) {
+    searchInput.value = query;
+    runSearch(query);
+  }
+
+  searchBtn.addEventListener("click", async () => {
+    const query = searchInput.value.trim();
+    if (!query) return;
+    await runSearch(query);
   });
 
   searchInput.addEventListener("keypress", (e) => {
@@ -84,6 +169,8 @@ export async function renderDiscoverElements() {
     resetDiscoverStore();
     browseDiv.style.display = "";
   });
+
+  renderRecentSearches();
 
   if (discoverState.results.length > 0) {
     browseDiv.style.display = "none";

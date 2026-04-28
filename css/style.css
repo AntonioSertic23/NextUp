@@ -1227,125 +1227,365 @@ footer {
    ======================================================== */
 
 #discover-container {
-  padding: 2rem;
+  padding: 1.25rem 0 2rem;
 }
 
 .search-form {
   position: relative;
   display: flex;
-  gap: 1rem;
+  gap: 0.65rem;
   margin-bottom: 2rem;
   align-items: center;
 }
 
+.search-input-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
 .search-input {
-  flex: 1;
-  padding: 0.8rem 1rem;
-  background-color: #23242d;
+  flex: 1 1 auto;
+  width: 100%;
+  padding: 0.85rem 2.6rem 0.85rem 1.1rem;
+  background-color: #1a1b22;
   color: #fff;
-  border: 1px solid #4d4e53;
-  border-radius: 4px;
+  border: 1px solid #2a2b32;
+  border-radius: 999px;
   font-size: 1rem;
   outline: none;
-  transition: border-color 0.2s;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .search-input:focus {
-  border-color: #0e90e6;
+  border-color: #4a9eff;
+  background-color: #1f2028;
+  box-shadow: 0 0 0 3px rgba(74, 158, 255, 0.18);
 }
 
 .search-input::placeholder {
-  color: #5d5e63;
+  color: #6e6f76;
 }
 
 .search-btn {
-  padding: 0.8rem 2rem;
-  background-color: #0e90e6;
+  flex-shrink: 0;
+  padding: 0.85rem 1.6rem;
+  background-color: #4a9eff;
   color: #fff;
   border: none;
-  border-radius: 4px;
-  font-size: 1rem;
-  font-weight: bold;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: background-color 0.2s;
+  letter-spacing: 0.02em;
+  transition:
+    background-color 0.2s ease,
+    transform 0.1s ease,
+    box-shadow 0.2s ease;
 }
 
 .search-btn:hover {
-  background-color: #0b7eca;
+  background-color: #3a8ce8;
+  box-shadow: 0 4px 14px rgba(74, 158, 255, 0.35);
+}
+
+.search-btn:active {
+  transform: translateY(1px);
 }
 
 .clear-btn {
-  padding: 0.8rem 1rem;
-  background-color: #f33;
-  color: #222;
-  border: none;
-  border-radius: 4px;
-  font-size: 1rem;
-  font-weight: bold;
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  background-color: #2d2e35;
+  color: #c1c2c8;
+  border: 0;
+  border-radius: 50%;
+  font-size: 1.05rem;
+  line-height: 1;
   cursor: pointer;
-  transition: background-color 0.2s;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
 .clear-btn:hover {
-  background-color: #d42a2a;
+  background-color: #3a3b45;
+  color: #fff;
+}
+
+/* ========================================================
+   Recent searches (Discover page)
+   ======================================================== */
+
+#recent-searches {
+  margin-bottom: 1.5rem;
+}
+
+#recent-searches:empty {
+  display: none;
+}
+
+.recent-searches {
+  background-color: #1a1b22;
+  border: 1px solid #2a2b32;
+  border-radius: 10px;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.recent-searches[open] {
+  background-color: #1d1e25;
+  border-color: #303138;
+}
+
+.recent-searches-summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 0.65rem 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  user-select: none;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #d6d7db;
+}
+
+.recent-searches-summary::-webkit-details-marker {
+  display: none;
+}
+
+.recent-searches-summary::before {
+  content: "";
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid #8a8b90;
+  display: inline-block;
+  transition: transform 0.2s ease;
+}
+
+.recent-searches[open] .recent-searches-summary::before {
+  transform: rotate(180deg);
+}
+
+.recent-searches-summary:hover {
+  color: #fff;
+}
+
+.recent-searches-summary:hover::before {
+  border-top-color: #c1c2c8;
+}
+
+.recent-searches-summary-label {
+  flex: 1 1 auto;
+}
+
+.recent-searches-count {
+  background-color: #2a2b32;
+  color: #c1c2c8;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  min-width: 1.5em;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+.recent-searches-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem 0.55rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.recent-search-item {
+  display: flex;
+  align-items: stretch;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.recent-search-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 0.8rem;
+  background-color: #1a1b22;
+  color: #d6d7db;
+  border: 1px solid #2a2b32;
+  border-radius: 8px;
+  font-size: 0.92rem;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.recent-search-text:hover {
+  background-color: #25262d;
+  border-color: #3a3b45;
+  color: #fff;
+}
+
+.recent-search-icon {
+  flex-shrink: 0;
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.recent-search-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-search-remove {
+  flex-shrink: 0;
+  width: 36px;
+  background-color: transparent;
+  color: #8a8b90;
+  border: 1px solid #2a2b32;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.recent-search-remove:hover {
+  background-color: #2a2b32;
+  color: #ff7676;
+  border-color: #3a3b45;
 }
 
 .search-results {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.85rem;
+}
+
+/* Desktop: 2 cards per row by default */
+@media (min-width: 769px) {
+  .search-results {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+}
+
+/* Large desktops: 3 cards per row, with a slightly tighter card layout */
+@media (min-width: 1200px) {
+  .search-results {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .search-result-card {
+    gap: 1rem;
+  }
+
+  .search-result-poster {
+    width: 100px;
+  }
 }
 
 .search-result-card {
   display: flex;
-  gap: 1.5rem;
-  background-color: transparent;
-  padding: 1rem;
-  border-radius: 5px;
+  gap: 1.25rem;
+  background-color: #1a1b22;
+  border: 1px solid #2a2b32;
+  padding: 0.9rem;
+  border-radius: 12px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
 }
 
 .search-result-card:hover {
-  background-color: #23242d;
+  background-color: #1f2028;
+  border-color: #3a3b45;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.3);
+  transform: translateY(-1px);
 }
 
 .search-result-poster {
   flex-shrink: 0;
   width: 120px;
-  height: 180px;
-  border-radius: 5px;
+  height: auto;
+  aspect-ratio: 2 / 3;
+  border-radius: 8px;
   overflow: hidden;
-  background-color: #23242d;
+  background-color: #181920;
 }
 
 .search-result-poster img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+.search-result-card:hover .search-result-poster img {
+  transform: scale(1.04);
 }
 
 .search-result-info {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
 .search-result-title {
-  font-size: 1.4rem;
-  font-weight: bold;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.005em;
   color: #fff;
   margin: 0;
 }
 
 .search-result-overview {
   color: #bbb;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   line-height: 1.5;
   display: -webkit-box;
-  line-clamp: 3;
-  -webkit-line-clamp: 3;
+  line-clamp: 4;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -1368,19 +1608,19 @@ footer {
    ======================================================== */
 
 #discover-browse {
-  margin-top: 1rem;
+  margin-top: 1.5rem;
 }
 
 .discover-section {
-  margin-bottom: 2.5rem;
+  margin-bottom: 2.25rem;
 }
 
 .discover-section-title {
-  font-size: 1.5rem;
+  font-size: 1.4rem;
   font-weight: 700;
   color: #fff;
-  margin: 0 0 1rem 0;
-  letter-spacing: 0.02em;
+  margin: 0 0 0.85rem 0;
+  letter-spacing: -0.01em;
 }
 
 .discover-slider-wrapper {
@@ -1389,38 +1629,50 @@ footer {
 
 .discover-slider {
   display: flex;
-  gap: 1.2rem;
+  gap: 1rem;
   overflow-x: auto;
   scroll-behavior: smooth;
+  scroll-snap-type: x proximity;
+  scroll-padding: 0.25rem;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  padding: 0.5rem 0;
+  padding: 0.25rem 0.25rem 0.5rem;
 }
 
 .discover-slider::-webkit-scrollbar {
   display: none;
 }
 
+/* Round, floating arrow buttons centered vertically over the slider */
 .slider-arrow {
   position: absolute;
-  top: 0;
-  bottom: 40px;
-  width: 44px;
+  top: calc(50% - 1.25rem);
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
   z-index: 2;
-  border: none;
-  background: linear-gradient(to right, rgba(22, 22, 26, 0.95), transparent);
+  border: 0;
+  background-color: rgba(20, 21, 26, 0.85);
   color: #fff;
-  font-size: 2.4rem;
+  font-size: 1.4rem;
+  border-radius: 50%;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0.8;
-  transition: opacity 0.2s;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  opacity: 0.92;
+  transition:
+    opacity 0.2s ease,
+    background-color 0.2s ease,
+    transform 0.15s ease;
 }
 
 .slider-arrow:hover {
-  opacity: 1;
+  background-color: rgba(40, 41, 50, 0.95);
+  transform: translateY(-50%) scale(1.05);
 }
 
 .slider-arrow.hidden {
@@ -1429,54 +1681,62 @@ footer {
 }
 
 .slider-arrow-left {
-  left: 0;
-  background: linear-gradient(to right, rgba(22, 22, 26, 0.95), transparent);
+  left: -8px;
 }
 
 .slider-arrow-right {
-  right: 0;
-  background: linear-gradient(to left, rgba(22, 22, 26, 0.95), transparent);
+  right: -8px;
 }
 
 .discover-card {
   flex-shrink: 0;
   width: 150px;
   cursor: pointer;
+  scroll-snap-align: start;
+  transition: transform 0.2s ease;
+}
+
+.discover-card:hover {
+  transform: translateY(-2px);
 }
 
 .discover-card-poster {
   width: 150px;
   height: 225px;
-  border-radius: 6px;
+  border-radius: 10px;
   overflow: hidden;
-  background-color: #23242d;
+  background-color: #181920;
+  position: relative;
 }
 
 .discover-card-poster img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: scale 0.25s ease;
+  display: block;
+  transition: transform 0.3s ease;
 }
 
 .discover-card:hover .discover-card-poster img {
-  scale: 1.08;
+  transform: scale(1.05);
 }
 
 .discover-card-title {
-  margin: 0.5rem 0 0 0;
-  font-size: 0.9rem;
+  margin: 0.6rem 0 0 0;
+  font-size: 0.92rem;
   font-weight: 600;
   color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: 0.01em;
 }
 
 .discover-card-year {
   margin: 0.15rem 0 0 0;
   font-size: 0.8rem;
-  color: #5d5e63;
+  color: #8a8b90;
+  font-weight: 500;
 }
 
 .discover-browse-loading {
@@ -1530,48 +1790,54 @@ footer {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
+  gap: 0.85rem;
 }
 
 .pagination-info {
-  color: #5d5e63;
-  font-size: 0.9rem;
+  color: #8a8b90;
+  font-size: 0.88rem;
 }
 
 .pagination-buttons {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.4rem;
   flex-wrap: wrap;
   justify-content: center;
 }
 
 .pagination-btn {
-  padding: 0.5rem 1rem;
-  background-color: #23242d;
-  color: #fff;
-  border: 1px solid #4d4e53;
-  border-radius: 4px;
+  min-height: 38px;
+  min-width: 38px;
+  padding: 0.5rem 0.95rem;
+  background-color: #1a1b22;
+  color: #d6d7db;
+  border: 1px solid #2a2b32;
+  border-radius: 8px;
   font-size: 0.9rem;
+  font-weight: 500;
   cursor: pointer;
   transition:
-    background-color 0.2s,
-    border-color 0.2s;
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
 }
 
 .pagination-btn:hover {
-  background-color: #2d2e37;
-  border-color: #0e90e6;
+  background-color: #2a2b32;
+  border-color: #3a3b45;
+  color: #fff;
 }
 
 .pagination-btn.active {
-  background-color: #0e90e6;
-  border-color: #0e90e6;
-  font-weight: bold;
+  background-color: #4a9eff;
+  border-color: #4a9eff;
+  color: #fff;
+  font-weight: 700;
 }
 
 .pagination-ellipsis {
   padding: 0.5rem;
-  color: #5d5e63;
+  color: #8a8b90;
 }
 
 /* ========================================================
@@ -1955,45 +2221,72 @@ footer {
 
   .search-form {
     gap: 0.5rem;
+    margin-bottom: 1.25rem;
   }
 
-  .search-btn,
-  .clear-btn {
-    padding: 0.75rem 1rem;
-    flex-shrink: 0;
+  .search-input {
+    padding: 0.75rem 2.4rem 0.75rem 1rem;
+    font-size: 0.95rem;
   }
 
+  .search-btn {
+    padding: 0.75rem 1.1rem;
+    font-size: 0.9rem;
+  }
+
+  /* Compact horizontal search result cards on tablet/phone */
   .search-result-card {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
+    padding: 0.7rem;
+    gap: 0.85rem;
   }
 
   .search-result-poster {
-    width: min(140px, 40vw);
-    height: auto;
+    width: 96px;
     aspect-ratio: 2 / 3;
+    height: auto;
+    border-radius: 6px;
   }
 
   .search-result-info {
-    width: 100%;
+    width: auto;
+    text-align: left;
   }
 
   .search-result-title {
-    font-size: 1.15rem;
+    font-size: 1.05rem;
   }
 
+  .search-result-overview {
+    font-size: 0.85rem;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+  }
+
+  /* Hide arrow buttons; native horizontal scroll only on touch */
   .slider-arrow {
     display: none;
   }
 
   .discover-slider {
     touch-action: pan-x;
-    scroll-snap-type: x proximity;
+    gap: 0.85rem;
   }
 
   .discover-card {
-    scroll-snap-align: start;
+    width: 132px;
+  }
+
+  .discover-card-poster {
+    width: 132px;
+    height: 198px;
+  }
+
+  .discover-section {
+    margin-bottom: 1.75rem;
+  }
+
+  .discover-section-title {
+    font-size: 1.2rem;
   }
 
   /* Episode modal */
@@ -2143,10 +2436,77 @@ footer {
   .pagination-btn {
     min-height: 44px;
     min-width: 44px;
+    padding: 0.5rem 0.85rem;
+    font-size: 0.88rem;
   }
 
   .auth-card {
     padding: 1.5rem;
+  }
+
+  /* Discover — compact phone tweaks */
+  .search-form {
+    gap: 0.4rem;
+    margin-bottom: 1rem;
+  }
+
+  .search-input {
+    padding: 0.7rem 2.3rem 0.7rem 0.95rem;
+    font-size: 0.92rem;
+  }
+
+  .search-btn {
+    padding: 0.7rem 1rem;
+    font-size: 0.88rem;
+  }
+
+  .search-result-card {
+    padding: 0.55rem;
+    gap: 0.7rem;
+  }
+
+  .search-result-poster {
+    width: 78px;
+  }
+
+  .search-result-title {
+    font-size: 0.98rem;
+  }
+
+  .search-result-overview {
+    font-size: 0.8rem;
+  }
+
+  .discover-card {
+    width: 116px;
+  }
+
+  .discover-card-poster {
+    width: 116px;
+    height: 174px;
+  }
+
+  .discover-card-title {
+    font-size: 0.86rem;
+  }
+
+  .discover-card-year {
+    font-size: 0.76rem;
+  }
+
+  .recent-searches-summary {
+    padding: 0.7rem 0.85rem;
+  }
+
+  .recent-search-text {
+    padding: 0.65rem 0.7rem;
+    font-size: 0.88rem;
+    min-height: 40px;
+  }
+
+  .recent-search-remove {
+    width: 40px;
+    min-height: 40px;
   }
 
   .discover-section-title,
