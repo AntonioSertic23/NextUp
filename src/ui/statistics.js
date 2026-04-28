@@ -1,5 +1,13 @@
 import { getStats } from "../stores/statsStore.js";
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 /**
  * Renders user statistics in the statistics container.
  */
@@ -15,62 +23,90 @@ export function renderStatistics() {
     return;
   }
 
+  const totalMinutes = (stats.totalMinutes ?? 0).toLocaleString();
+  const timeFormatted = escapeHtml(stats.timeFormatted ?? "");
+  const totalEpisodes = (stats.totalEpisodes ?? 0).toLocaleString();
+  const totalShows = (stats.totalShows ?? 0).toLocaleString();
+  const totalSeasons = (stats.totalSeasons ?? 0).toLocaleString();
+  const topGenres = stats.topGenres ?? [];
+  const topShows = stats.topShows ?? [];
+
   container.innerHTML = `
-      <div class="stats-section">
-        <h2>Statistics</h2>
-        
-        <div class="stat-card">
-          <h3>Total Time Spent Watching TV Shows</h3>
-          <p class="stat-value">${stats.totalMinutes.toLocaleString()} minutes</p>
-          <p class="stat-description">... which is exactly ${
-            stats.timeFormatted
-          } but who's counting</p>
-        </div>
+    <header class="stats-header">
+      <h1 class="stats-page-title">Your Statistics</h1>
+      <p class="stats-page-subtitle">Time invested, episodes consumed, top picks.</p>
+    </header>
 
-        <div class="stat-card">
-          <h3>Episodes Watched</h3>
-          <p class="stat-value">You've seen a total of ${stats.totalEpisodes.toLocaleString()} episodes</p>
-          <p class="stat-description">... in exactly ${
-            stats.totalShows
-          } TV shows, ${stats.totalSeasons} seasons</p>
-        </div>
+    <section class="stats-overview" aria-label="Overview">
+      <div class="stats-hero-card">
+        <span class="stats-hero-label">Total time watching TV</span>
+        <span class="stats-hero-value">${timeFormatted || `${totalMinutes} min`}</span>
+        <span class="stats-hero-detail">${totalMinutes} minutes &middot; that&rsquo;s a lot of TV</span>
+      </div>
 
-        <div class="stat-card">
-          <h3>Top 3 Most Watched Genres</h3>
-          <div class="top-list">
-            ${stats.topGenres
-              .map(
-                (item, index) => `
-              <div class="top-item">
-                <span class="rank">${index + 1}.</span>
-                <span class="name">${item.genre}</span>
-                <span class="count">${item.episodes} episodes</span>
-              </div>
-            `
-              )
-              .join("")}
-          </div>
+      <div class="stats-grid">
+        <div class="stat-tile">
+          <span class="stat-tile-icon" aria-hidden="true">📺</span>
+          <span class="stat-tile-value">${totalEpisodes}</span>
+          <span class="stat-tile-label">Episodes watched</span>
         </div>
-
-        <div class="stat-card">
-          <h3>Top 3 Most Watched Shows</h3>
-          <p class="stat-description">You've spent the most time watching:</p>
-          <div class="top-list">
-            ${stats.topShows
-              .map(
-                (item, index) => `
-              <div class="top-item">
-                <span class="rank">${index + 1}.</span>
-                <span class="name">${item.title}</span>
-                <span class="details">${item.hours} hours ${
-                  item.seasons
-                } seasons ${item.episodes} episodes</span>
-              </div>
-            `
-              )
-              .join("")}
-          </div>
+        <div class="stat-tile">
+          <span class="stat-tile-icon" aria-hidden="true">🎬</span>
+          <span class="stat-tile-value">${totalShows}</span>
+          <span class="stat-tile-label">Shows tracked</span>
+        </div>
+        <div class="stat-tile">
+          <span class="stat-tile-icon" aria-hidden="true">📚</span>
+          <span class="stat-tile-value">${totalSeasons}</span>
+          <span class="stat-tile-label">Seasons completed</span>
         </div>
       </div>
-    `;
+    </section>
+
+    <section class="stats-tops" aria-label="Top picks">
+      <div class="stat-card top-card">
+        <h3 class="stat-card-title">Top genres</h3>
+        ${
+          topGenres.length
+            ? `<ol class="top-list">
+                ${topGenres
+                  .map(
+                    (item, index) => `
+                      <li class="top-item">
+                        <span class="top-rank">${index + 1}</span>
+                        <span class="top-name">${escapeHtml(item.genre)}</span>
+                        <span class="top-meta">${(item.episodes ?? 0).toLocaleString()} episodes</span>
+                      </li>
+                    `,
+                  )
+                  .join("")}
+              </ol>`
+            : `<p class="top-empty">No genre data yet.</p>`
+        }
+      </div>
+
+      <div class="stat-card top-card">
+        <h3 class="stat-card-title">Top shows</h3>
+        ${
+          topShows.length
+            ? `<ol class="top-list">
+                ${topShows
+                  .map(
+                    (item, index) => `
+                      <li class="top-item">
+                        <span class="top-rank">${index + 1}</span>
+                        <div class="top-content">
+                          <span class="top-name">${escapeHtml(item.title)}</span>
+                          <span class="top-meta">${item.hours} h &middot; ${item.seasons} seasons &middot; ${item.episodes} episodes</span>
+                        </div>
+                      </li>
+                    `,
+                  )
+                  .join("")}
+              </ol>`
+            : `<p class="top-empty">No show data yet.</p>`
+        }
+      </div>
+    </section>
+  `;
 }
