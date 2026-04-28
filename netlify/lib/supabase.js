@@ -19,19 +19,38 @@ const SUPABASE = createClient(
  * @param {string} tokenData.refresh_token
  * @param {number} tokenData.expires_in - Lifetime in seconds
  * @param {number} tokenData.created_at - Unix timestamp when token was created
+ * @param {string} [oauthRedirectUri] - Same redirect_uri as used for authorize/code exchange — stored for refresh_token grants
  */
-export async function saveTraktTokens(userId, tokenData) {
+export async function saveTraktTokens(userId, tokenData, oauthRedirectUri) {
   const expiresAt = new Date(
     (tokenData.created_at + tokenData.expires_in) * 1000,
   ).toISOString();
 
-  const { error } = await SUPABASE.from("users")
-    .update({
-      trakt_token: tokenData.access_token,
-      trakt_refresh_token: tokenData.refresh_token,
-      trakt_token_expires_at: expiresAt,
-    })
-    .eq("id", userId);
+  const baseRow = {
+    trakt_token: tokenData.access_token,
+    trakt_refresh_token: tokenData.refresh_token,
+    trakt_token_expires_at: expiresAt,
+  };
+
+  const includeRedirect =
+    typeof oauthRedirectUri === "string" && oauthRedirectUri.trim();
+
+  const row = includeRedirect
+    ? { ...baseRow, trakt_oauth_redirect_uri: oauthRedirectUri.trim() }
+    : baseRow;
+
+  let { error } = await SUPABASE.from("users").update(row).eq("id", userId);
+
+  if (
+    error &&
+    includeRedirect &&
+    /trakt_oauth_redirect_uri/i.test(error.message || "")
+  ) {
+    console.warn(
+      "[saveTraktTokens] Column trakt_oauth_redirect_uri missing — run db/migration.sql ALTER. Saving tokens without it.",
+    );
+    ({ error } = await SUPABASE.from("users").update(baseRow).eq("id", userId));
+  }
 
   if (error) {
     console.error("Failed to save Trakt tokens:", error);
@@ -48,12 +67,31 @@ export async function saveTraktTokens(userId, tokenData) {
  * @throws {Error} If the user has no Trakt connection or refresh fails
  */
 export async function getValidTraktToken(userId) {
-  const { data: user, error } = await SUPABASE.from("users")
-    .select("trakt_token, trakt_refresh_token, trakt_token_expires_at")
+  let user, error;
+  ({ data: user, error } = await SUPABASE.from("users")
+    .select(
+      "trakt_token, trakt_refresh_token, trakt_token_expires_at, trakt_oauth_redirect_uri",
+    )
     .eq("id", userId)
-    .single();
+    .single());
 
-  if (error || !user?.trakt_token) {
+  // Backwards-compat: column may not exist yet on older databases
+  if (error && /trakt_oauth_redirect_uri/i.test(error.message || "")) {
+    console.warn(
+      "[getValidTraktToken] Column trakt_oauth_redirect_uri missing — run db/migration.sql ALTER. Falling back without it.",
+    );
+    ({ data: user, error } = await SUPABASE.from("users")
+      .select("trakt_token, trakt_refresh_token, trakt_token_expires_at")
+      .eq("id", userId)
+      .single());
+  }
+
+  if (error) {
+    console.error("[getValidTraktToken] DB error:", error);
+    throw new Error(`Trakt account lookup failed: ${error.message}`);
+  }
+
+  if (!user?.trakt_token) {
     throw new Error("Trakt account not connected");
   }
 
@@ -76,7 +114,10 @@ export async function getValidTraktToken(userId) {
 
   console.log(`Trakt token expired for user ${userId}, refreshing...`);
 
-  const tokenData = await refreshTraktAccessToken(user.trakt_refresh_token);
+  const tokenData = await refreshTraktAccessToken(
+    user.trakt_refresh_token,
+    user.trakt_oauth_redirect_uri,
+  );
   await saveTraktTokens(userId, tokenData);
 
   return tokenData.access_token;

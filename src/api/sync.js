@@ -80,10 +80,25 @@ export async function syncTraktAccount() {
     },
   });
 
-  const data = await res.json().catch(() => null);
+  const raw = await res.text();
+  let data = null;
+  try {
+    data = raw ? JSON.parse(raw) : null;
+  } catch {
+    /* non-JSON body from the function / proxy */
+  }
 
   if (!res.ok) {
-    throw new Error(data?.error || `Sync failed (${res.status})`);
+    const base =
+      data?.error ||
+      (raw && raw.length < 400 ? raw : null) ||
+      `Sync failed (${res.status})`;
+    const detail = data?.detail
+      ? typeof data.detail === "string"
+        ? data.detail.slice(0, 280)
+        : ""
+      : "";
+    throw new Error(detail ? `${base} ${detail}` : base);
   }
 
   return data;
