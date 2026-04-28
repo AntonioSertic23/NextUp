@@ -685,10 +685,12 @@ main {
   letter-spacing: 0.02em;
 }
 
-/* My Shows — upcoming episodes (poster + text rows) */
+/* My Shows — upcoming episodes (poster + text rows).
+   Auto-fill grid: 1 column on phones/tablets, 2 columns on desktop
+   when there's room (~840px+ container width). */
 #upcoming_episodes-container {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr));
   gap: 0.85rem;
 }
 
@@ -798,6 +800,32 @@ main {
   padding: 0.3rem 0.85rem;
   border-radius: 999px;
   background: linear-gradient(to right, #857aff, #ef6bf3);
+}
+
+/* My Shows — collection filter bar (search + sort + order) */
+.my-shows-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.my-shows-filter-bar .search-input-wrap {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.my-shows-filter-bar .search-input {
+  padding: 0.65rem 2.4rem 0.65rem 0.95rem;
+  font-size: 0.95rem;
+}
+
+.my-shows-sort {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 #all_my_shows-container {
@@ -1168,43 +1196,66 @@ footer {
   color: #bbb;
 }
 
-.sort-controls select {
-  background: #23242d;
-  color: #fff;
-  border: 1px solid #5d5e63;
-  border-radius: 4px;
-  font-size: 1rem;
-  margin-left: 0.5rem;
-  padding: 0.5rem 2rem 0.5rem 0.8rem;
+.sort-controls select,
+.sort-select {
+  background-color: #1a1b22;
+  color: #d6d7db;
+  border: 1px solid #2a2b32;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  font-family: inherit;
+  padding: 0.55rem 2rem 0.55rem 0.85rem;
   appearance: none;
   -webkit-appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%23bbb' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 0.6rem center;
+  background-position: right 0.65rem center;
   background-size: 12px;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
 }
 
-.sort-controls select option {
-  background: #23242d;
+.sort-controls select {
+  margin-left: 0.5rem;
+}
+
+.sort-controls select:hover,
+.sort-controls select:focus,
+.sort-select:hover,
+.sort-select:focus {
+  border-color: #3a3b45;
+  outline: none;
+}
+
+.sort-controls select option,
+.sort-select option {
+  background-color: #1a1b22;
+  color: #fff;
 }
 
 .sort-order-btn {
-  background: #23242d;
-  height: 35px;
-  border: 1px solid #4d4e53;
-  border-radius: 4px;
-  padding: 0.4rem 0.6rem;
+  background-color: #1a1b22;
+  height: 38px;
+  width: 38px;
+  border: 1px solid #2a2b32;
+  border-radius: 8px;
+  padding: 0;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition:
-    background 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease,
     transform 0.1s ease;
 }
 
 .sort-order-btn:hover {
-  background: #2d2f3a;
+  background-color: #25262d;
+  border-color: #3a3b45;
 }
 
 .sort-order-btn:active {
@@ -2496,20 +2547,6 @@ footer {
     max-width: none;
   }
 
-  /* My Shows — upcoming */
-  #upcoming_episodes-container .show-card.upcoming-episode-row {
-    flex-direction: column;
-    text-align: center;
-    padding: 1rem;
-  }
-
-  #upcoming_episodes-container .upcoming-row-content {
-    align-items: center;
-  }
-
-  #upcoming_episodes-container .upcoming-row-footer {
-    justify-content: center;
-  }
 }
 
 @media (max-width: 480px) {
@@ -2721,6 +2758,44 @@ footer {
 
   .top-meta {
     font-size: 0.78rem;
+  }
+
+  /* My Shows — upcoming card switches to vertical (poster top, content
+     below, centered) only on the smallest phones where horizontal
+     layout starts to feel cramped. */
+  #upcoming_episodes-container .show-card.upcoming-episode-row {
+    flex-direction: column;
+    text-align: center;
+    padding: 0.85rem;
+    gap: 0.85rem;
+  }
+
+  #upcoming_episodes-container .upcoming-row-content {
+    align-items: center;
+  }
+
+  #upcoming_episodes-container .upcoming-row-footer {
+    justify-content: center;
+  }
+
+  /* Filter bar: stack search above the sort controls */
+  .my-shows-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .my-shows-filter-bar .search-input-wrap {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+
+  .my-shows-sort {
+    justify-content: space-between;
+  }
+
+  .my-shows-sort .sort-select {
+    flex: 1 1 auto;
   }
 }
 

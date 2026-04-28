@@ -1,6 +1,12 @@
 import {
   getUpcomingEpisodes,
-  getAllCollectionShows,
+  getFilteredCollection,
+  getCollectionFilter,
+  setCollectionFilter,
+  getCollectionSort,
+  setCollectionSort,
+  getCollectionOrder,
+  setCollectionOrder,
 } from "../stores/myShowsStore.js";
 import { formatDate, formatEpisodeInfo, getTimeUntil } from "../utils/format.js";
 
@@ -11,6 +17,12 @@ function escapeHtml(text) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 }
+
+const COLLECTION_SORT_OPTIONS = [
+  { value: "added_at", label: "Last added" },
+  { value: "title", label: "Title" },
+  { value: "year", label: "Year" },
+];
 
 /**
  * Renders upcoming episodes for shows in the user's collection.
@@ -77,20 +89,128 @@ export function renderUpcomingEpisodes() {
 }
 
 /**
- * Renders all shows in the user's collection (poster + title + year, same card style as Discover).
+ * Renders the filter bar above the collection grid.
+ * Hooks events into the store and re-renders the grid on change.
+ *
+ * @param {HTMLElement} parent - Container element to append the bar into.
+ */
+export function renderCollectionFilterBar(parent) {
+  const bar = document.createElement("div");
+  bar.className = "my-shows-filter-bar";
+
+  const currentSort = getCollectionSort();
+  const currentOrder = getCollectionOrder();
+  const currentFilter = getCollectionFilter();
+
+  bar.innerHTML = `
+    <div class="search-input-wrap">
+      <input
+        type="text"
+        id="my-shows-filter"
+        class="search-input"
+        placeholder="Filter your shows…"
+        value="${escapeHtml(currentFilter)}"
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <button
+        type="button"
+        id="my-shows-filter-clear"
+        class="clear-btn"
+        aria-label="Clear filter"
+        style="display: ${currentFilter ? "flex" : "none"};"
+      >&times;</button>
+    </div>
+
+    <div class="my-shows-sort">
+      <select
+        id="my-shows-sort-by"
+        class="sort-select"
+        aria-label="Sort shows by"
+        title="Sort by"
+      >
+        ${COLLECTION_SORT_OPTIONS.map(
+          (opt) =>
+            `<option value="${opt.value}"${opt.value === currentSort ? " selected" : ""}>${opt.label}</option>`,
+        ).join("")}
+      </select>
+      <button
+        type="button"
+        id="my-shows-sort-order"
+        class="sort-order-btn"
+        data-order="${currentOrder}"
+        aria-label="Toggle sort order"
+        title="Toggle sort order"
+      >
+        <img
+          src="/img/down-arrow.png"
+          alt=""
+          class="sort-order-icon ${currentOrder === "asc" ? "flipped" : ""}"
+        />
+      </button>
+    </div>
+  `;
+
+  parent.appendChild(bar);
+
+  const filterInput = bar.querySelector("#my-shows-filter");
+  const clearBtn = bar.querySelector("#my-shows-filter-clear");
+  const sortSelect = bar.querySelector("#my-shows-sort-by");
+  const orderBtn = bar.querySelector("#my-shows-sort-order");
+
+  filterInput.addEventListener("input", (e) => {
+    const value = e.target.value;
+    setCollectionFilter(value);
+    clearBtn.style.display = value ? "flex" : "none";
+    renderAllCollectionShows();
+  });
+
+  clearBtn.addEventListener("click", () => {
+    filterInput.value = "";
+    setCollectionFilter("");
+    clearBtn.style.display = "none";
+    filterInput.focus();
+    renderAllCollectionShows();
+  });
+
+  sortSelect.addEventListener("change", (e) => {
+    setCollectionSort(e.target.value);
+    renderAllCollectionShows();
+  });
+
+  orderBtn.addEventListener("click", () => {
+    const next = orderBtn.dataset.order === "desc" ? "asc" : "desc";
+    orderBtn.dataset.order = next;
+    orderBtn
+      .querySelector(".sort-order-icon")
+      .classList.toggle("flipped", next === "asc");
+    setCollectionOrder(next);
+    renderAllCollectionShows();
+  });
+}
+
+/**
+ * Renders all shows in the user's collection (filtered + sorted),
+ * using the same card style as Discover.
  */
 export function renderAllCollectionShows() {
-  const allCollectionShows = getAllCollectionShows();
+  const shows = getFilteredCollection();
   const container = document.getElementById("all_my_shows-container");
+  if (!container) return;
 
-  if (!allCollectionShows.length) {
+  if (!shows.length) {
+    const filter = getCollectionFilter().trim();
     container.innerHTML = `<p class="no-show-message">
-        No shows found in your collection.
+        ${
+          filter
+            ? `No shows match “${escapeHtml(filter)}”.`
+            : "No shows found in your collection."
+        }
       </p>`;
     return;
   }
 
-  container.innerHTML = allCollectionShows
+  container.innerHTML = shows
     .map((item) => {
       const s = item.shows;
       const title = escapeHtml(s.title);
