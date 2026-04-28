@@ -17,6 +17,7 @@ import {
   handleTraktAuthRedirect,
   connectTraktAccount,
   syncTraktAccount,
+  syncNewEpisodes,
 } from "./api/sync.js";
 import { isAuthenticated, initUserStore } from "./stores/userStore.js";
 import { updateActiveNav } from "./ui/navigation.js";
@@ -109,6 +110,10 @@ async function loadComponent(selector, path) {
 }
 
 async function setupHeaderActions(header) {
+  // Highlight the current route now that the navbar is in the DOM
+  // (the initial call in initRouter() runs before the header HTML is fetched).
+  updateActiveNav();
+
   const dropdown = header.querySelector(".dropdown");
   const dropdownToggle = header.querySelector("#dropdown-toggle");
   const dropdownMenu = header.querySelector("#dropdown-menu");
@@ -130,6 +135,63 @@ async function setupHeaderActions(header) {
         dropdown.classList.remove("active");
       }
     });
+  }
+
+  const navbar = header.querySelector(".navbar");
+  const navToggle = header.querySelector("#nav-toggle");
+  const navCenter = header.querySelector("#nav-center");
+
+  if (navbar && navToggle && navCenter) {
+    const closeMobileNav = () => {
+      navbar.classList.remove("nav-open");
+      navToggle.setAttribute("aria-expanded", "false");
+      navToggle.setAttribute("aria-label", "Open navigation menu");
+    };
+
+    const openMobileNav = () => {
+      navbar.classList.add("nav-open");
+      navToggle.setAttribute("aria-expanded", "true");
+      navToggle.setAttribute("aria-label", "Close navigation menu");
+    };
+
+    navToggle.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (navbar.classList.contains("nav-open")) {
+        closeMobileNav();
+      } else {
+        openMobileNav();
+      }
+    });
+
+    navCenter.addEventListener("click", (e) => {
+      if (e.target.classList.contains("nav-link")) {
+        closeMobileNav();
+      }
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!navbar.contains(e.target)) {
+        closeMobileNav();
+      }
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && navbar.classList.contains("nav-open")) {
+        closeMobileNav();
+        navToggle.focus();
+      }
+    });
+
+    // Auto-close when resizing back to desktop layout
+    const desktopMq = window.matchMedia("(min-width: 769px)");
+    const handleViewportChange = (event) => {
+      if (event.matches) closeMobileNav();
+    };
+    if (desktopMq.addEventListener) {
+      desktopMq.addEventListener("change", handleViewportChange);
+    } else if (desktopMq.addListener) {
+      desktopMq.addListener(handleViewportChange);
+    }
   }
 
   const traktConnectBtn = header.querySelector("#trakt-connect-btn");
@@ -171,6 +233,41 @@ async function setupHeaderActions(header) {
     } finally {
       traktSyncBtn.disabled = false;
       traktSyncBtn.textContent = origText;
+    }
+  });
+
+  const syncEpisodesBtn = header.querySelector("#sync-episodes-btn");
+
+  syncEpisodesBtn?.addEventListener("click", async () => {
+    const labelSpan = syncEpisodesBtn.querySelector(
+      "span:not(.dropdown-icon)",
+    );
+    const origLabel = labelSpan?.textContent ?? "";
+
+    syncEpisodesBtn.disabled = true;
+    if (labelSpan) labelSpan.textContent = "Syncing…";
+
+    try {
+      const result = await syncNewEpisodes();
+      const updated = result?.updated?.length ?? 0;
+      const skipped = result?.skipped?.length ?? 0;
+      const errors = result?.errors ?? [];
+
+      let msg = result?.message || "Episode sync completed";
+      msg += `\n\nUpdated: ${updated}\nSkipped: ${skipped}`;
+      if (errors.length) {
+        msg +=
+          "\n\nErrors:\n" +
+          errors
+            .map((e) => (typeof e === "string" ? e : `${e.show}: ${e.error}`))
+            .join("\n");
+      }
+      alert(msg);
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      syncEpisodesBtn.disabled = false;
+      if (labelSpan) labelSpan.textContent = origLabel;
     }
   });
 }

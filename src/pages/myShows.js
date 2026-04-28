@@ -1,4 +1,8 @@
-import { renderUpcomingEpisodes, renderAllCollectionShows } from "../ui/myShows.js";
+import {
+  renderUpcomingEpisodes,
+  renderAllCollectionShows,
+  renderCollectionFilterBar,
+} from "../ui/myShows.js";
 import {
   setUpcomingEpisodes,
   getUpcomingEpisodes,
@@ -36,6 +40,7 @@ export async function renderMyShows(main) {
   collectionTitle.className = "my-shows-section-title";
   collectionTitle.textContent = "All shows in your list";
   collectionSection.appendChild(collectionTitle);
+  renderCollectionFilterBar(collectionSection);
   collectionSection.appendChild(allCollectionShowsDiv);
 
   main.appendChild(upcomingSection);

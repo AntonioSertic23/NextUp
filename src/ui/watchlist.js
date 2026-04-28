@@ -15,6 +15,14 @@ const sortOptions = [
   { value: "episodes_left", label: "Episodes Left" },
 ];
 
+function escapeHtml(text) {
+  return String(text ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 function computeShowProgress(show) {
   const nextEpisodeInfo = formatEpisodeInfo(
     show.next_episode.season_number,
@@ -30,7 +38,15 @@ function computeShowProgress(show) {
   const progressText = `${watched}/${total}`;
   const episodesLeft = Math.max(0, total - watched);
 
-  return { nextEpisodeInfo, progressBarPercent, progressText, episodesLeft };
+  const overview = (show.next_episode.overview || "").trim();
+
+  return {
+    nextEpisodeInfo,
+    progressBarPercent,
+    progressText,
+    episodesLeft,
+    overview,
+  };
 }
 
 /**
@@ -110,7 +126,12 @@ export async function renderWatchlist() {
         progressBarPercent,
         progressText,
         episodesLeft,
+        overview,
       } = computeShowProgress(show);
+
+      const overviewBlock = overview
+        ? `<p class="next_episode_overview">${escapeHtml(overview)}</p>`
+        : "";
 
       return `
         <div class="show-card" data-id="${show.shows.slug_id}">
@@ -125,6 +146,7 @@ export async function renderWatchlist() {
           <div class="info-container">
             <p class="title">${show.shows.title}</p>
             <p class="next_episode">${nextEpisodeInfo}</p>
+            ${overviewBlock}
 
             <div class="progress-container">
               <div class="progress-bar">

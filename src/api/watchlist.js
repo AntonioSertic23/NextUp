@@ -139,6 +139,7 @@ export async function getAllCollectionShowsData() {
       .select(
         `
         is_completed,
+        added_at,
         shows (
           id,
           slug_id,

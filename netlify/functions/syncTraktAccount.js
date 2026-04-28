@@ -204,8 +204,13 @@ async function syncSingleShow(entry, index, total, traktToken, listId, userId) {
 
     const { showId } = result;
 
+    // NOTE: `extended=full,episodes,images` is required so each episode
+    // includes `first_aired`, `overview`, `runtime`, etc. Using just
+    // `episodes,images` returns only the minimal episode shape (id,
+    // title, number), which leaves `first_aired` null in the DB and
+    // breaks Upcoming Episodes / shows 01/01/1970 in the UI.
     const seasonsRes = await fetch(
-      `${TRAKT_BASE_URL}/shows/${entry.show.ids.trakt}/seasons?extended=episodes,images&specials=false&count_specials=false`,
+      `${TRAKT_BASE_URL}/shows/${entry.show.ids.trakt}/seasons?extended=full,episodes,images&specials=false&count_specials=false`,
       { headers: getTraktHeaders(traktToken) },
     );
 
