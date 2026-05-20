@@ -339,5 +339,40 @@ using (
   )
 );
 
+-- =========================
+-- Genres
+-- =========================
+
+CREATE TABLE IF NOT EXISTS genres (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT UNIQUE NOT NULL,
+  slug TEXT UNIQUE NOT NULL
+);
+
+ALTER TABLE genres ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public read for genres"
+  ON genres FOR SELECT
+  USING (true);
+
+-- =========================
+-- Show Genres (junction)
+-- =========================
+
+CREATE TABLE IF NOT EXISTS show_genres (
+  show_id uuid NOT NULL REFERENCES shows(id) ON DELETE CASCADE,
+  genre_id uuid NOT NULL REFERENCES genres(id) ON DELETE CASCADE,
+  PRIMARY KEY (show_id, genre_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_show_genres_show_id ON show_genres(show_id);
+CREATE INDEX IF NOT EXISTS idx_show_genres_genre_id ON show_genres(genre_id);
+
+ALTER TABLE show_genres ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public read for show_genres"
+  ON show_genres FOR SELECT
+  USING (true);
+
 -- Existing databases: add OAuth redirect used for Trakt (refresh must use the same redirect_uri as authorize)
 ALTER TABLE users ADD COLUMN IF NOT EXISTS trakt_oauth_redirect_uri TEXT;

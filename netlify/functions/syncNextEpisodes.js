@@ -8,6 +8,7 @@ import fetch from "node-fetch";
 import { TRAKT_BASE_URL, getTraktHeaders } from "../lib/trakt.js";
 import {
   saveShowSeasonsAndEpisodes,
+  saveShowGenres,
   getAllTrackedShows,
   updateShowMetadata,
   refreshListShowsForShow,
@@ -75,6 +76,10 @@ async function processShow(show, results) {
       aired_episodes: traktAired,
       status: showData.status,
     });
+
+    if (showData.genres?.length) {
+      await saveShowGenres(show.id, showData.genres);
+    }
 
     await refreshListShowsForShow(show.id);
 

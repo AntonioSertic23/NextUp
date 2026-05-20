@@ -20,6 +20,7 @@ import fetch from "node-fetch";
 import { TRAKT_BASE_URL, getTraktHeaders } from "../lib/trakt.js";
 import {
   saveShow,
+  saveShowGenres,
   saveTraktUserEpisodes,
   saveShowSeasonsAndEpisodes,
   addShowToList,
@@ -203,6 +204,10 @@ async function syncSingleShow(entry, index, total, traktToken, listId, userId) {
     if (!result) throw new Error("saveShow returned null");
 
     const { showId } = result;
+
+    if (entry.show.genres?.length) {
+      await saveShowGenres(showId, entry.show.genres);
+    }
 
     // NOTE: `extended=full,episodes,images` is required so each episode
     // includes `first_aired`, `overview`, `runtime`, etc. Using just

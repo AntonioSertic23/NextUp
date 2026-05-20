@@ -799,6 +799,51 @@ export async function updateShowLastWatchedAt(showId) {
 }
 
 /**
+ * Syncs a show's genres into the genres and show_genres tables.
+ *
+ * For each genre string: upserts into `genres` (by slug), then
+ * links to the show via `show_genres`. Existing links not in the
+ * new list are removed.
+ *
+ * @param {string} showId - Supabase show UUID
+ * @param {string[]} genreNames - Array of genre name strings (e.g. ["drama", "thriller"])
+ */
+export async function saveShowGenres(showId, genreNames) {
+  if (!showId || !genreNames?.length) return;
+
+  try {
+    const rows = genreNames.map((name) => ({
+      name: name.trim().toLowerCase(),
+      slug: name.trim().toLowerCase().replace(/\s+/g, "-"),
+    }));
+
+    const { data: genres, error: genreError } = await SUPABASE.from("genres")
+      .upsert(rows, { onConflict: "slug" })
+      .select("id, slug");
+
+    if (genreError) {
+      console.error("Genre upsert failed:", genreError.message);
+      return;
+    }
+
+    const links = genres.map((g) => ({ show_id: showId, genre_id: g.id }));
+
+    await SUPABASE.from("show_genres").delete().eq("show_id", showId);
+
+    if (links.length) {
+      const { error: linkError } = await SUPABASE.from("show_genres").insert(
+        links,
+      );
+      if (linkError) {
+        console.error("show_genres insert failed:", linkError.message);
+      }
+    }
+  } catch (err) {
+    console.error("saveShowGenres failed:", err);
+  }
+}
+
+/**
  * Updates a show's metadata fields (e.g. aired_episodes, status).
  *
  * @param {string} showId - Supabase show UUID

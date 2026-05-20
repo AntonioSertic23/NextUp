@@ -143,12 +143,14 @@ export function calculateStatistics(shows) {
         episodes: showEpisodes,
       });
 
-      (show.genres ?? "")
-        .split(",")
-        .filter(Boolean)
-        .forEach((genre) => {
-          genreCounts[genre] = (genreCounts[genre] || 0) + showEpisodes;
-        });
+      const genreList =
+        show.show_genres?.length
+          ? show.show_genres.map((sg) => sg.genres?.name).filter(Boolean)
+          : (show.genres ?? "").split(",").filter(Boolean);
+
+      genreList.forEach((genre) => {
+        genreCounts[genre] = (genreCounts[genre] || 0) + showEpisodes;
+      });
     }
   });
 

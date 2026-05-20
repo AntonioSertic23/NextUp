@@ -7,6 +7,9 @@ import {
   setCollectionSort,
   getCollectionOrder,
   setCollectionOrder,
+  getAvailableGenres,
+  getCollectionGenreFilter,
+  setCollectionGenreFilter,
 } from "../stores/myShowsStore.js";
 import { formatDate, formatEpisodeInfo, getTimeUntil } from "../utils/format.js";
 
@@ -149,6 +152,8 @@ export function renderCollectionFilterBar(parent) {
         />
       </button>
     </div>
+
+    <div id="genre-chips-container" class="genre-chips"></div>
   `;
 
   parent.appendChild(bar);
@@ -190,6 +195,56 @@ export function renderCollectionFilterBar(parent) {
 }
 
 /**
+ * Renders genre filter chips below the filter bar.
+ * Called after genres are loaded.
+ */
+export function renderGenreChips() {
+  const container = document.getElementById("genre-chips-container");
+  if (!container) return;
+
+  const genres = getAvailableGenres();
+  const activeSlug = getCollectionGenreFilter();
+
+  if (!genres.length) {
+    container.innerHTML = "";
+    return;
+  }
+
+  container.innerHTML = `
+    <button
+      type="button"
+      class="genre-chip ${!activeSlug ? "active" : ""}"
+      data-slug=""
+    >All</button>
+    ${genres
+      .map(
+        (g) => `
+      <button
+        type="button"
+        class="genre-chip ${activeSlug === g.slug ? "active" : ""}"
+        data-slug="${escapeHtml(g.slug)}"
+      >${escapeHtml(g.name)}</button>
+    `,
+      )
+      .join("")}
+  `;
+
+  container.addEventListener("click", (e) => {
+    const chip = e.target.closest(".genre-chip");
+    if (!chip) return;
+
+    const slug = chip.dataset.slug;
+    setCollectionGenreFilter(slug);
+
+    container.querySelectorAll(".genre-chip").forEach((c) => {
+      c.classList.toggle("active", c.dataset.slug === slug);
+    });
+
+    renderAllCollectionShows();
+  });
+}
+
+/**
  * Renders all shows in the user's collection (filtered + sorted),
  * using the same card style as Discover.
  */
@@ -198,12 +253,15 @@ export function renderAllCollectionShows() {
   const container = document.getElementById("all_my_shows-container");
   if (!container) return;
 
+  renderGenreChips();
+
   if (!shows.length) {
     const filter = getCollectionFilter().trim();
+    const genre = getCollectionGenreFilter();
     container.innerHTML = `<p class="no-show-message">
         ${
-          filter
-            ? `No shows match “${escapeHtml(filter)}”.`
+          filter || genre
+            ? `No shows match your current filters.`
             : "No shows found in your collection."
         }
       </p>`;

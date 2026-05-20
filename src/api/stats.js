@@ -23,6 +23,9 @@ export async function getStatsData() {
         `
         show:shows (
           *,
+          show_genres (
+            genres (name, slug)
+          ),
           seasons (
             *,
             episodes (

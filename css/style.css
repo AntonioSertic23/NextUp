@@ -861,6 +861,43 @@ main {
   flex-shrink: 0;
 }
 
+/* Genre filter chips */
+.genre-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  width: 100%;
+}
+
+.genre-chip {
+  padding: 0.4rem 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #9e9fa6;
+  background-color: #1a1b22;
+  border: 1px solid #2a2b32;
+  border-radius: 20px;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+  white-space: nowrap;
+  text-transform: capitalize;
+}
+
+.genre-chip:hover {
+  background-color: #25262d;
+  border-color: #3a3b45;
+  color: #fff;
+}
+
+.genre-chip.active {
+  background: linear-gradient(135deg, #857aff, #b06bf3);
+  border-color: transparent;
+  color: #fff;
+}
+
 #all_my_shows-container {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
