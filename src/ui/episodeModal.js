@@ -261,6 +261,13 @@ function showEpisodeInfoModal(episode, updateUICallback, isWatched = false) {
   const markBtn = modal.querySelector(".modal-mark-btn");
   updateMarkButton(markBtn, isWatched);
 
+  const episodeAired = !episode.first_aired ||
+    new Date(episode.first_aired).getTime() <= Date.now();
+  markBtn.disabled = !isWatched && !episodeAired;
+  if (markBtn.disabled) {
+    markBtn.setAttribute("title", "Not yet aired");
+  }
+
   let mark = isWatched;
 
   markBtn.onclick = async () => {
