@@ -178,6 +178,8 @@ export function attachEpisodeInfoHandler(element, episode) {
 
       const nextEpisode = await getShowNextEpisode(episodeData.show_id);
 
+      if (!nextEpisode) return;
+
       if (!nextEpisode.is_completed) {
         updateWatchlistShowCard(nextEpisode);
         updateNextEpisode(nextEpisode);
@@ -274,9 +276,9 @@ function showEpisodeInfoModal(episode, updateUICallback, isWatched = false) {
         updateMarkButton(markBtn, mark);
 
         if (typeof updateUICallback === "function") {
-          updateUICallback();
-          closeModal();
+          await updateUICallback();
         }
+        closeModal();
       }
     } catch (err) {
       alert("Failed to mark episode as watched. Please try again.");

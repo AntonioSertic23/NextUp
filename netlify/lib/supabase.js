@@ -782,6 +782,23 @@ export async function getAllTrackedShows() {
 }
 
 /**
+ * Updates the last_watched_at timestamp on a show to the current time.
+ *
+ * @param {string} showId - Supabase show UUID
+ * @throws {Error} If the update fails
+ */
+export async function updateShowLastWatchedAt(showId) {
+  const { error } = await SUPABASE.from("shows")
+    .update({ last_watched_at: new Date().toISOString() })
+    .eq("id", showId);
+
+  if (error) {
+    console.error("Failed to update show last_watched_at:", error);
+    throw new Error(`Failed to update last_watched_at: ${error.message}`);
+  }
+}
+
+/**
  * Updates a show's metadata fields (e.g. aired_episodes, status).
  *
  * @param {string} showId - Supabase show UUID
