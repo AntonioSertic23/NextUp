@@ -20,7 +20,10 @@ NextUp is a modern **TV show tracker** built with Vanilla JavaScript and Supabas
 - **Responsive navbar**: Hamburger menu with animated icon and slide-down panel on phone/tablet; **auto-hides on scroll down and reappears on scroll up** so the content has more room to breathe (always visible near the top of the page).
 - **Persistent Data**: Supabase handles all user-specific data with secure Row-Level Security (RLS).
 - **Trakt.tv Sync**: Optionally link your Trakt account to import existing shows and sync progress.
-- **Automatic Episode Sync**: A weekly scheduled function checks for new episodes across all tracked shows and updates the database automatically (seasons, episodes, and user progress).
+- **Profile page**: Dedicated page for account management, Trakt status, and sync actions — accessible from the Actions dropdown.
+- **Genre filtering**: Normalized genre database (many-to-many) with filter chips on the My Shows page.
+- **Automatic Episode Sync**: A daily scheduled function (6 AM UTC) checks for new episodes across all tracked shows and updates the database automatically (seasons, episodes, and user progress).
+- **Unaired episode protection**: Mark-as-watched buttons are disabled for episodes that haven't aired yet.
 - **Secure Token Management**: Trakt OAuth uses the authorization code flow with automatic token refresh — no manual re-authentication needed.
 
 ## Tech Stack
@@ -75,6 +78,7 @@ NextUp/
 │   │   ├── discover.js               #   search, pagination, trending/popular/anticipated carousels
 │   │   ├── myShows.js                #   renderUpcomingEpisodes, renderAllCollectionShows
 │   │   ├── statistics.js             #   renderStatistics
+│   │   ├── profile.js                #   renderProfile, Trakt status, sync actions
 │   │   └── episodeModal.js           #   Episode info modal, mark/unmark, shared UI helpers
 │   │
 │   ├── pages/                          # Page renderers (called by the router)
@@ -82,7 +86,8 @@ NextUp/
 │   │   ├── show.js                     #   Single show details page
 │   │   ├── discover.js                 #   Search / discover page
 │   │   ├── myShows.js                  #   Upcoming episodes + full collection
-│   │   └── stats.js                    #   Statistics dashboard
+│   │   ├── stats.js                    #   Statistics dashboard
+│   │   └── profile.js                  #   Profile & account management
 │   │
 │   ├── stores/                         # Client-side state management (in-memory singletons)
 │   │   ├── userStore.js                #   Authenticated user, session, claims
@@ -111,7 +116,7 @@ NextUp/
         ├── getSupabaseConfig.js        #   Returns Supabase URL + anon key
         ├── traktAuth.js                #   Exchanges Trakt auth code for tokens
         ├── syncTraktAccount.js         #   Full Trakt → DB sync (shows, episodes, progress)
-        ├── syncNextEpisodes.js         #   Scheduled: weekly check for new episodes
+        ├── syncNextEpisodes.js         #   Scheduled: daily check for new episodes
         ├── getShowDetails.js           #   Fetch or cache show with seasons/episodes
         ├── searchShows.js              #   Trakt show search with pagination
         ├── getTraktShows.js            #   Trakt trending / popular / anticipated lists
@@ -198,8 +203,23 @@ Browser
 - **Show Details & Episodes**: Episode modals with air dates, screenshots, and watch toggles.
 - **Persistent Data**: Supabase handles all user-specific data securely.
 - **Trakt.tv Sync**: Optional import of shows and progress from Trakt.tv; syncing is **explicitly triggered** by the user.
-- **Sync New Episodes**: A scheduled Netlify function runs every Monday at 5:00 AM UTC to check all tracked shows for new episodes. It can also be triggered manually from the Actions dropdown ("Sync New Episodes"). When new episodes are found, the database is updated and user watchlist progress is recalculated automatically.
+- **Profile**: Manage your Trakt connection, trigger syncs, and view account info.
+- **Sync New Episodes**: A scheduled Netlify function runs daily at 6:00 AM UTC to check all tracked shows for new episodes. It can also be triggered manually from the Profile page. When new episodes are found, the database is updated and user watchlist progress is recalculated automatically.
 - **Install as app (PWA)**: Add NextUp to your home screen for a fullscreen, app-like experience (see Quick Start note above).
+
+## Documentation
+
+Detailed documentation is available in the [`docs/`](docs/) folder:
+
+| Document | Contents |
+|----------|----------|
+| [API](docs/API.md) | All Netlify Functions endpoints, request/response formats, auth |
+| [Database](docs/DATABASE.md) | ER diagram, tables, RLS policies, indexes, triggers |
+| [Architecture](docs/ARCHITECTURE.md) | System diagram, data flows, security model |
+| [Deployment](docs/DEPLOYMENT.md) | Environment variables, Supabase & Netlify setup, production checklist |
+| [Developer Guide](docs/CONTRIBUTING.md) | Local setup, code conventions, how to add pages/functions |
+| [User Guide](docs/USER_GUIDE.md) | End-user documentation for all features |
+| [Changelog](docs/CHANGELOG.md) | Version history with all changes |
 
 ## Security & Privacy
 
