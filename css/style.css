@@ -72,6 +72,15 @@ body:not(.login-page):not(.authenticated) footer {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
+.auth-logo {
+  display: block;
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  object-fit: contain;
+  margin: 0 auto 1rem;
+}
+
 .auth-title {
   text-align: center;
   font-size: 2rem;
@@ -289,6 +298,7 @@ header.is-hidden {
   flex: 1;
   display: flex;
   align-items: center;
+  gap: 0.75rem;
 }
 
 /* Hamburger button (hidden on desktop, shown on mobile via media query) */
@@ -367,8 +377,22 @@ header.is-hidden {
 .nav-center {
   flex: 2;
   display: flex;
+  align-items: center;
   justify-content: center;
   gap: 2rem;
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.nav-logo {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  object-fit: contain;
 }
 
 /* Right section: user actions dropdown */
@@ -472,6 +496,7 @@ header.is-hidden {
   gap: 0.75rem;
   transition: background-color 0.2s;
   font-size: 0.95rem;
+  text-decoration: none;
 }
 
 .dropdown-item:first-child {
@@ -2160,6 +2185,184 @@ body.modal-open {
 .pagination-ellipsis {
   padding: 0.5rem;
   color: #8a8b90;
+}
+
+/* ========================================================
+   Profile Page Styles
+   ======================================================== */
+
+#profile-container {
+  padding: 1.25rem 0 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.profile-avatar {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #857aff, #ef6bf3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.profile-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.profile-email {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-since {
+  font-size: 0.85rem;
+  color: #8a8b90;
+  margin: 0;
+}
+
+.profile-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.profile-section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #9e9fa6;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0;
+}
+
+.profile-trakt-status {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem;
+  background-color: #1a1b22;
+  border: 1px solid #2a2b32;
+  border-radius: 10px;
+}
+
+.trakt-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.trakt-status-dot.connected {
+  background-color: #4ade80;
+  box-shadow: 0 0 6px rgba(74, 222, 128, 0.5);
+}
+
+.trakt-status-dot.disconnected {
+  background-color: #6b7280;
+}
+
+.trakt-status-text {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #c8c9ce;
+}
+
+.profile-actions-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.profile-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  padding: 1rem 1.15rem;
+  background-color: #1a1b22;
+  border: 1px solid #2a2b32;
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.12s ease;
+}
+
+.profile-action-btn:hover {
+  background-color: #1f2028;
+  border-color: #3a3b45;
+  transform: translateY(-1px);
+}
+
+.profile-action-btn:active {
+  transform: translateY(0);
+}
+
+.profile-action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.profile-action-btn.danger {
+  border-color: #3d2020;
+}
+
+.profile-action-btn.danger:hover {
+  background-color: #2a1515;
+  border-color: #5c2d2d;
+}
+
+.profile-action-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.profile-action-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.profile-action-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.profile-action-btn.danger .profile-action-label {
+  color: #f87171;
+}
+
+.profile-action-desc {
+  font-size: 0.82rem;
+  color: #8a8b90;
+  font-weight: 400;
 }
 
 /* ========================================================

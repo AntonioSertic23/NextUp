@@ -1,5 +1,5 @@
 <nav class="navbar">
-  <!-- Left section: hamburger menu toggle (visible on mobile) -->
+  <!-- Left section: hamburger menu toggle + logo -->
   <div class="nav-left">
     <button
       class="nav-toggle"
@@ -11,6 +11,9 @@
     >
       <span class="nav-toggle-icon" aria-hidden="true"></span>
     </button>
+    <a href="#home" class="nav-brand">
+      <img src="/img/logo.png" alt="NextUp" class="nav-logo" />
+    </a>
   </div>
 
   <!-- Center section: main navigation links -->
@@ -29,22 +32,10 @@
         <span class="dropdown-arrow">▼</span>
       </button>
       <div class="dropdown-menu" id="dropdown-menu">
-        <button class="dropdown-item" id="refresh-btn">
-          <span class="dropdown-icon">🔄</span>
-          <span>Refresh</span>
-        </button>
-        <button class="dropdown-item" id="trakt-connect-btn">
-          <span class="dropdown-icon">🔗</span>
-          <span>Sign in to Trakt</span>
-        </button>
-        <button class="dropdown-item" id="trakt-sync-btn">
-          <span class="dropdown-icon">🔄</span>
-          <span>Sync with Trakt</span>
-        </button>
-        <button class="dropdown-item" id="sync-episodes-btn">
-          <span class="dropdown-icon">📺</span>
-          <span>Sync New Episodes</span>
-        </button>
+        <a href="#profile" class="dropdown-item" id="profile-link">
+          <span class="dropdown-icon">👤</span>
+          <span>Profile</span>
+        </a>
         <div class="dropdown-divider"></div>
         <button class="dropdown-item" id="logout-btn">
           <span class="dropdown-icon">🚪</span>

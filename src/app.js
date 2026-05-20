@@ -12,13 +12,8 @@
  *   6. Load header and footer components
  */
 
-import { logout, getToken, setupAuthGuard } from "./services/auth.js";
-import {
-  handleTraktAuthRedirect,
-  connectTraktAccount,
-  syncTraktAccount,
-  syncNewEpisodes,
-} from "./api/sync.js";
+import { logout, setupAuthGuard } from "./services/auth.js";
+import { handleTraktAuthRedirect } from "./api/sync.js";
 import { isAuthenticated, initUserStore } from "./stores/userStore.js";
 import { updateActiveNav } from "./ui/navigation.js";
 import { renderHome } from "./pages/home.js";
@@ -26,6 +21,7 @@ import { renderShow } from "./pages/show.js";
 import { renderStats } from "./pages/stats.js";
 import { renderDiscover } from "./pages/discover.js";
 import { renderMyShows } from "./pages/myShows.js";
+import { renderProfilePage } from "./pages/profile.js";
 import { registerServiceWorker } from "./pwa/registerServiceWorker.js";
 
 registerServiceWorker();
@@ -40,6 +36,7 @@ const routes = {
   stats: renderStats,
   discover: renderDiscover,
   myshows: renderMyShows,
+  profile: renderProfilePage,
 };
 
 // ————————————————————————————————————————————————————
@@ -169,8 +166,6 @@ function setupHeaderScrollBehavior(header) {
 }
 
 async function setupHeaderActions(header) {
-  // Highlight the current route now that the navbar is in the DOM
-  // (the initial call in initRouter() runs before the header HTML is fetched).
   updateActiveNav();
 
   const dropdown = header.querySelector(".dropdown");
@@ -190,7 +185,7 @@ async function setupHeaderActions(header) {
     });
 
     dropdownMenu.addEventListener("click", (e) => {
-      if (e.target.classList.contains("dropdown-item")) {
+      if (e.target.closest(".dropdown-item")) {
         dropdown.classList.remove("active");
       }
     });
@@ -241,7 +236,6 @@ async function setupHeaderActions(header) {
       }
     });
 
-    // Auto-close when resizing back to desktop layout
     const desktopMq = window.matchMedia("(min-width: 769px)");
     const handleViewportChange = (event) => {
       if (event.matches) closeMobileNav();
@@ -253,80 +247,7 @@ async function setupHeaderActions(header) {
     }
   }
 
-  const traktConnectBtn = header.querySelector("#trakt-connect-btn");
-  const traktSyncBtn = header.querySelector("#trakt-sync-btn");
-  const token = await getToken();
-
-  if (token) {
-    if (traktConnectBtn) traktConnectBtn.style.display = "none";
-    if (traktSyncBtn) traktSyncBtn.style.display = "block";
-  } else {
-    if (traktConnectBtn) traktConnectBtn.style.display = "block";
-    if (traktSyncBtn) traktSyncBtn.style.display = "none";
-  }
-
   header
     .querySelector("#logout-btn")
     ?.addEventListener("click", () => logout());
-
-  header.querySelector("#refresh-btn")?.addEventListener("click", () => {
-    window.location.reload();
-  });
-
-  traktConnectBtn?.addEventListener("click", () => connectTraktAccount());
-
-  traktSyncBtn?.addEventListener("click", async () => {
-    traktSyncBtn.disabled = true;
-    const origText = traktSyncBtn.textContent;
-    traktSyncBtn.textContent = "Syncing…";
-
-    try {
-      const result = await syncTraktAccount();
-      let msg = result?.message || "Sync completed";
-      if (result?.errors?.length) {
-        msg += "\n\nErrors:\n" + result.errors.join("\n");
-      }
-      alert(msg);
-    } catch (error) {
-      alert(error.message);
-    } finally {
-      traktSyncBtn.disabled = false;
-      traktSyncBtn.textContent = origText;
-    }
-  });
-
-  const syncEpisodesBtn = header.querySelector("#sync-episodes-btn");
-
-  syncEpisodesBtn?.addEventListener("click", async () => {
-    const labelSpan = syncEpisodesBtn.querySelector(
-      "span:not(.dropdown-icon)",
-    );
-    const origLabel = labelSpan?.textContent ?? "";
-
-    syncEpisodesBtn.disabled = true;
-    if (labelSpan) labelSpan.textContent = "Syncing…";
-
-    try {
-      const result = await syncNewEpisodes();
-      const updated = result?.updated?.length ?? 0;
-      const skipped = result?.skipped?.length ?? 0;
-      const errors = result?.errors ?? [];
-
-      let msg = result?.message || "Episode sync completed";
-      msg += `\n\nUpdated: ${updated}\nSkipped: ${skipped}`;
-      if (errors.length) {
-        msg +=
-          "\n\nErrors:\n" +
-          errors
-            .map((e) => (typeof e === "string" ? e : `${e.show}: ${e.error}`))
-            .join("\n");
-      }
-      alert(msg);
-    } catch (error) {
-      alert(error.message);
-    } finally {
-      syncEpisodesBtn.disabled = false;
-      if (labelSpan) labelSpan.textContent = origLabel;
-    }
-  });
 }
