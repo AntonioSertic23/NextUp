@@ -126,7 +126,8 @@ export async function getUpcomingEpisodesData() {
 }
 
 /**
- * Fetches all shows in the user's collection from the default list.
+ * Fetches all shows in the user's collection from the default list,
+ * including genres via the show_genres junction table.
  *
  * @returns {Promise<Array<Object>|null>} Array of collection shows or null on error
  */
@@ -145,7 +146,14 @@ export async function getAllCollectionShowsData() {
           slug_id,
           title,
           year,
-          image_poster
+          image_poster,
+          show_genres (
+            genres (
+              id,
+              name,
+              slug
+            )
+          )
         )
         `,
       )
@@ -155,6 +163,46 @@ export async function getAllCollectionShowsData() {
   } catch (err) {
     console.error("Unexpected error fetching all collection shows:", err);
     return null;
+  }
+}
+
+/**
+ * Fetches all genres that have at least one show in the user's collection.
+ *
+ * @returns {Promise<Array<{id: string, name: string, slug: string}>|}
+ */
+export async function getCollectionGenres() {
+  const SUPABASE = await getSupabaseClient();
+  const listId = await getDefaultListId();
+
+  try {
+    const { data: listShows } = await SUPABASE.from("list_shows")
+      .select("show_id")
+      .eq("list_id", listId);
+
+    if (!listShows?.length) return [];
+
+    const showIds = listShows.map((ls) => ls.show_id);
+
+    const { data: showGenres } = await SUPABASE.from("show_genres")
+      .select("genres (id, name, slug)")
+      .in("show_id", showIds);
+
+    if (!showGenres?.length) return [];
+
+    const uniqueGenres = new Map();
+    for (const sg of showGenres) {
+      if (sg.genres && !uniqueGenres.has(sg.genres.id)) {
+        uniqueGenres.set(sg.genres.id, sg.genres);
+      }
+    }
+
+    return [...uniqueGenres.values()].sort((a, b) =>
+      a.name.localeCompare(b.name),
+    );
+  } catch (err) {
+    console.error("Error fetching collection genres:", err);
+    return [];
   }
 }
 

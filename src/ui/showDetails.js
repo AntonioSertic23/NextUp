@@ -25,15 +25,21 @@ function computeSeasonProgress(episodes) {
   };
 }
 
+function hasEpisodeAired(episode) {
+  if (!episode.first_aired) return false;
+  const airDate = new Date(episode.first_aired);
+  if (isNaN(airDate.getTime())) return false;
+  return airDate.getTime() <= Date.now();
+}
+
 function computeEpisodeProgress(episode) {
   const epWatched = !!episode.watched_at;
+  const aired = hasEpisodeAired(episode);
   const btnClass = epWatched ? "unmark-watched" : "mark-watched";
   const btnIcon = epWatched ? UNMARK_ICON : MARK_ICON;
   const btnAria = epWatched ? "Unmark as watched" : "Mark as watched";
+  const btnDisabled = !epWatched && !aired;
 
-  // Treat null/undefined/empty/zero as "no air date". Without this,
-  // `new Date(null)` returns the Unix epoch (01/01/1970), which is a
-  // *valid* date so the isNaN check below would not catch it.
   let airedStr = "Unknown";
   if (episode.first_aired) {
     const firstAiredDate = new Date(episode.first_aired);
@@ -51,14 +57,14 @@ function computeEpisodeProgress(episode) {
     "0"
   )}E${String(episode.episode_number).padStart(2, "0")} - ${airedStr}`;
 
-  return { episodeInfo, btnClass, btnIcon, btnAria };
+  return { episodeInfo, btnClass, btnIcon, btnAria, btnDisabled };
 }
 
 function renderSeasonEpisodes(episodes) {
   return `
       ${episodes
         .map((ep) => {
-          const { episodeInfo, btnClass, btnIcon, btnAria } =
+          const { episodeInfo, btnClass, btnIcon, btnAria, btnDisabled } =
             computeEpisodeProgress(ep);
 
           return `
@@ -72,7 +78,8 @@ function renderSeasonEpisodes(episodes) {
               type="button"
               class="${btnClass}"
               aria-label="${btnAria}"
-              title="${btnAria}"
+              title="${btnDisabled ? "Not yet aired" : btnAria}"
+              ${btnDisabled ? "disabled" : ""}
             >${btnIcon}</button>
           </div>`;
         })
@@ -88,6 +95,12 @@ function renderSeason(season) {
   const { progressBarPercent, progressText, seasonCompleted } =
     computeSeasonProgress(season.episodes);
 
+  const episodes = Array.isArray(season.episodes) ? season.episodes : [];
+  const hasAiredUnwatched = episodes.some(
+    (ep) => !ep.watched_at && hasEpisodeAired(ep),
+  );
+  const seasonBtnDisabled = !seasonCompleted && !hasAiredUnwatched;
+
   const seasonAria = seasonCompleted
     ? "Unmark whole season"
     : "Mark whole season as watched";
@@ -98,7 +111,8 @@ function renderSeason(season) {
           type="button"
           class="${seasonCompleted ? "unmark-watched" : "mark-watched"} season_mark_btn"
           aria-label="${seasonAria}"
-          title="${seasonAria}"
+          title="${seasonBtnDisabled ? "Season not yet aired" : seasonAria}"
+          ${seasonBtnDisabled ? "disabled" : ""}
         >${seasonCompleted ? UNMARK_ICON : MARK_ICON}</button>
         <p class="season_number">Season ${season.season_number}</p>
         <div class="progress-container">
@@ -409,11 +423,16 @@ export function renderShowSeasons(container, seasons, showId) {
 
       const episodeIds = Array.from(episodeElements)
         .filter((epEl) => {
-          const btn = epEl.querySelector("button");
-          if (!btn) return false;
-          return markAsWatched ? btn.classList.contains("mark-watched") : true;
+          const epBtn = epEl.querySelector("button");
+          if (!epBtn || epBtn.disabled) return false;
+          return markAsWatched ? epBtn.classList.contains("mark-watched") : true;
         })
         .map((epEl) => epEl.dataset.episodeId);
+
+      if (!episodeIds.length) {
+        btn.disabled = false;
+        return;
+      }
 
       try {
         const showUpdated = await markEpisodes(

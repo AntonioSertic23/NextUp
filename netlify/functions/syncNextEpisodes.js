@@ -8,6 +8,7 @@ import fetch from "node-fetch";
 import { TRAKT_BASE_URL, getTraktHeaders } from "../lib/trakt.js";
 import {
   saveShowSeasonsAndEpisodes,
+  saveShowGenres,
   getAllTrackedShows,
   updateShowMetadata,
   refreshListShowsForShow,
@@ -76,6 +77,10 @@ async function processShow(show, results) {
       status: showData.status,
     });
 
+    if (showData.genres?.length) {
+      await saveShowGenres(show.id, showData.genres);
+    }
+
     await refreshListShowsForShow(show.id);
 
     results.updated.push(show.title);
@@ -125,5 +130,5 @@ export const handler = async () => {
 };
 
 export const config = {
-  schedule: "0 5 * * 1",
+  schedule: "0 6 * * *",
 };

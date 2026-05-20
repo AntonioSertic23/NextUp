@@ -70,6 +70,11 @@ export function updateNextEpisode(nextEpisode) {
   watchlist[showIndex].is_completed = nextEpisode.is_completed;
   watchlist[showIndex].watched_episodes = nextEpisode.watched_episodes;
   watchlist[showIndex].total_episodes = nextEpisode.total_episodes;
+
+  if (nextEpisode.shows?.last_watched_at) {
+    watchlist[showIndex].shows.last_watched_at =
+      nextEpisode.shows.last_watched_at;
+  }
 }
 
 /**

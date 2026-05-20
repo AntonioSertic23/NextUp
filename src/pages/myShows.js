@@ -8,10 +8,12 @@ import {
   getUpcomingEpisodes,
   setAllCollectionShows,
   getAllCollectionShows,
+  setAvailableGenres,
 } from "../stores/myShowsStore.js";
 import {
   getUpcomingEpisodesData,
   getAllCollectionShowsData,
+  getCollectionGenres,
 } from "../api/watchlist.js";
 
 /**
@@ -53,7 +55,12 @@ export async function renderMyShows(main) {
   renderUpcomingEpisodes();
 
   if (!getAllCollectionShows().length) {
-    setAllCollectionShows((await getAllCollectionShowsData()) || []);
+    const [shows, genres] = await Promise.all([
+      getAllCollectionShowsData(),
+      getCollectionGenres(),
+    ]);
+    setAllCollectionShows(shows || []);
+    setAvailableGenres(genres || []);
   }
 
   renderAllCollectionShows();
