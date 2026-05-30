@@ -2,6 +2,10 @@ import {
   renderUpcomingEpisodes,
   renderAllCollectionShows,
   renderCollectionFilterBar,
+  closeCollectionListMenu,
+  toggleCollectionListMenu,
+  openCollectionListMenu,
+  toggleShowOnList,
 } from "../ui/myShows.js";
 import {
   setUpcomingEpisodes,
@@ -65,7 +69,59 @@ export async function renderMyShows(main) {
 
   renderAllCollectionShows();
 
-  main.addEventListener("click", (e) => {
+  main.addEventListener("click", async (e) => {
+    const insideListMenu = e.target.closest(
+      ".collection-card-list-menu, .collection-card-menu-btn",
+    );
+    if (!insideListMenu) closeCollectionListMenu();
+
+    const menuItem = e.target.closest(".collection-list-menu-item");
+    if (menuItem) {
+      e.stopPropagation();
+      const card = menuItem.closest(".my-shows-collection-card");
+      const showId = card?.dataset.showId;
+      const listId = menuItem.dataset.listId;
+      const hasShow = menuItem.dataset.hasShow === "1";
+      const isDefault = menuItem.dataset.isDefault === "1";
+      if (!showId || !listId) return;
+
+      menuItem.disabled = true;
+      try {
+        const { removedFromDefault } = await toggleShowOnList(
+          showId,
+          listId,
+          hasShow,
+          isDefault,
+        );
+        closeCollectionListMenu();
+        if (removedFromDefault) {
+          const shows = (await getAllCollectionShowsData()) || [];
+          setAllCollectionShows(shows);
+          renderAllCollectionShows();
+        } else {
+          await openCollectionListMenu(card);
+        }
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        menuItem.disabled = false;
+      }
+      return;
+    }
+
+    const menuBtn = e.target.closest(".collection-card-menu-btn");
+    if (menuBtn) {
+      e.stopPropagation();
+      const card = menuBtn.closest(".my-shows-collection-card");
+      if (card) await toggleCollectionListMenu(card);
+      return;
+    }
+
+    if (e.target.closest(".collection-card-list-menu")) {
+      e.stopPropagation();
+      return;
+    }
+
     const card = e.target.closest(".show-card, .my-shows-collection-card");
     if (!card) return;
 

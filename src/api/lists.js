@@ -75,6 +75,31 @@ export async function updateList(listId, { name, description }) {
   if (error) throw new Error(error.message);
 }
 
+/**
+ * All user lists with whether the show is on each list.
+ * @param {string} showId - Show UUID
+ */
+export async function fetchListsWithShowMembership(showId) {
+  const lists = await fetchUserLists();
+  if (!lists.length || !showId) return [];
+
+  const SUPABASE = await getSupabaseClient();
+  const listIds = lists.map((l) => l.id);
+
+  const { data, error } = await SUPABASE.from("list_shows")
+    .select("list_id")
+    .eq("show_id", showId)
+    .in("list_id", listIds);
+
+  if (error) {
+    console.error("fetchListsWithShowMembership:", error);
+    return lists.map((l) => ({ ...l, hasShow: false }));
+  }
+
+  const memberIds = new Set((data ?? []).map((r) => r.list_id));
+  return lists.map((l) => ({ ...l, hasShow: memberIds.has(l.id) }));
+}
+
 export async function deleteList(listId) {
   const SUPABASE = await getSupabaseClient();
 

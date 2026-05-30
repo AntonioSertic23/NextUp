@@ -12,6 +12,9 @@ import {
   setCollectionGenreFilter,
 } from "../stores/myShowsStore.js";
 import { formatDate, formatEpisodeInfo, getTimeUntil } from "../utils/format.js";
+import { fetchListsWithShowMembership } from "../api/lists.js";
+import { manageCollection } from "../api/shows.js";
+import { invalidateWatchlistAndStats } from "../services/pageCache.js";
 
 function escapeHtml(text) {
   return String(text ?? "")
@@ -277,8 +280,20 @@ export function renderAllCollectionShows() {
       const posterPath = s.image_poster;
       const posterSrc = posterPath ? `https://${posterPath}` : "";
 
+      const showId = s.id != null ? String(s.id) : "";
+
       return `
-        <div class="discover-card my-shows-collection-card" data-id="${escapeHtml(slugId)}">
+        <div
+          class="discover-card my-shows-collection-card"
+          data-id="${escapeHtml(slugId)}"
+          data-show-id="${escapeHtml(showId)}"
+        >
+          <button
+            type="button"
+            class="collection-card-menu-btn"
+            aria-label="Add to list"
+            title="Lists"
+          >⋮</button>
           <div class="discover-card-poster">
             ${
               posterSrc
@@ -288,8 +303,90 @@ export function renderAllCollectionShows() {
           </div>
           <p class="discover-card-title">${title || "Untitled"}</p>
           <p class="discover-card-year">${year}</p>
+          <div class="collection-card-list-menu" hidden></div>
         </div>
       `;
     })
     .join("");
+}
+
+let openListMenuCard = null;
+
+/**
+ * Closes any open list picker dropdown on collection cards.
+ */
+export function closeCollectionListMenu() {
+  if (openListMenuCard) {
+    const menu = openListMenuCard.querySelector(".collection-card-list-menu");
+    if (menu) menu.hidden = true;
+    openListMenuCard = null;
+  }
+}
+
+/**
+ * Opens list membership menu for a collection card.
+ * @param {HTMLElement} card - .my-shows-collection-card element
+ */
+export async function toggleCollectionListMenu(card) {
+  if (openListMenuCard === card) {
+    closeCollectionListMenu();
+    return;
+  }
+  await openCollectionListMenu(card);
+}
+
+async function openCollectionListMenu(card) {
+  const showId = card.dataset.showId;
+  if (!showId) return;
+
+  closeCollectionListMenu();
+
+  const menu = card.querySelector(".collection-card-list-menu");
+  if (!menu) return;
+
+  menu.hidden = false;
+  menu.innerHTML = `<p class="collection-list-menu-loading">Loading…</p>`;
+  openListMenuCard = card;
+
+  try {
+    const lists = await fetchListsWithShowMembership(showId);
+    menu.innerHTML = `
+      <p class="collection-list-menu-title">Add to list</p>
+      ${lists
+        .map(
+          (list) => `
+        <button
+          type="button"
+          class="collection-list-menu-item ${list.hasShow ? "is-member" : ""}"
+          data-list-id="${escapeHtml(list.id)}"
+          data-has-show="${list.hasShow ? "1" : "0"}"
+          data-is-default="${list.is_default ? "1" : "0"}"
+        >
+          <span class="collection-list-menu-check">${list.hasShow ? "✓" : ""}</span>
+          <span>${escapeHtml(list.name)}</span>
+        </button>
+      `,
+        )
+        .join("")}
+    `;
+  } catch (err) {
+    menu.innerHTML = `<p class="collection-list-menu-error">${escapeHtml(err.message)}</p>`;
+  }
+}
+
+/**
+ * Toggle show on a list from the collection card menu.
+ */
+export async function toggleShowOnList(showId, listId, currentlyMember, isDefault) {
+  if (currentlyMember && isDefault) {
+    const ok = confirm(
+      "Remove from your main collection? The show will disappear from this page.",
+    );
+    if (!ok) return { removedFromDefault: false };
+  }
+
+  await manageCollection(showId, !currentlyMember, listId);
+  invalidateWatchlistAndStats();
+
+  return { removedFromDefault: currentlyMember && isDefault };
 }

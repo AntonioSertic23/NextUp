@@ -21,11 +21,6 @@ export const THEMES = [
     label: "Forest",
     description: "Rich green with mint highlights",
   },
-  {
-    id: "daylight",
-    label: "Daylight",
-    description: "Light gray background, dark text",
-  },
 ];
 
 export function getStoredTheme() {

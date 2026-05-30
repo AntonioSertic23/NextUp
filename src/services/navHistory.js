@@ -1,27 +1,12 @@
 /**
  * In-app navigation history for PWA (no browser back button).
- * Back is shown only on detail routes (show, user) when there is a prior page.
  */
 
 const stack = [];
 let skipNextPush = false;
 
-const MAIN_ROUTES = new Set([
-  "home",
-  "myshows",
-  "discover",
-  "stats",
-  "profile",
-]);
-
-const DETAIL_ROUTES = new Set(["show", "user"]);
-
 function routeKey() {
   return location.hash.slice(1) || "home";
-}
-
-function routeName() {
-  return routeKey().split("?")[0];
 }
 
 export function initNavHistory() {
@@ -30,13 +15,8 @@ export function initNavHistory() {
 
   window.addEventListener("hashchange", () => {
     const key = routeKey();
-    const name = routeName();
-
     if (skipNextPush) {
       skipNextPush = false;
-    } else if (MAIN_ROUTES.has(name)) {
-      stack.length = 0;
-      stack.push(key);
     } else {
       const top = stack[stack.length - 1];
       if (key !== top) stack.push(key);
@@ -46,8 +26,7 @@ export function initNavHistory() {
 }
 
 export function canGoBack() {
-  if (stack.length <= 1) return false;
-  return DETAIL_ROUTES.has(routeName());
+  return stack.length > 1;
 }
 
 export function goBack() {
