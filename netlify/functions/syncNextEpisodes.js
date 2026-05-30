@@ -13,6 +13,7 @@ import {
   updateShowMetadata,
   refreshListShowsForShow,
 } from "../lib/supabase.js";
+import { notifyUsersForNewEpisodes } from "../lib/webPush.js";
 
 const BATCH_SIZE = 5;
 
@@ -83,7 +84,11 @@ async function processShow(show, results) {
 
     await refreshListShowsForShow(show.id);
 
+    const pushResult = await notifyUsersForNewEpisodes(show.id);
     results.updated.push(show.title);
+    if (pushResult.sent) {
+      results.notificationsSent = (results.notificationsSent || 0) + pushResult.sent;
+    }
   } catch (err) {
     console.error(`Error syncing "${show.title}":`, err);
     results.errors.push({ show: show.title, error: err.message });
@@ -107,7 +112,7 @@ export const handler = async () => {
       };
     }
 
-    const results = { updated: [], skipped: [], errors: [] };
+    const results = { updated: [], skipped: [], errors: [], notificationsSent: 0 };
 
     for (let i = 0; i < shows.length; i += BATCH_SIZE) {
       const batch = shows.slice(i, i + BATCH_SIZE);

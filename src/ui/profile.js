@@ -31,6 +31,12 @@ import {
 import { invalidateDefaultListIdCache } from "../api/watchlist.js";
 import { invalidateStatsCachePersisted } from "../services/pageCache.js";
 import { resetLibraryPageCaches } from "../services/libraryCache.js";
+import {
+  isPushSupported,
+  getPushPreferenceEnabled,
+  subscribeToPushNotifications,
+  unsubscribeFromPushNotifications,
+} from "../pwa/pushNotifications.js";
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -214,6 +220,35 @@ export async function renderProfile() {
 
     <section class="profile-section">
       <h2 class="profile-section-title">App</h2>
+      ${
+        isPushSupported()
+          ? `
+      <p class="profile-section-hint profile-push-hint">
+        Get notified on this device when a new episode is detected for shows on any of your lists (after the daily sync).
+        Works best with the installed PWA — on iPhone, add NextUp to the Home Screen first.
+      </p>
+      <div class="profile-actions-grid profile-push-actions">
+        <button type="button" class="profile-action-btn" id="profile-push-enable">
+          <span class="profile-action-icon">🔔</span>
+          <div class="profile-action-content">
+            <span class="profile-action-label">Enable episode notifications</span>
+            <span class="profile-action-desc">Allow browser notifications for this device</span>
+          </div>
+        </button>
+        <button type="button" class="profile-action-btn" id="profile-push-disable" hidden>
+          <span class="profile-action-icon">🔕</span>
+          <div class="profile-action-content">
+            <span class="profile-action-label">Turn off notifications</span>
+            <span class="profile-action-desc">Stop alerts on this device</span>
+          </div>
+        </button>
+      </div>
+      <p class="profile-push-status" id="profile-push-status" aria-live="polite"></p>
+      `
+          : `
+      <p class="profile-section-hint">Push notifications are not supported in this browser.</p>
+      `
+      }
       <div class="profile-actions-grid">
         <button type="button" class="profile-action-btn" id="profile-refresh">
           <span class="profile-action-icon">🔄</span>
@@ -350,7 +385,63 @@ function setupFollowingSection(container) {
   });
 }
 
+function updatePushButtons(container) {
+  const enableBtn = container.querySelector("#profile-push-enable");
+  const disableBtn = container.querySelector("#profile-push-disable");
+  if (!enableBtn || !disableBtn) return;
+
+  const active =
+    getPushPreferenceEnabled() && Notification.permission === "granted";
+  enableBtn.hidden = active;
+  disableBtn.hidden = !active;
+}
+
+function setupPushNotifications(container) {
+  if (!isPushSupported()) return;
+
+  updatePushButtons(container);
+  const status = container.querySelector("#profile-push-status");
+
+  container.querySelector("#profile-push-enable")?.addEventListener(
+    "click",
+    async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      if (status) status.textContent = "Enabling…";
+      try {
+        await subscribeToPushNotifications();
+        if (status) status.textContent = "Notifications enabled on this device.";
+        updatePushButtons(container);
+      } catch (err) {
+        if (status) status.textContent = err.message;
+      } finally {
+        btn.disabled = false;
+      }
+    },
+  );
+
+  container.querySelector("#profile-push-disable")?.addEventListener(
+    "click",
+    async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      if (status) status.textContent = "Turning off…";
+      try {
+        await unsubscribeFromPushNotifications();
+        if (status) status.textContent = "Notifications turned off.";
+        updatePushButtons(container);
+      } catch (err) {
+        if (status) status.textContent = err.message;
+      } finally {
+        btn.disabled = false;
+      }
+    },
+  );
+}
+
 function setupProfileActions(container, traktConnected) {
+  setupPushNotifications(container);
+
   container.querySelector("#profile-refresh")?.addEventListener("click", () => {
     window.location.reload();
   });

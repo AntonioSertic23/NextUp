@@ -18,6 +18,9 @@
 | `SUPABASE_ANON_KEY` | Yes | Supabase anonymous/public key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase service role key (admin access) |
 | `TRAKT_REDIRECT_URI` | Optional | Fallback redirect URI for Trakt OAuth refresh |
+| `VAPID_PUBLIC_KEY` | For push | Web Push public key (`npx web-push generate-vapid-keys`) |
+| `VAPID_PRIVATE_KEY` | For push | Web Push private key (keep secret) |
+| `VAPID_SUBJECT` | Optional | `mailto:you@domain.com` or site URL (defaults to `mailto:hello@nextup.app`) |
 
 ### Where to find them
 
@@ -72,7 +75,15 @@ After running migration, verify in Table Editor:
 
 In Netlify Dashboard → Site settings → Environment variables:
 
-Add all 5 required environment variables listed above.
+Add all required environment variables listed above (including VAPID keys if you enable Web Push).
+
+Generate VAPID keys locally:
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+Copy the public and private keys into Netlify (and your local `.env` for `netlify dev`). Re-run the latest `db/migration.sql` section for `push_subscriptions` in Supabase if upgrading an existing project.
 
 ### 3. Deploy
 

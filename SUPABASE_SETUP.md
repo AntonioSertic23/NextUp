@@ -71,8 +71,12 @@ SUPABASE_SERVICE_ROLE_KEY="your_supabase_service_role_key"
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Settings → API → Secret key (or legacy service_role key) | Server-side Netlify functions only |
 | `TRAKT_CLIENT_ID` | [trakt.tv/oauth/applications](https://trakt.tv/oauth/applications) | Both client and server |
 | `TRAKT_CLIENT_SECRET` | [trakt.tv/oauth/applications](https://trakt.tv/oauth/applications) | Server-side token exchange only |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | `npx web-push generate-vapid-keys` | Web Push (optional; episode notifications on PWA) |
+| `VAPID_SUBJECT` | e.g. `mailto:you@example.com` | Web Push (optional) |
 
 For production, add these same variables in your Netlify dashboard: **Site settings → Environment variables**.
+
+After pulling a release with push support, run the `push_subscriptions` section from `db/migration.sql` in the Supabase SQL editor if the table is not already present.
 
 ## Email Configuration (Optional)
 

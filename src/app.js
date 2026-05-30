@@ -23,6 +23,7 @@ import { renderDiscover } from "./pages/discover.js";
 import { renderMyShows } from "./pages/myShows.js";
 import { renderProfilePage } from "./pages/profile.js";
 import { registerServiceWorker } from "./pwa/registerServiceWorker.js";
+import { syncPushSubscriptionIfEnabled } from "./pwa/pushNotifications.js";
 import { initTheme } from "./services/theme.js";
 import { initNavHistory, goBack, syncBackButton } from "./services/navHistory.js";
 import { renderUserStats } from "./pages/userStats.js";
@@ -63,6 +64,7 @@ if (!isAuthenticated()) {
   loadComponent("footer", "/components/footer.html");
 
   document.body.classList.add("authenticated");
+  syncPushSubscriptionIfEnabled();
 }
 
 async function router() {

@@ -17,6 +17,7 @@ import {
   invalidateListsCache,
 } from "../stores/listsStore.js";
 import { resetLibraryPageCaches } from "./libraryCache.js";
+import { unsubscribeFromPushNotifications } from "../pwa/pushNotifications.js";
 
 /**
  * Retrieves the current user's Trakt OAuth token from the database.
@@ -108,6 +109,11 @@ export async function logout() {
   }
 
   clearUserStore();
+  try {
+    await unsubscribeFromPushNotifications();
+  } catch {
+    /* ignore */
+  }
   clearActiveListId();
   invalidateListsCache();
   resetLibraryPageCaches();

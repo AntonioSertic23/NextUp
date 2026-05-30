@@ -20,6 +20,7 @@
   "homepage": "https://github.com/AntonioSertic23/NextUp#readme",
   "dependencies": {
     "@supabase/supabase-js": "^2.89.0",
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "web-push": "^3.6.7"
   }
 }
