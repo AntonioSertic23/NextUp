@@ -269,10 +269,8 @@ body:not(.login-page):not(.authenticated) footer {
    Navbar Styles
    ======================================================== */
 
-/* Sticky header: stays at the top while scrolling and slides
-   out of the way on scroll-down (toggled via .is-hidden by app.js).
-   Background matches the body so content scrolls under it cleanly. */
-header {
+/* Sticky app chrome only (body > header), not in-page <header> on stats/profile */
+body > header {
   position: sticky;
   top: 0;
   z-index: 500;
@@ -281,8 +279,19 @@ header {
   will-change: transform;
 }
 
-header.is-hidden {
+body > header.is-hidden {
   transform: translateY(-100%);
+}
+
+/* In-page section headers must not stack above the navbar dropdown */
+header.stats-header,
+header.profile-header {
+  position: static;
+  top: auto;
+  z-index: auto;
+  transform: none;
+  will-change: auto;
+  background: transparent;
 }
 
 /* Main container */
@@ -909,6 +918,25 @@ main {
   gap: 0.4rem;
   align-items: center;
   flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.my-shows-list-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.my-shows-list-filter label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #9e9fa6;
+  white-space: nowrap;
+}
+
+.my-shows-list-filter select {
+  min-width: 7rem;
+  max-width: 12rem;
 }
 
 /* Genre filter chips */
@@ -2399,16 +2427,268 @@ body.modal-open {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  position: relative;
-  z-index: 0;
+}
+
+.stats-section-heading {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 0 0 0.35rem;
+  color: #fff;
+}
+
+.stats-section-lead {
+  margin: 0 0 1.25rem;
+  color: #9e9fa6;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.stats-lists-overview {
+  margin-top: 2.5rem;
+  padding-top: 2rem;
+  border-top: 1px solid #2a2b32;
+}
+
+.stats-insight-panel {
+  background: linear-gradient(
+    135deg,
+    rgba(133, 122, 255, 0.12),
+    rgba(239, 107, 243, 0.08)
+  );
+  border: 1px solid rgba(133, 122, 255, 0.25);
+  border-radius: 12px;
+  padding: 1rem 1.15rem;
+  margin-bottom: 1.25rem;
+}
+
+.stats-insight-line {
+  margin: 0.35rem 0;
+  color: #c8c9ce;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.stats-insight-line:first-child {
+  margin-top: 0;
+}
+
+.stats-insight-line:last-child {
+  margin-bottom: 0;
+}
+
+.stats-lists-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.stats-list-card {
+  background: #1a1b22;
+  border: 1px solid #2a2b32;
+  border-radius: 12px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.stats-backlog-rank {
+  margin-bottom: 1.25rem;
+}
+
+.stats-subcard-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 0.75rem;
+  color: #e8e9ed;
+}
+
+.stats-backlog-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.stats-backlog-item {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+}
+
+.stats-backlog-rank-num {
+  font-weight: 700;
+  color: var(--accent-primary, #857aff);
+  min-width: 1.25rem;
+}
+
+.stats-backlog-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.stats-backlog-name {
+  font-weight: 600;
+  color: #fff;
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.stats-backlog-bar-track {
+  height: 5px;
+  background: #2a2b32;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 0.25rem;
+}
+
+.stats-backlog-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #857aff, #ef6bf3);
+  border-radius: 999px;
+}
+
+.stats-backlog-meta {
+  font-size: 0.8rem;
+  color: #9e9fa6;
+}
+
+.stats-list-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid #2a2b32;
+  border-radius: 12px 12px 0 0;
+  position: static;
+  top: auto;
+  z-index: auto;
+  transform: none;
+  will-change: auto;
+}
+
+.stats-list-card-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.stats-list-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(133, 122, 255, 0.2);
+  color: #b8b0ff;
+}
+
+.stats-list-card-bar-track {
+  height: 6px;
+  background: #2a2b32;
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 0.75rem 1rem 0.85rem;
+}
+
+/* Override global sticky header if a <header> slips into list cards */
+.stats-list-card header.stats-list-card-header {
+  position: static;
+  transform: none;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.stats-list-card-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #857aff, #ef6bf3);
+}
+
+.stats-list-card-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem 0.75rem;
+  margin: 0;
+  padding: 0 1rem 1rem;
+}
+
+.stats-list-card-metrics div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.stats-list-card-metrics dt {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #7a7b82;
+  margin: 0;
+}
+
+.stats-list-card-metrics dd {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #e8e9ed;
+}
+
+.stats-detail-section {
+  margin-top: 0.5rem;
+}
+
+.stats-detail-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.stats-detail-toolbar .stats-section-heading {
+  width: 100%;
+  margin-bottom: 0;
+}
+
+.stats-detail-toolbar .stats-section-lead {
+  width: 100%;
+  margin: 0 0 0.75rem;
+}
+
+.stats-detail-list-label {
+  font-weight: 600;
+  color: #bbb;
+  font-size: 0.95rem;
+}
+
+.stats-detail-list-select {
+  background-color: #1a1b22;
+  color: #d6d7db;
+  border: 1px solid #2a2b32;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%23bbb' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.65rem center;
+  cursor: pointer;
+}
+
+.stats-detail-empty {
+  margin: 1rem 0 2rem;
 }
 
 .stats-header {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  position: relative;
-  z-index: 0;
 }
 
 .stats-page-title {
@@ -3009,6 +3289,12 @@ body.modal-open {
     justify-content: center;
   }
 
+  .list-filter-group {
+    margin-left: 0;
+    width: 100%;
+    justify-content: center;
+  }
+
   /* Show detail page */
   #show-container {
     padding: 0.5rem 0;
@@ -3531,6 +3817,30 @@ body.modal-open {
 /* ========================================================
    List filter (home), notes, profile extras, themes
    ======================================================== */
+
+.watchlist-toolbar {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.list-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.list-filter-group label {
+  font-size: 1rem;
+  font-weight: bold;
+  color: #bbb;
+  white-space: nowrap;
+}
+
+.list-filter-group select {
+  min-width: 8rem;
+  max-width: min(16rem, 40vw);
+}
 
 .list-filter-bar {
   display: flex;
