@@ -1,6 +1,9 @@
 import { getWatchlistData } from "../api/watchlist.js";
 import { renderWatchlist, renderSortControls } from "../ui/watchlist.js";
+import { renderListFilter } from "../ui/listFilter.js";
 import { setWatchlist, getWatchlist } from "../stores/watchlistStore.js";
+import { getActiveListId } from "../stores/listsStore.js";
+import { consumeWatchlistStale } from "../services/pageCache.js";
 
 /**
  * Renders the Home page and initializes the watchlist state.
@@ -13,13 +16,14 @@ export async function renderHome(main) {
   watchlistDiv.innerHTML = "<p class='loading-text'>Loading...</p>";
   main.appendChild(watchlistDiv);
 
-  const watchlistData = getWatchlist();
-
-  if (!watchlistData.length) {
-    setWatchlist(await getWatchlistData());
+  const needsFetch = !getWatchlist().length || consumeWatchlistStale();
+  if (needsFetch) {
+    const listId = getActiveListId();
+    setWatchlist(await getWatchlistData(listId));
   }
 
   await renderSortControls(main);
+  await renderListFilter(main);
 
   renderWatchlist();
 

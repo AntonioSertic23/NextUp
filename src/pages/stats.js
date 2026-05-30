@@ -1,6 +1,8 @@
 import { getStatsData } from "../api/stats.js";
 import { renderStatistics } from "../ui/statistics.js";
-import { setStats, getStats } from "../stores/statsStore.js";
+import { setStats, getStats, clearStats } from "../stores/statsStore.js";
+import { getActiveListId } from "../stores/listsStore.js";
+import { consumeStatsStale } from "../services/pageCache.js";
 
 /**
  * Renders statistics on the user's watched shows.
@@ -12,8 +14,14 @@ export async function renderStats(main) {
   statsDiv.innerHTML = "<p class='loading-text'>Loading statistics...</p>";
   main.appendChild(statsDiv);
 
-  if (!getStats() || !Object.keys(getStats()).length) {
-    const data = await getStatsData();
+  const needsFetch =
+    consumeStatsStale() ||
+    !getStats() ||
+    !Object.keys(getStats()).length;
+
+  if (needsFetch) {
+    clearStats();
+    const data = await getStatsData(getActiveListId());
     if (data) setStats(data);
   }
 

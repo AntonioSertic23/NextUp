@@ -23,7 +23,11 @@ import { renderDiscover } from "./pages/discover.js";
 import { renderMyShows } from "./pages/myShows.js";
 import { renderProfilePage } from "./pages/profile.js";
 import { registerServiceWorker } from "./pwa/registerServiceWorker.js";
+import { initTheme } from "./services/theme.js";
+import { initNavHistory, goBack, syncBackButton } from "./services/navHistory.js";
+import { renderUserStats } from "./pages/userStats.js";
 
+initTheme();
 registerServiceWorker();
 
 // ————————————————————————————————————————————————————
@@ -37,6 +41,7 @@ const routes = {
   discover: renderDiscover,
   myshows: renderMyShows,
   profile: renderProfilePage,
+  user: renderUserStats,
 };
 
 // ————————————————————————————————————————————————————
@@ -52,6 +57,7 @@ if (!isAuthenticated()) {
 } else {
   setupAuthGuard();
 
+  initNavHistory();
   initRouter();
   loadComponent("header", "/components/header.html");
   loadComponent("footer", "/components/footer.html");
@@ -71,10 +77,13 @@ async function router() {
   const [route, queryString] = hash.split("?");
   const params = new URLSearchParams(queryString);
   const traktIdentifier = params.get("traktIdentifier");
+  const userId = params.get("userId");
 
   main.innerHTML = "";
 
-  if (routes[route]) {
+  if (route === "user") {
+    await routes.user(main, userId);
+  } else if (routes[route]) {
     await routes[route](main, traktIdentifier);
   } else {
     main.innerHTML = "<p>404 - Page not found.</p>";
@@ -85,10 +94,12 @@ function initRouter() {
   window.addEventListener("hashchange", () => {
     router();
     updateActiveNav();
+    syncBackButton();
   });
 
   router();
   updateActiveNav();
+  syncBackButton();
 }
 
 // ————————————————————————————————————————————————————
@@ -250,4 +261,10 @@ async function setupHeaderActions(header) {
   header
     .querySelector("#logout-btn")
     ?.addEventListener("click", () => logout());
+
+  header.querySelector("#nav-back-btn")?.addEventListener("click", () => {
+    goBack();
+  });
+
+  syncBackButton();
 }
