@@ -1,5 +1,6 @@
 import { getSupabaseClient } from "../services/supabase.js";
 import { getUser } from "../stores/userStore.js";
+import { getLists } from "../stores/listsStore.js";
 
 export async function fetchUserLists() {
   const SUPABASE = await getSupabaseClient();
@@ -75,29 +76,99 @@ export async function updateList(listId, { name, description }) {
   if (error) throw new Error(error.message);
 }
 
+/** @type {Map<string, Set<string>>} showId -> listIds where show is a member */
+let membershipByShowId = new Map();
+let membershipCacheReady = false;
+let membershipLoadPromise = null;
+
 /**
- * All user lists with whether the show is on each list.
+ * Preloads list membership for all shows (one query). Used for instant ⋮ menus.
+ */
+/**
+ * @param {string[]|undefined} showIds - Limit rows to these shows (faster on large collections).
+ */
+export async function preloadListMembershipCache(showIds) {
+  if (membershipCacheReady) return;
+  if (membershipLoadPromise) {
+    await membershipLoadPromise;
+    return;
+  }
+
+  membershipLoadPromise = (async () => {
+    const lists = getLists().length ? getLists() : await fetchUserLists();
+    if (!lists.length) {
+      membershipByShowId = new Map();
+      membershipCacheReady = true;
+      return;
+    }
+
+    const SUPABASE = await getSupabaseClient();
+    const listIds = lists.map((l) => l.id);
+
+    let query = SUPABASE.from("list_shows")
+      .select("list_id, show_id")
+      .in("list_id", listIds);
+
+    if (showIds?.length) {
+      query = query.in("show_id", showIds);
+    }
+
+    const { data, error } = await query;
+
+    const map = new Map();
+    if (!error && data) {
+      for (const row of data) {
+        const sid = String(row.show_id);
+        if (!map.has(sid)) map.set(sid, new Set());
+        map.get(sid).add(row.list_id);
+      }
+    }
+    membershipByShowId = map;
+    membershipCacheReady = true;
+  })();
+
+  try {
+    await membershipLoadPromise;
+  } finally {
+    membershipLoadPromise = null;
+  }
+}
+
+export function invalidateListMembershipCache() {
+  membershipCacheReady = false;
+  membershipByShowId = new Map();
+}
+
+function setShowListMembership(showId, listId, isMember) {
+  const sid = String(showId);
+  if (!membershipByShowId.has(sid)) {
+    membershipByShowId.set(sid, new Set());
+  }
+  const set = membershipByShowId.get(sid);
+  if (isMember) set.add(listId);
+  else set.delete(listId);
+}
+
+/**
+ * All user lists with whether the show is on each list (cache-first).
  * @param {string} showId - Show UUID
  */
 export async function fetchListsWithShowMembership(showId) {
-  const lists = await fetchUserLists();
+  const lists = getLists().length ? getLists() : await fetchUserLists();
   if (!lists.length || !showId) return [];
 
-  const SUPABASE = await getSupabaseClient();
-  const listIds = lists.map((l) => l.id);
-
-  const { data, error } = await SUPABASE.from("list_shows")
-    .select("list_id")
-    .eq("show_id", showId)
-    .in("list_id", listIds);
-
-  if (error) {
-    console.error("fetchListsWithShowMembership:", error);
-    return lists.map((l) => ({ ...l, hasShow: false }));
+  if (!membershipCacheReady) {
+    await preloadListMembershipCache();
   }
 
-  const memberIds = new Set((data ?? []).map((r) => r.list_id));
+  const memberIds = membershipByShowId.get(String(showId)) ?? new Set();
   return lists.map((l) => ({ ...l, hasShow: memberIds.has(l.id) }));
+}
+
+/** Update cache after add/remove without a full reload. */
+export function patchListMembershipCache(showId, listId, isMember) {
+  if (!membershipCacheReady) return;
+  setShowListMembership(showId, listId, isMember);
 }
 
 export async function deleteList(listId) {

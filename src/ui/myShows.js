@@ -12,8 +12,30 @@ import {
   setCollectionGenreFilter,
 } from "../stores/myShowsStore.js";
 import { formatDate, formatEpisodeInfo, getTimeUntil } from "../utils/format.js";
-import { fetchListsWithShowMembership } from "../api/lists.js";
+import {
+  fetchListsWithShowMembership,
+  preloadListMembershipCache,
+  patchListMembershipCache,
+} from "../api/lists.js";
 import { manageCollection } from "../api/shows.js";
+import {
+  getAllCollectionShowsData,
+  getUpcomingEpisodesForShowIds,
+  extractCollectionGenres,
+} from "../api/watchlist.js";
+import { ensureListsLoaded } from "../ui/listFilter.js";
+import {
+  getLists,
+  getActiveListId,
+  setActiveListId,
+  resolveActiveListId,
+} from "../stores/listsStore.js";
+import {
+  setAllCollectionShows,
+  setAvailableGenres,
+  setUpcomingEpisodes,
+  getCollectionListId,
+} from "../stores/myShowsStore.js";
 import { invalidateWatchlistAndStats } from "../services/pageCache.js";
 
 function escapeHtml(text) {
@@ -100,13 +122,71 @@ export function renderUpcomingEpisodes() {
  *
  * @param {HTMLElement} parent - Container element to append the bar into.
  */
-export function renderCollectionFilterBar(parent) {
+function collectionShowIds(collection) {
+  return collection.map((item) => item.shows?.id).filter(Boolean);
+}
+
+/**
+ * Reload grid + upcoming when the active list changes.
+ * @param {string} listId
+ */
+export async function reloadMyShowsForList(listId) {
+  const grid = document.getElementById("all_my_shows-container");
+  const upcoming = document.getElementById("upcoming_episodes-container");
+
+  if (grid) grid.innerHTML = "<p class='loading-text'>Loading...</p>";
+  if (upcoming) upcoming.innerHTML = "<p class='loading-text'>Loading...</p>";
+
+  setCollectionGenreFilter("");
+
+  const collection = await getAllCollectionShowsData(listId);
+  setAllCollectionShows(collection, listId);
+  setAvailableGenres(extractCollectionGenres(collection));
+  renderAllCollectionShows();
+  prepareMyShowsListMenus(collectionShowIds(collection));
+
+  const ids = collectionShowIds(collection);
+  if (!ids.length) {
+    setUpcomingEpisodes([]);
+    renderUpcomingEpisodes();
+    return;
+  }
+
+  try {
+    const data = await getUpcomingEpisodesForShowIds(ids);
+    setUpcomingEpisodes(data || []);
+    renderUpcomingEpisodes();
+  } catch {
+    if (upcoming) {
+      upcoming.innerHTML =
+        "<p class='no-show-message'>Could not load upcoming episodes.</p>";
+    }
+  }
+}
+
+export async function renderCollectionFilterBar(parent) {
+  await ensureListsLoaded();
+  const lists = getLists();
+  const activeListId = resolveActiveListId() || "";
+
   const bar = document.createElement("div");
   bar.className = "my-shows-filter-bar";
 
   const currentSort = getCollectionSort();
   const currentOrder = getCollectionOrder();
   const currentFilter = getCollectionFilter();
+
+  const listOptions = lists.length
+    ? lists
+        .map(
+          (list) => `
+        <option value="${escapeHtml(list.id)}"${list.id === activeListId ? " selected" : ""}>
+          ${escapeHtml(list.name)}
+        </option>
+      `,
+        )
+        .join("")
+    : "";
 
   bar.innerHTML = `
     <div class="search-input-wrap">
@@ -154,6 +234,17 @@ export function renderCollectionFilterBar(parent) {
           class="sort-order-icon ${currentOrder === "asc" ? "flipped" : ""}"
         />
       </button>
+      ${
+        lists.length
+          ? `
+      <div class="my-shows-list-filter">
+        <label for="my-shows-list">List:</label>
+        <select id="my-shows-list" class="sort-select" aria-label="Filter by list">
+          ${listOptions}
+        </select>
+      </div>`
+          : ""
+      }
     </div>
 
     <div id="genre-chips-container" class="genre-chips"></div>
@@ -194,6 +285,14 @@ export function renderCollectionFilterBar(parent) {
       .classList.toggle("flipped", next === "asc");
     setCollectionOrder(next);
     renderAllCollectionShows();
+  });
+
+  const listSelect = bar.querySelector("#my-shows-list");
+  listSelect?.addEventListener("change", async () => {
+    const listId = listSelect.value;
+    if (!listId || listId === getCollectionListId()) return;
+    setActiveListId(listId);
+    await reloadMyShowsForList(listId);
   });
 }
 
@@ -311,6 +410,29 @@ export function renderAllCollectionShows() {
 }
 
 let openListMenuCard = null;
+let listMenuRequestId = 0;
+
+function renderListMenuHtml(lists) {
+  return `
+    <p class="collection-list-menu-title">Add to list</p>
+    ${lists
+      .map(
+        (list) => `
+        <button
+          type="button"
+          class="collection-list-menu-item ${list.hasShow ? "is-member" : ""}"
+          data-list-id="${escapeHtml(list.id)}"
+          data-has-show="${list.hasShow ? "1" : "0"}"
+          data-is-default="${list.is_default ? "1" : "0"}"
+        >
+          <span class="collection-list-menu-check">${list.hasShow ? "✓" : ""}</span>
+          <span>${escapeHtml(list.name)}</span>
+        </button>
+      `,
+      )
+      .join("")}
+  `;
+}
 
 /**
  * Closes any open list picker dropdown on collection cards.
@@ -335,7 +457,7 @@ export async function toggleCollectionListMenu(card) {
   await openCollectionListMenu(card);
 }
 
-async function openCollectionListMenu(card) {
+export async function openCollectionListMenu(card) {
   const showId = card.dataset.showId;
   if (!showId) return;
 
@@ -345,31 +467,16 @@ async function openCollectionListMenu(card) {
   if (!menu) return;
 
   menu.hidden = false;
-  menu.innerHTML = `<p class="collection-list-menu-loading">Loading…</p>`;
   openListMenuCard = card;
+
+  const requestId = ++listMenuRequestId;
 
   try {
     const lists = await fetchListsWithShowMembership(showId);
-    menu.innerHTML = `
-      <p class="collection-list-menu-title">Add to list</p>
-      ${lists
-        .map(
-          (list) => `
-        <button
-          type="button"
-          class="collection-list-menu-item ${list.hasShow ? "is-member" : ""}"
-          data-list-id="${escapeHtml(list.id)}"
-          data-has-show="${list.hasShow ? "1" : "0"}"
-          data-is-default="${list.is_default ? "1" : "0"}"
-        >
-          <span class="collection-list-menu-check">${list.hasShow ? "✓" : ""}</span>
-          <span>${escapeHtml(list.name)}</span>
-        </button>
-      `,
-        )
-        .join("")}
-    `;
+    if (requestId !== listMenuRequestId || openListMenuCard !== card) return;
+    menu.innerHTML = renderListMenuHtml(lists);
   } catch (err) {
+    if (requestId !== listMenuRequestId || openListMenuCard !== card) return;
     menu.innerHTML = `<p class="collection-list-menu-error">${escapeHtml(err.message)}</p>`;
   }
 }
@@ -386,7 +493,90 @@ export async function toggleShowOnList(showId, listId, currentlyMember, isDefaul
   }
 
   await manageCollection(showId, !currentlyMember, listId);
+  patchListMembershipCache(showId, listId, !currentlyMember);
   invalidateWatchlistAndStats();
 
   return { removedFromDefault: currentlyMember && isDefault };
+}
+
+let myShowsClickBound = false;
+
+/**
+ * Registers a single delegated click handler for My Shows (safe across revisits).
+ * @param {HTMLElement} main
+ */
+export function bindMyShowsClickHandler(main) {
+  if (myShowsClickBound) return;
+  myShowsClickBound = true;
+
+  main.addEventListener("click", async (e) => {
+    const menuBtn = e.target.closest(".collection-card-menu-btn");
+    if (menuBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const card = menuBtn.closest(".my-shows-collection-card");
+      if (card) await toggleCollectionListMenu(card);
+      return;
+    }
+
+    const menuItem = e.target.closest(".collection-list-menu-item");
+    if (menuItem) {
+      e.preventDefault();
+      e.stopPropagation();
+      const card = menuItem.closest(".my-shows-collection-card");
+      const showId = card?.dataset.showId;
+      const listId = menuItem.dataset.listId;
+      const hasShow = menuItem.dataset.hasShow === "1";
+      const isDefault = menuItem.dataset.isDefault === "1";
+      if (!showId || !listId) return;
+
+      menuItem.disabled = true;
+      try {
+        const { removedFromDefault } = await toggleShowOnList(
+          showId,
+          listId,
+          hasShow,
+          isDefault,
+        );
+        closeCollectionListMenu();
+        if (removedFromDefault) {
+          const listId = getCollectionListId() || getActiveListId();
+          const shows = (await getAllCollectionShowsData(listId)) || [];
+          setAllCollectionShows(shows, listId);
+          setAvailableGenres(extractCollectionGenres(shows));
+          renderAllCollectionShows();
+        } else if (card) {
+          await openCollectionListMenu(card);
+        }
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        menuItem.disabled = false;
+      }
+      return;
+    }
+
+    if (e.target.closest(".collection-card-list-menu")) {
+      e.stopPropagation();
+      return;
+    }
+
+    const insideListMenu = e.target.closest(
+      ".collection-card-list-menu, .collection-card-menu-btn",
+    );
+    if (!insideListMenu) closeCollectionListMenu();
+
+    const card = e.target.closest(".show-card, .my-shows-collection-card");
+    if (!card) return;
+
+    location.hash = `show?traktIdentifier=${card.dataset.id}`;
+  });
+}
+
+/**
+ * Warms list-membership cache in the background (for ⋮ menus).
+ * @param {string[]} [showIds]
+ */
+export function prepareMyShowsListMenus(showIds) {
+  preloadListMembershipCache(showIds);
 }
