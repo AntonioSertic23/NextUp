@@ -4,6 +4,21 @@ All notable changes to this project are documented here.
 
 ---
 
+## [2.8.0] — 2025
+
+### Added
+- **Back button** in navbar for in-app navigation (PWA-friendly)
+- **Smart cache refresh** — watchlist and stats reload after marking episodes elsewhere, not on every visit
+- **Show & profile notes** — `show_notes` and `user_notes` tables with UI on show page and profile
+- **Multiple lists** — create, edit, delete lists; filter home watchlist by list
+- **Follow users** — follow by email, view followed users' statistics
+- **Theme picker** — Midnight, Ocean, Ember, and Forest palettes on Profile
+
+### Fixed
+- **Statistics page z-index** — navbar dropdown no longer hidden behind stats header
+
+---
+
 ## [2.7.0] — 2025
 
 ### Added

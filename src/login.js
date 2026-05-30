@@ -13,7 +13,9 @@
 import { login, register } from "./services/auth.js";
 import { getSupabaseClient } from "./services/supabase.js";
 import { registerServiceWorker } from "./pwa/registerServiceWorker.js";
+import { initTheme } from "./services/theme.js";
 
+initTheme();
 registerServiceWorker();
 
 // ————————————————————————————————————————————————————
