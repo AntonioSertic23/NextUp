@@ -1,6 +1,5 @@
 import { manageCollection, getRelatedShows } from "../api/shows.js";
-import { getActiveListId } from "../stores/listsStore.js";
-import { ensureListsLoaded } from "./listFilter.js";
+import { getDefaultListId } from "../api/watchlist.js";
 import { getShowNote, saveShowNote, deleteShowNote } from "../api/notes.js";
 import { invalidateWatchlistAndStats } from "../services/pageCache.js";
 import { markEpisodes } from "../api/episodes.js";
@@ -187,21 +186,8 @@ export function renderShowDetails(show) {
         <p class="network">${show.network}</p>
       </div>
     </div>
-    <section class="show-notes-section" id="show-notes-section" aria-label="Notes">
-      <h3 class="show-notes-title">Notes</h3>
-      <textarea
-        id="show-notes-input"
-        class="show-notes-textarea"
-        rows="4"
-        placeholder="Your notes for this show…"
-      ></textarea>
-      <div class="show-notes-actions">
-        <button type="button" class="btn-secondary" id="show-notes-save">Save note</button>
-        <button type="button" class="btn-ghost" id="show-notes-clear">Clear</button>
-      </div>
-      <p class="show-notes-hint" id="show-notes-status" aria-live="polite"></p>
-    </section>
     <div id="seasons"></div>
+    <div id="show-notes-mount"></div>
     <div id="related-shows-section" class="related-shows-section" aria-live="polite"></div>
   `;
 
@@ -216,8 +202,8 @@ export function renderShowDetails(show) {
       collectionBtn.disabled = true;
 
       try {
-        await ensureListsLoaded();
-        await manageCollection(showId, shouldAdd, getActiveListId());
+        const defaultListId = await getDefaultListId();
+        await manageCollection(showId, shouldAdd, defaultListId);
         invalidateWatchlistAndStats();
 
         collectionBtn.innerHTML = shouldAdd
@@ -239,9 +225,33 @@ export function renderShowDetails(show) {
     });
   }
 
-  setupShowNotes(show.id);
   renderShowSeasons(showContainer, show.seasons, show.id);
+  renderShowNotesBlock(show.id);
   void renderRecommendedShows(showContainer, show);
+}
+
+function renderShowNotesBlock(showId) {
+  const mount = document.getElementById("show-notes-mount");
+  if (!mount) return;
+
+  mount.innerHTML = `
+    <section class="show-notes-section" id="show-notes-section" aria-label="Notes">
+      <h3 class="show-notes-title">Notes</h3>
+      <textarea
+        id="show-notes-input"
+        class="show-notes-textarea"
+        rows="4"
+        placeholder="Your notes for this show…"
+      ></textarea>
+      <div class="show-notes-actions">
+        <button type="button" class="btn-secondary" id="show-notes-save">Save note</button>
+        <button type="button" class="btn-ghost" id="show-notes-clear">Clear</button>
+      </div>
+      <p class="show-notes-hint" id="show-notes-status" aria-live="polite"></p>
+    </section>
+  `;
+
+  setupShowNotes(showId);
 }
 
 async function setupShowNotes(showId) {

@@ -4,22 +4,27 @@ export const THEMES = [
   {
     id: "midnight",
     label: "Midnight",
-    description: "Default purple accent on dark navy",
+    description: "Dark navy with purple & pink accents",
   },
   {
     id: "ocean",
     label: "Ocean",
-    description: "Cool teal accents",
+    description: "Deep blue with bright teal & sky",
   },
   {
     id: "ember",
     label: "Ember",
-    description: "Warm orange and coral",
+    description: "Warm charcoal with orange & gold",
   },
   {
     id: "forest",
     label: "Forest",
-    description: "Green earth tones",
+    description: "Rich green with mint highlights",
+  },
+  {
+    id: "daylight",
+    label: "Daylight",
+    description: "Light gray background, dark text",
   },
 ];
 

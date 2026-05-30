@@ -21,9 +21,25 @@ export async function fetchUserLists() {
 export async function createList(name, description = "") {
   const SUPABASE = await getSupabaseClient();
   const { id: userId } = getUser();
+  const trimmedName = name.trim();
+
+  const { data: existing } = await SUPABASE.from("lists")
+    .select("id")
+    .eq("user_id", userId)
+    .ilike("name", trimmedName)
+    .maybeSingle();
+
+  if (existing) {
+    throw new Error("A list with this name already exists");
+  }
 
   const { data, error } = await SUPABASE.from("lists")
-    .insert({ user_id: userId, name, description, is_default: false })
+    .insert({
+      user_id: userId,
+      name: trimmedName,
+      description,
+      is_default: false,
+    })
     .select("id, name, description, is_default, created_at")
     .single();
 
@@ -33,8 +49,23 @@ export async function createList(name, description = "") {
 
 export async function updateList(listId, { name, description }) {
   const SUPABASE = await getSupabaseClient();
+  const { id: userId } = getUser();
   const payload = {};
-  if (name !== undefined) payload.name = name;
+
+  if (name !== undefined) {
+    const trimmedName = name.trim();
+    const { data: duplicate } = await SUPABASE.from("lists")
+      .select("id")
+      .eq("user_id", userId)
+      .ilike("name", trimmedName)
+      .neq("id", listId)
+      .maybeSingle();
+
+    if (duplicate) {
+      throw new Error("A list with this name already exists");
+    }
+    payload.name = trimmedName;
+  }
   if (description !== undefined) payload.description = description;
 
   const { error } = await SUPABASE.from("lists")

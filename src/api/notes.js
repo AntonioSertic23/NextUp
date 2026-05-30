@@ -50,7 +50,7 @@ export async function getProfileNote() {
   const { id: userId } = getUser();
 
   const { data } = await SUPABASE.from("user_notes")
-    .select("id, content, updated_at")
+    .select("user_id, content, updated_at")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -70,7 +70,7 @@ export async function saveProfileNote(content) {
       },
       { onConflict: "user_id" },
     )
-    .select("id, content, updated_at")
+    .select("user_id, content, updated_at")
     .single();
 
   if (error) throw new Error(error.message);
