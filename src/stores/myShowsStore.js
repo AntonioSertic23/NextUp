@@ -4,6 +4,7 @@
 
 let upcomingEpisodes = [];
 let allCollectionShows = [];
+let collectionListId = null;
 let availableGenres = [];
 
 let collectionFilter = "";
@@ -34,8 +35,13 @@ export function getUpcomingEpisodes() {
  *
  * @param {Array<Object>} data - Array of all shows in the user's collection
  */
-export function setAllCollectionShows(data) {
+export function setAllCollectionShows(data, listId = null) {
   allCollectionShows = data;
+  if (listId != null) collectionListId = listId;
+}
+
+export function getCollectionListId() {
+  return collectionListId;
 }
 
 /**

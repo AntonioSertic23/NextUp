@@ -1,25 +1,106 @@
 import { getSupabaseClient } from "../services/supabase.js";
 import { getUser } from "../stores/userStore.js";
+import { getCachedDefaultListId } from "../stores/listsStore.js";
+
+let cachedDefaultListId = null;
+let cachedDefaultListUserId = null;
+
+export function invalidateDefaultListIdCache() {
+  cachedDefaultListId = null;
+  cachedDefaultListUserId = null;
+}
+
+const COLLECTION_SHOWS_SELECT = `
+  added_at,
+  shows (
+    id,
+    slug_id,
+    title,
+    year,
+    image_poster,
+    show_genres (
+      genres (
+        id,
+        name,
+        slug
+      )
+    )
+  )
+`;
 
 /**
- * Fetches the watchlist data for the user's default list.
- *
- * @returns {Promise<Array<Object>>} Array of watchlist items
+ * Derive unique genre chips from a collection query result.
+ * @param {Array<Object>} collectionItems
  */
-export async function getWatchlistData(listIdParam) {
+export function extractCollectionGenres(collectionItems) {
+  const uniqueGenres = new Map();
+  for (const item of collectionItems || []) {
+    for (const sg of item.shows?.show_genres ?? []) {
+      if (sg.genres && !uniqueGenres.has(sg.genres.id)) {
+        uniqueGenres.set(sg.genres.id, sg.genres);
+      }
+    }
+  }
+  return [...uniqueGenres.values()].sort((a, b) =>
+    a.name.localeCompare(b.name),
+  );
+}
+
+const WATCHLIST_SELECT = `
+  added_at,
+  is_completed,
+  completed_at,
+  watched_episodes,
+  total_episodes,
+  next_episode:episodes!next_episode_id (
+    id,
+    episode_number,
+    season_number,
+    title,
+    image_screenshot,
+    overview,
+    first_aired
+  ),
+  shows (
+    id,
+    slug_id,
+    title,
+    year,
+    rating,
+    last_watched_at,
+    image_poster
+  )
+`;
+
+/**
+ * Fetches watchlist rows for a list (direct Supabase — faster than Netlify hop).
+ * @param {string} [listIdParam]
+ * @param {{ activeOnly?: boolean }} [options] - activeOnly: hide completed (home default true)
+ */
+export async function getWatchlistData(listIdParam, options = {}) {
+  const { activeOnly = true } = options;
   const listId = listIdParam ?? (await getDefaultListId());
   if (!listId) return [];
 
-  const res = await fetch("/.netlify/functions/getWatchlistData", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ listId }),
-  });
+  const SUPABASE = await getSupabaseClient();
 
-  const data = await res.json();
-  return (Array.isArray(data) ? data : []).filter((item) => item.shows);
+  try {
+    let query = SUPABASE.from("list_shows")
+      .select(WATCHLIST_SELECT)
+      .eq("list_id", listId);
+
+    if (activeOnly) {
+      query = query.eq("is_completed", false);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+    return (data ?? []).filter((item) => item.shows);
+  } catch (err) {
+    console.error("getWatchlistData:", err);
+    return [];
+  }
 }
 
 /**
@@ -75,54 +156,104 @@ export async function getShowNextEpisode(showId) {
  *
  * @returns {Promise<Array<Object>|null>} Array of upcoming episodes or null on error
  */
-export async function getUpcomingEpisodesData() {
-  const SUPABASE = await getSupabaseClient();
-  const listId = await getDefaultListId();
+const UPCOMING_EPISODE_SELECT = `
+  id,
+  trakt_id,
+  show_id,
+  title,
+  image_screenshot,
+  episode_number,
+  season_number,
+  overview,
+  first_aired,
+  shows (
+    slug_id,
+    title,
+    image_poster
+  )
+`;
 
+/**
+ * Next unaired episode per show (bounded query).
+ * @param {Array<string>} showIds
+ */
+const UPCOMING_SHOW_ID_BATCH = 100;
+
+function pickNextUpcomingPerShow(episodes) {
+  const validEpisodes = (episodes || []).filter((ep) => ep.shows);
+  return Object.values(
+    validEpisodes.reduce((acc, ep) => {
+      acc[ep.show_id] ??= ep;
+      return acc;
+    }, {}),
+  );
+}
+
+async function fetchUpcomingEpisodeBatch(SUPABASE, showIds) {
+  const currentDate = new Date().toISOString();
+  const horizon = new Date();
+  horizon.setDate(horizon.getDate() + 180);
+
+  const { data: episodes, error } = await SUPABASE.from("episodes")
+    .select(UPCOMING_EPISODE_SELECT)
+    .in("show_id", showIds)
+    .gt("first_aired", currentDate)
+    .lte("first_aired", horizon.toISOString())
+    .order("first_aired")
+    .limit(400);
+
+  if (error) throw error;
+  return episodes ?? [];
+}
+
+/**
+ * Next unaired episode per show (bounded query).
+ * @param {Array<string>} showIds
+ */
+export async function getUpcomingEpisodesForShowIds(showIds) {
+  if (!showIds?.length) return [];
+
+  const SUPABASE = await getSupabaseClient();
+
+  try {
+    if (showIds.length <= UPCOMING_SHOW_ID_BATCH) {
+      const episodes = await fetchUpcomingEpisodeBatch(SUPABASE, showIds);
+      return pickNextUpcomingPerShow(episodes);
+    }
+
+    const batches = [];
+    for (let i = 0; i < showIds.length; i += UPCOMING_SHOW_ID_BATCH) {
+      batches.push(showIds.slice(i, i + UPCOMING_SHOW_ID_BATCH));
+    }
+
+    const results = await Promise.all(
+      batches.map((ids) => fetchUpcomingEpisodeBatch(SUPABASE, ids)),
+    );
+    return pickNextUpcomingPerShow(results.flat());
+  } catch (err) {
+    console.error("getUpcomingEpisodesForShowIds:", err);
+    return [];
+  }
+}
+
+/**
+ * Fetches upcoming episodes for all shows in the user's default list.
+ */
+export async function getUpcomingEpisodesData() {
+  const listId = await getDefaultListId();
+  if (!listId) return [];
+
+  const SUPABASE = await getSupabaseClient();
   try {
     const { data: shows } = await SUPABASE.from("list_shows")
       .select("show_id")
       .eq("list_id", listId);
 
-    const showIds = shows.map((s) => s.show_id);
-    const currentDate = new Date().toISOString();
-
-    const { data: episodes } = await SUPABASE.from("episodes")
-      .select(
-        `
-        id,
-        trakt_id,
-        show_id,
-        title,
-        image_screenshot,
-        episode_number,
-        season_number,
-        overview,
-        first_aired,
-        shows (
-          slug_id,
-          title,
-          image_poster
-        )
-        `,
-      )
-      .in("show_id", showIds)
-      .gt("first_aired", currentDate)
-      .order("first_aired");
-
-    const validEpisodes = (episodes || []).filter((ep) => ep.shows);
-
-    const nextEpisodes = Object.values(
-      validEpisodes.reduce((acc, ep) => {
-        acc[ep.show_id] ??= ep;
-        return acc;
-      }, {}),
-    );
-
-    return nextEpisodes;
+    if (!shows?.length) return [];
+    return getUpcomingEpisodesForShowIds(shows.map((s) => s.show_id));
   } catch (err) {
-    console.error("Unexpected error fetching next episode:", err);
-    return null;
+    console.error("Unexpected error fetching upcoming episodes:", err);
+    return [];
   }
 }
 
@@ -132,77 +263,21 @@ export async function getUpcomingEpisodesData() {
  *
  * @returns {Promise<Array<Object>|null>} Array of collection shows or null on error
  */
-export async function getAllCollectionShowsData() {
+export async function getAllCollectionShowsData(listIdParam) {
+  const listId = listIdParam ?? (await getDefaultListId());
+  if (!listId) return [];
+
   const SUPABASE = await getSupabaseClient();
-  const listId = await getDefaultListId();
 
   try {
-    const { data } = await SUPABASE.from("list_shows")
-      .select(
-        `
-        is_completed,
-        added_at,
-        shows (
-          id,
-          slug_id,
-          title,
-          year,
-          image_poster,
-          show_genres (
-            genres (
-              id,
-              name,
-              slug
-            )
-          )
-        )
-        `,
-      )
+    const { data, error } = await SUPABASE.from("list_shows")
+      .select(COLLECTION_SHOWS_SELECT)
       .eq("list_id", listId);
 
+    if (error) throw error;
     return (data || []).filter((item) => item.shows);
   } catch (err) {
     console.error("Unexpected error fetching all collection shows:", err);
-    return null;
-  }
-}
-
-/**
- * Fetches all genres that have at least one show in the user's collection.
- *
- * @returns {Promise<Array<{id: string, name: string, slug: string}>|}
- */
-export async function getCollectionGenres() {
-  const SUPABASE = await getSupabaseClient();
-  const listId = await getDefaultListId();
-
-  try {
-    const { data: listShows } = await SUPABASE.from("list_shows")
-      .select("show_id")
-      .eq("list_id", listId);
-
-    if (!listShows?.length) return [];
-
-    const showIds = listShows.map((ls) => ls.show_id);
-
-    const { data: showGenres } = await SUPABASE.from("show_genres")
-      .select("genres (id, name, slug)")
-      .in("show_id", showIds);
-
-    if (!showGenres?.length) return [];
-
-    const uniqueGenres = new Map();
-    for (const sg of showGenres) {
-      if (sg.genres && !uniqueGenres.has(sg.genres.id)) {
-        uniqueGenres.set(sg.genres.id, sg.genres);
-      }
-    }
-
-    return [...uniqueGenres.values()].sort((a, b) =>
-      a.name.localeCompare(b.name),
-    );
-  } catch (err) {
-    console.error("Error fetching collection genres:", err);
     return [];
   }
 }
@@ -213,8 +288,19 @@ export async function getCollectionGenres() {
  * @returns {Promise<string|null>} The default list ID, or null if not found
  */
 export async function getDefaultListId() {
-  const SUPABASE = await getSupabaseClient();
   const { id: userId } = getUser();
+  if (cachedDefaultListId && cachedDefaultListUserId === userId) {
+    return cachedDefaultListId;
+  }
+
+  const fromStore = getCachedDefaultListId();
+  if (fromStore) {
+    cachedDefaultListId = fromStore;
+    cachedDefaultListUserId = userId;
+    return fromStore;
+  }
+
+  const SUPABASE = await getSupabaseClient();
 
   try {
     const { data: list, error } = await SUPABASE.from("lists")
@@ -228,7 +314,9 @@ export async function getDefaultListId() {
       return null;
     }
 
-    return list?.id ?? null;
+    cachedDefaultListId = list?.id ?? null;
+    cachedDefaultListUserId = userId;
+    return cachedDefaultListId;
   } catch (err) {
     console.error("Unexpected error fetching default list:", err);
     return null;

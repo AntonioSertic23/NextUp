@@ -4,6 +4,7 @@ import {
   getLists,
   getActiveListId,
   setActiveListId,
+  resolveActiveListId,
 } from "../stores/listsStore.js";
 import { getWatchlistData } from "../api/watchlist.js";
 import { setWatchlist } from "../stores/watchlistStore.js";
@@ -17,62 +18,54 @@ export async function ensureListsLoaded() {
 }
 
 /**
- * Renders list filter chips on the home page (above watchlist).
+ * Renders list filter beside sort controls on the home page.
  */
 export async function renderListFilter(main) {
   await ensureListsLoaded();
   const lists = getLists();
   if (!lists.length) return;
 
-  const existing = main.querySelector(".list-filter-bar");
+  const sortControls = main.querySelector(".sort-controls");
+  if (!sortControls) return;
+
+  const existing = sortControls.querySelector(".list-filter-group");
   if (existing) existing.remove();
 
-  const activeId = getActiveListId() || lists.find((l) => l.is_default)?.id;
+  const activeId = resolveActiveListId();
 
-  const bar = document.createElement("div");
-  bar.className = "list-filter-bar";
-  bar.innerHTML = `
-    <span class="list-filter-label">List:</span>
-    <div class="list-chips" role="group" aria-label="Filter by list">
+  const group = document.createElement("div");
+  group.className = "list-filter-group";
+  group.innerHTML = `
+    <label for="watchlist-list">List:</label>
+    <select id="watchlist-list" aria-label="Filter by list">
       ${lists
         .map(
           (list) => `
-        <button
-          type="button"
-          class="list-chip ${list.id === activeId ? "active" : ""}"
-          data-list-id="${list.id}"
-        >${escapeHtml(list.name)}</button>
+        <option value="${escapeHtml(list.id)}"${list.id === activeId ? " selected" : ""}>
+          ${escapeHtml(list.name)}
+        </option>
       `,
         )
         .join("")}
-    </div>
+    </select>
   `;
 
-  const sortControls = main.querySelector(".sort-controls");
-  if (sortControls) {
-    sortControls.after(bar);
-  } else {
-    main.prepend(bar);
-  }
+  sortControls.appendChild(group);
 
-  bar.querySelectorAll(".list-chip").forEach((chip) => {
-    chip.addEventListener("click", async () => {
-      const listId = chip.dataset.listId;
-      if (listId === getActiveListId()) return;
+  const select = group.querySelector("#watchlist-list");
+  select.addEventListener("change", async () => {
+    const listId = select.value;
+    if (listId === getActiveListId()) return;
 
-      setActiveListId(listId);
-      bar.querySelectorAll(".list-chip").forEach((c) => {
-        c.classList.toggle("active", c.dataset.listId === listId);
-      });
+    setActiveListId(listId);
 
-      invalidateWatchlistAndStats();
-      const container = document.getElementById("watchlist-container");
-      if (container) {
-        container.innerHTML = "<p class='loading-text'>Loading...</p>";
-      }
-      setWatchlist(await getWatchlistData(listId));
-      renderWatchlist();
-    });
+    invalidateWatchlistAndStats();
+    const container = document.getElementById("watchlist-container");
+    if (container) {
+      container.innerHTML = "<p class='loading-text'>Loading...</p>";
+    }
+    setWatchlist(await getWatchlistData(listId), listId);
+    renderWatchlist();
   });
 }
 
