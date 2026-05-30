@@ -1,4 +1,8 @@
 import { manageCollection, getRelatedShows } from "../api/shows.js";
+import { getActiveListId } from "../stores/listsStore.js";
+import { ensureListsLoaded } from "./listFilter.js";
+import { getShowNote, saveShowNote, deleteShowNote } from "../api/notes.js";
+import { invalidateWatchlistAndStats } from "../services/pageCache.js";
 import { markEpisodes } from "../api/episodes.js";
 import {
   attachEpisodeInfoHandler,
@@ -183,6 +187,20 @@ export function renderShowDetails(show) {
         <p class="network">${show.network}</p>
       </div>
     </div>
+    <section class="show-notes-section" id="show-notes-section" aria-label="Notes">
+      <h3 class="show-notes-title">Notes</h3>
+      <textarea
+        id="show-notes-input"
+        class="show-notes-textarea"
+        rows="4"
+        placeholder="Your notes for this show…"
+      ></textarea>
+      <div class="show-notes-actions">
+        <button type="button" class="btn-secondary" id="show-notes-save">Save note</button>
+        <button type="button" class="btn-ghost" id="show-notes-clear">Clear</button>
+      </div>
+      <p class="show-notes-hint" id="show-notes-status" aria-live="polite"></p>
+    </section>
     <div id="seasons"></div>
     <div id="related-shows-section" class="related-shows-section" aria-live="polite"></div>
   `;
@@ -198,7 +216,9 @@ export function renderShowDetails(show) {
       collectionBtn.disabled = true;
 
       try {
-        await manageCollection(showId, shouldAdd);
+        await ensureListsLoaded();
+        await manageCollection(showId, shouldAdd, getActiveListId());
+        invalidateWatchlistAndStats();
 
         collectionBtn.innerHTML = shouldAdd
           ? BOOKMARK_FILLED_ICON
@@ -219,8 +239,47 @@ export function renderShowDetails(show) {
     });
   }
 
+  setupShowNotes(show.id);
   renderShowSeasons(showContainer, show.seasons, show.id);
   void renderRecommendedShows(showContainer, show);
+}
+
+async function setupShowNotes(showId) {
+  const input = document.getElementById("show-notes-input");
+  const status = document.getElementById("show-notes-status");
+  const saveBtn = document.getElementById("show-notes-save");
+  const clearBtn = document.getElementById("show-notes-clear");
+  if (!input || !saveBtn) return;
+
+  try {
+    const note = await getShowNote(showId);
+    if (note?.content) input.value = note.content;
+  } catch (err) {
+    console.error("load show note:", err);
+  }
+
+  saveBtn.addEventListener("click", async () => {
+    saveBtn.disabled = true;
+    if (status) status.textContent = "Saving…";
+    try {
+      await saveShowNote(showId, input.value);
+      if (status) status.textContent = "Saved";
+    } catch (err) {
+      if (status) status.textContent = err.message;
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  clearBtn?.addEventListener("click", async () => {
+    input.value = "";
+    try {
+      await deleteShowNote(showId);
+      if (status) status.textContent = "Cleared";
+    } catch (err) {
+      if (status) status.textContent = err.message;
+    }
+  });
 }
 
 /** Trakt slug preferred for routing / DB lookup; fallback to numeric trakt id. */

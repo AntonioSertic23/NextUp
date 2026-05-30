@@ -376,3 +376,68 @@ CREATE POLICY "Public read for show_genres"
 
 -- Existing databases: add OAuth redirect used for Trakt (refresh must use the same redirect_uri as authorize)
 ALTER TABLE users ADD COLUMN IF NOT EXISTS trakt_oauth_redirect_uri TEXT;
+
+-- =========================
+-- v2.8.0: Notes, follows, display names
+-- =========================
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT;
+
+CREATE TABLE IF NOT EXISTS show_notes (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  show_id uuid NOT NULL REFERENCES shows(id) ON DELETE CASCADE,
+  content text NOT NULL DEFAULT '',
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE (user_id, show_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_show_notes_user_id ON show_notes(user_id);
+CREATE INDEX IF NOT EXISTS idx_show_notes_show_id ON show_notes(show_id);
+
+ALTER TABLE show_notes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users manage own show notes"
+  ON show_notes FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE TABLE IF NOT EXISTS user_notes (
+  user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  content text NOT NULL DEFAULT '',
+  updated_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE user_notes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users manage own profile note"
+  ON user_notes FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE TABLE IF NOT EXISTS user_follows (
+  follower_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  following_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at timestamptz DEFAULT now(),
+  PRIMARY KEY (follower_id, following_id),
+  CHECK (follower_id <> following_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_follows_follower ON user_follows(follower_id);
+CREATE INDEX IF NOT EXISTS idx_user_follows_following ON user_follows(following_id);
+
+ALTER TABLE user_follows ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users read own follow relationships"
+  ON user_follows FOR SELECT
+  USING (auth.uid() = follower_id OR auth.uid() = following_id);
+
+CREATE POLICY "Users insert own follows"
+  ON user_follows FOR INSERT
+  WITH CHECK (auth.uid() = follower_id);
+
+CREATE POLICY "Users delete own follows"
+  ON user_follows FOR DELETE
+  USING (auth.uid() = follower_id);
+
+-- display_name is updated via existing "Users can update own data" policy on users
