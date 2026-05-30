@@ -1,10 +1,13 @@
 import { getSupabaseClient } from "../services/supabase.js";
+import { fetchUserLists } from "./lists.js";
 import {
   calculateStatistics,
   convertMinutesToTime,
   formatTimeBreakdown,
 } from "../utils/stats.js";
+import { buildMultiListAnalytics } from "../utils/multiListStats.js";
 import { getDefaultListId } from "./watchlist.js";
+import { getLists } from "../stores/listsStore.js";
 
 /**
  * Fetches and calculates statistics for the user's watched shows.
@@ -70,6 +73,50 @@ export async function getStatsData(listIdParam) {
     return { ...stats, timeFormatted };
   } catch (error) {
     console.error("Error loading statistics:", error);
+    return null;
+  }
+}
+
+const LIST_SHOWS_STATS_SELECT = `
+  list_id,
+  show_id,
+  is_completed,
+  watched_episodes,
+  total_episodes,
+  added_at,
+  shows (
+    id,
+    title,
+    runtime,
+    rating,
+    image_poster
+  )
+`;
+
+/**
+ * Lightweight stats across all user lists (from list_shows progress).
+ * @returns {Promise<{ perList: Array, insights: Object }|null>}
+ */
+export async function getMultiListStats() {
+  const SUPABASE = await getSupabaseClient();
+  const lists = getLists().length ? getLists() : await fetchUserLists();
+  if (!lists.length) return null;
+
+  const listIds = lists.map((l) => l.id);
+
+  try {
+    const { data, error } = await SUPABASE.from("list_shows")
+      .select(LIST_SHOWS_STATS_SELECT)
+      .in("list_id", listIds);
+
+    if (error) {
+      console.error("getMultiListStats:", error);
+      return null;
+    }
+
+    return buildMultiListAnalytics(lists, data ?? []);
+  } catch (err) {
+    console.error("getMultiListStats:", err);
     return null;
   }
 }

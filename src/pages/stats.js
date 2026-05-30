@@ -1,8 +1,69 @@
-import { getStatsData } from "../api/stats.js";
+import { getStatsData, getMultiListStats } from "../api/stats.js";
+import { getDefaultListId } from "../api/watchlist.js";
+import {
+  readStatsCache,
+  getFreshMultiListFromCache,
+  getFreshDetailFromCache,
+  persistStatsCache,
+} from "../api/statsCache.js";
 import { renderStatistics } from "../ui/statistics.js";
-import { setStats, getStats, clearStats } from "../stores/statsStore.js";
-import { getActiveListId } from "../stores/listsStore.js";
+import { setStats, getStats } from "../stores/statsStore.js";
 import { consumeStatsStale } from "../services/pageCache.js";
+import { ensureListsLoaded } from "../ui/listFilter.js";
+import { getSupabaseClient } from "../services/supabase.js";
+
+/**
+ * Loads main-collection stats + multi-list overview (with Supabase cache).
+ */
+async function loadStats() {
+  const listId = await getDefaultListId();
+  if (!listId) return null;
+
+  const sessionStale = consumeStatsStale();
+  const inMemory = getStats();
+
+  if (!sessionStale && inMemory?.multiList && inMemory?.detail) {
+    return inMemory;
+  }
+
+  const cachedRow = sessionStale ? null : await readStatsCache();
+  let multiList = sessionStale
+    ? null
+    : getFreshMultiListFromCache(cachedRow);
+  let detail = sessionStale ? null : getFreshDetailFromCache(cachedRow, listId);
+
+  if (multiList && detail) {
+    const payload = { multiList, detail };
+    setStats(payload);
+    return payload;
+  }
+
+  if (multiList || detail) {
+    setStats({ multiList: multiList ?? null, detail: detail ?? null });
+    renderStatistics();
+  }
+
+  const needMulti = !multiList;
+  const needDetail = !detail;
+
+  const [multiResult, detailResult] = await Promise.all([
+    needMulti ? getMultiListStats() : Promise.resolve(multiList),
+    needDetail ? getStatsData(listId) : Promise.resolve(detail),
+  ]);
+
+  multiList = multiResult ?? multiList;
+  detail = detailResult ?? detail;
+
+  const payload = { multiList, detail };
+  setStats(payload);
+  persistStatsCache({
+    multiList: needMulti ? multiList : null,
+    detail: needDetail ? detail : null,
+    detailListId: listId,
+  }).catch(() => {});
+
+  return payload;
+}
 
 /**
  * Renders statistics on the user's watched shows.
@@ -14,16 +75,7 @@ export async function renderStats(main) {
   statsDiv.innerHTML = "<p class='loading-text'>Loading statistics...</p>";
   main.appendChild(statsDiv);
 
-  const needsFetch =
-    consumeStatsStale() ||
-    !getStats() ||
-    !Object.keys(getStats()).length;
-
-  if (needsFetch) {
-    clearStats();
-    const data = await getStatsData(getActiveListId());
-    if (data) setStats(data);
-  }
-
+  await Promise.all([getSupabaseClient(), ensureListsLoaded()]);
+  await loadStats();
   renderStatistics();
 }

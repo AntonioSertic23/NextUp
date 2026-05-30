@@ -11,41 +11,27 @@ function escapeHtml(value) {
 function formatMonth(monthStr) {
   const [year, month] = monthStr.split("-");
   const date = new Date(Number(year), Number(month) - 1);
-  return date.toLocaleString("en", { month: "short", year: "2-digit" });
+  return date.toLocaleString("en", { month: "long" });
 }
 
-/**
- * Renders user statistics in the statistics container.
- * @param {{ title?: string, subtitle?: string }} [options]
- */
-export function renderStatistics(options = {}) {
-  const stats = getStats();
-  const title = options.title ?? "Your Statistics";
-  const subtitle =
-    options.subtitle ?? "Time invested, episodes consumed, top picks.";
-
-  const container = document.getElementById("stats-container");
-
-  if (!stats || !Object.keys(stats).length) {
-    container.innerHTML = `<p class="no-show-message">
-        Not enough data to display statistics.
-      </p>`;
-    return;
+function renderMainCollectionStats(detail) {
+  if (!detail || (!detail.totalEpisodes && !detail.totalShows)) {
+    return `<p class="top-empty stats-detail-empty">Mark some episodes in your main collection to unlock detailed charts.</p>`;
   }
 
-  const totalMinutes = (stats.totalMinutes ?? 0).toLocaleString();
-  const timeFormatted = escapeHtml(stats.timeFormatted ?? "");
-  const totalEpisodes = (stats.totalEpisodes ?? 0).toLocaleString();
-  const totalShows = (stats.totalShows ?? 0).toLocaleString();
-  const totalSeasons = (stats.totalSeasons ?? 0).toLocaleString();
-  const completionRate = stats.completionRate ?? 0;
-  const avgRating = stats.avgRating ?? 0;
-  const completedShows = stats.completedShows ?? 0;
-  const topGenres = stats.topGenres ?? [];
-  const topShows = stats.topShows ?? [];
-  const topNetworks = stats.topNetworks ?? [];
-  const watchByDay = stats.watchByDay ?? [];
-  const recentMonths = stats.recentMonths ?? [];
+  const totalMinutes = (detail.totalMinutes ?? 0).toLocaleString();
+  const timeFormatted = escapeHtml(detail.timeFormatted ?? "");
+  const totalEpisodes = (detail.totalEpisodes ?? 0).toLocaleString();
+  const totalShows = (detail.totalShows ?? 0).toLocaleString();
+  const totalSeasons = (detail.totalSeasons ?? 0).toLocaleString();
+  const completionRate = detail.completionRate ?? 0;
+  const avgRating = detail.avgRating ?? 0;
+  const completedShows = detail.completedShows ?? 0;
+  const topGenres = detail.topGenres ?? [];
+  const topShows = detail.topShows ?? [];
+  const topNetworks = detail.topNetworks ?? [];
+  const watchByDay = detail.watchByDay ?? [];
+  const recentMonths = detail.recentMonths ?? [];
 
   const maxDayEpisodes = Math.max(...watchByDay.map((d) => d.episodes), 1);
   const maxMonthEpisodes = Math.max(
@@ -54,17 +40,12 @@ export function renderStatistics(options = {}) {
   );
   const maxGenreEpisodes = topGenres.length ? topGenres[0].episodes : 1;
 
-  container.innerHTML = `
-    <header class="stats-header">
-      <h1 class="stats-page-title">${escapeHtml(title)}</h1>
-      <p class="stats-page-subtitle">${escapeHtml(subtitle)}</p>
-    </header>
-
-    <section class="stats-overview" aria-label="Overview">
+  return `
+    <section class="stats-overview" aria-label="Main collection overview">
       <div class="stats-hero-card">
         <span class="stats-hero-label">Total time watching TV</span>
         <span class="stats-hero-value">${timeFormatted || `${totalMinutes} min`}</span>
-        <span class="stats-hero-detail">${totalMinutes} minutes &middot; that&rsquo;s a lot of TV</span>
+        <span class="stats-hero-detail">${totalMinutes} minutes &middot; main collection</span>
       </div>
 
       <div class="stats-grid">
@@ -223,5 +204,178 @@ export function renderStatistics(options = {}) {
           : ""
       }
     </section>
+  `;
+}
+
+function renderMultiListSection(multi) {
+  if (!multi?.perList?.length) return "";
+
+  const { perList, insights } = multi;
+  const listsWithShows = perList.filter((p) => p.showCount > 0);
+  if (!listsWithShows.length && insights.listCount <= 1) return "";
+
+  const maxShows = Math.max(...perList.map((p) => p.showCount), 1);
+  const maxBacklog = Math.max(
+    ...listsWithShows.map((p) => p.episodesLeft),
+    1,
+  );
+
+  const insightCards = [];
+
+  if (insights.defaultList && insights.collectionSharePct > 0) {
+    insightCards.push(
+      `<p class="stats-insight-line"><strong>${escapeHtml(insights.defaultList.name)}</strong> holds ${insights.collectionSharePct}% of all list entries (${insights.defaultList.showCount} shows).</p>`,
+    );
+  }
+  if (insights.secondaryListCount > 0) {
+    insightCards.push(
+      `<p class="stats-insight-line">You keep <strong>${insights.secondaryShowCount}</strong> show${insights.secondaryShowCount === 1 ? "" : "s"} across ${insights.secondaryListCount} extra list${insights.secondaryListCount === 1 ? "" : "s"} (mood lists, rewatch queues, etc.).</p>`,
+    );
+  }
+  if (insights.duplicateEntries > 0) {
+    insightCards.push(
+      `<p class="stats-insight-line"><strong>${insights.duplicateEntries}</strong> duplicate slot${insights.duplicateEntries === 1 ? "" : "s"} — the same show lives on more than one list.</p>`,
+    );
+  }
+  if (insights.busiestList && !insights.busiestList.isDefault) {
+    insightCards.push(
+      `<p class="stats-insight-line">Largest list: <strong>${escapeHtml(insights.busiestList.name)}</strong> (${insights.busiestList.showCount} shows).</p>`,
+    );
+  } else if (insights.busiestList) {
+    insightCards.push(
+      `<p class="stats-insight-line">Your main collection is still the biggest list at ${insights.busiestList.showCount} shows.</p>`,
+    );
+  }
+  if (insights.mostCompleteList && insights.mostCompleteList.completionPct > 0) {
+    insightCards.push(
+      `<p class="stats-insight-line">Highest completion: <strong>${escapeHtml(insights.mostCompleteList.name)}</strong> (${insights.mostCompleteList.completionPct}% finished).</p>`,
+    );
+  }
+  if (insights.mostToWatchList && insights.mostToWatchList.episodesLeft > 0) {
+    insightCards.push(
+      `<p class="stats-insight-line">Biggest backlog: <strong>${escapeHtml(insights.mostToWatchList.name)}</strong> — ${insights.mostToWatchList.episodesLeft.toLocaleString()} episodes still to go.</p>`,
+    );
+  }
+  if (insights.emptyListCount > 0) {
+    insightCards.push(
+      `<p class="stats-insight-line">${insights.emptyListCount} empty list${insights.emptyListCount === 1 ? "" : "s"} ready for your next obsession.</p>`,
+    );
+  }
+
+  const backlogHtml =
+    insights.backlogRanking?.length > 1
+      ? `
+    <div class="stats-backlog-rank">
+      <h3 class="stats-subcard-title">Where your queue lives</h3>
+      <ol class="stats-backlog-list">
+        ${insights.backlogRanking
+          .map((list, i) => {
+            const pct = (list.episodesLeft / maxBacklog) * 100;
+            return `
+          <li class="stats-backlog-item">
+            <span class="stats-backlog-rank-num">${i + 1}</span>
+            <div class="stats-backlog-body">
+              <span class="stats-backlog-name">${escapeHtml(list.name)}</span>
+              <div class="stats-backlog-bar-track">
+                <div class="stats-backlog-bar-fill" style="width: ${pct}%"></div>
+              </div>
+              <span class="stats-backlog-meta">${list.episodesLeft.toLocaleString()} ep left &middot; ${list.showCount} shows</span>
+            </div>
+          </li>
+        `;
+          })
+          .join("")}
+      </ol>
+    </div>`
+      : "";
+
+  return `
+    <section class="stats-lists-overview" aria-label="Lists overview">
+      <h2 class="stats-section-heading">Your lists</h2>
+      <p class="stats-section-lead">
+        Smart overview across every list — not just your main collection.
+      </p>
+
+      ${
+        insightCards.length
+          ? `<div class="stats-insight-panel">${insightCards.join("")}</div>`
+          : ""
+      }
+
+      ${backlogHtml}
+
+      <div class="stats-lists-grid">
+        ${perList
+          .map((list) => {
+            const barPct = (list.showCount / maxShows) * 100;
+            return `
+          <article class="stats-list-card">
+            <div class="stats-list-card-header">
+              <h3 class="stats-list-card-title">${escapeHtml(list.name)}</h3>
+              ${list.isDefault ? '<span class="stats-list-badge">Main</span>' : ""}
+            </div>
+            <div class="stats-list-card-bar-track" aria-hidden="true">
+              <div class="stats-list-card-bar-fill" style="width: ${barPct}%"></div>
+            </div>
+            <dl class="stats-list-card-metrics">
+              <div><dt>Shows</dt><dd>${list.showCount}</dd></div>
+              <div><dt>Finished</dt><dd>${list.completed}</dd></div>
+              <div><dt>In progress</dt><dd>${list.inProgress}</dd></div>
+              <div><dt>Not started</dt><dd>${list.notStarted}</dd></div>
+              <div><dt>Episodes left</dt><dd>${list.episodesLeft.toLocaleString()}</dd></div>
+              <div><dt>Completion</dt><dd>${list.completionPct}%</dd></div>
+            </dl>
+          </article>
+        `;
+          })
+          .join("")}
+      </div>
+    </section>
+  `;
+}
+
+/**
+ * Renders user statistics in the statistics container.
+ * @param {{ title?: string, subtitle?: string }} [options]
+ */
+export function renderStatistics(options = {}) {
+  const stored = getStats();
+  const container = document.getElementById("stats-container");
+  if (!container) return;
+
+  const multi = stored?.multiList ?? null;
+  const detail =
+    stored?.detail ??
+    (stored?.totalEpisodes != null || stored?.totalMinutes != null
+      ? stored
+      : null);
+
+  const title = options.title ?? "Your Statistics";
+  const subtitle =
+    options.subtitle ??
+    "Watch habits from your main collection, plus insights across all your lists.";
+
+  const hasMulti =
+    multi?.perList?.some((p) => p.showCount > 0) || (multi?.insights?.listCount ?? 0) > 1;
+  const hasDetail = detail && (detail.totalEpisodes > 0 || detail.totalShows > 0);
+
+  if (!hasMulti && !hasDetail) {
+    container.innerHTML = `<p class="no-show-message">
+        Not enough data to display statistics. Add shows to your collection and mark some episodes watched.
+      </p>`;
+    return;
+  }
+
+  const showListsSection = options.showListsSection !== false && hasMulti;
+
+  container.innerHTML = `
+    <header class="stats-header">
+      <h1 class="stats-page-title">${escapeHtml(title)}</h1>
+      <p class="stats-page-subtitle">${escapeHtml(subtitle)}</p>
+    </header>
+
+    ${renderMainCollectionStats(detail)}
+
+    ${showListsSection ? renderMultiListSection(multi) : ""}
   `;
 }

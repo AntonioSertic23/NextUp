@@ -28,11 +28,16 @@ export async function renderUserStats(main, userId) {
     const timeBreakdown = convertMinutesToTime(stats.totalMinutes);
     const timeFormatted = formatTimeBreakdown(timeBreakdown);
 
-    setStats({ ...stats, timeFormatted });
+    setStats({
+      multiList: null,
+      detail: { ...stats, timeFormatted },
+      detailListId: null,
+    });
 
     renderStatistics({
       title: `${user.displayName}'s Statistics`,
       subtitle: "Watch activity shared with followers",
+      showListsSection: false,
     });
   } catch (err) {
     container.innerHTML = `<p class="no-show-message">${err.message}</p>`;
