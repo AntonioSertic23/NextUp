@@ -3,12 +3,20 @@
  * progress changes on another route (e.g. marking episodes on show page).
  */
 
+import { clearStatsCache } from "../api/statsCache.js";
+
 let watchlistStale = false;
 let statsStale = false;
 
 export function invalidateWatchlistAndStats() {
   watchlistStale = true;
   statsStale = true;
+  clearStatsCache().catch(() => {});
+}
+
+export function invalidateStatsCachePersisted() {
+  statsStale = true;
+  clearStatsCache().catch(() => {});
 }
 
 export function consumeWatchlistStale() {
@@ -25,4 +33,5 @@ export function consumeStatsStale() {
 
 export function invalidateStatsOnly() {
   statsStale = true;
+  clearStatsCache().catch(() => {});
 }

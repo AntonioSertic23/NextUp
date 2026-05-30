@@ -11,6 +11,7 @@ import {
   createList,
   updateList,
   deleteList,
+  invalidateListMembershipCache,
 } from "../api/lists.js";
 import {
   getProfileNote,
@@ -27,6 +28,9 @@ import {
   setLists,
   invalidateListsCache,
 } from "../stores/listsStore.js";
+import { invalidateDefaultListIdCache } from "../api/watchlist.js";
+import { invalidateStatsCachePersisted } from "../services/pageCache.js";
+import { resetLibraryPageCaches } from "../services/libraryCache.js";
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -262,6 +266,9 @@ function setupListsSection(container) {
     try {
       await createList(name);
       invalidateListsCache();
+      invalidateDefaultListIdCache();
+      invalidateListMembershipCache();
+      invalidateStatsCachePersisted();
       await renderProfile();
     } catch (err) {
       alert(err.message);
@@ -292,6 +299,9 @@ function setupListsSection(container) {
       try {
         await deleteList(listId);
         invalidateListsCache();
+        invalidateDefaultListIdCache();
+        invalidateListMembershipCache();
+        invalidateStatsCachePersisted();
         await renderProfile();
       } catch (err) {
         alert(err.message);
@@ -363,6 +373,7 @@ function setupProfileActions(container, traktConnected) {
 
       try {
         const result = await syncTraktAccount();
+        resetLibraryPageCaches();
         let msg = result?.message || "Sync completed";
         if (result?.errors?.length) {
           msg += "\n\nErrors:\n" + result.errors.join("\n");

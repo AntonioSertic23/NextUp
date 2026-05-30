@@ -12,6 +12,11 @@
 
 import { getSupabaseClient } from "./supabase.js";
 import { getUser, clearUserStore } from "../stores/userStore.js";
+import {
+  clearActiveListId,
+  invalidateListsCache,
+} from "../stores/listsStore.js";
+import { resetLibraryPageCaches } from "./libraryCache.js";
 
 /**
  * Retrieves the current user's Trakt OAuth token from the database.
@@ -103,6 +108,9 @@ export async function logout() {
   }
 
   clearUserStore();
+  clearActiveListId();
+  invalidateListsCache();
+  resetLibraryPageCaches();
 
   window.location.replace("/login.html");
 }
@@ -125,6 +133,9 @@ export async function setupAuthGuard() {
   } = SUPABASE.auth.onAuthStateChange((event) => {
     if (event === "SIGNED_OUT") {
       clearUserStore();
+      clearActiveListId();
+      invalidateListsCache();
+      resetLibraryPageCaches();
 
       if (!window.location.pathname.includes("login.html")) {
         window.location.replace("/login.html");
