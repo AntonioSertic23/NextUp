@@ -110,7 +110,7 @@ Authorization: Bearer <supabase_access_token>
 | **Method** | `POST` (manual) or Scheduled (cron: `0 6 * * *` — daily at 6 AM UTC) |
 | **Auth** | None (scheduled) / None (manual trigger) |
 | **Timeout** | 120s |
-| **Description** | Checks all tracked shows for newly aired episodes, updates seasons/episodes in the database, and recalculates user progress. |
+| **Description** | Checks all tracked shows for newly aired episodes, updates seasons/episodes in the database, recalculates `list_shows` progress, and **sends Web Push** to users who have the show on any list and an active subscription (when VAPID keys are configured). |
 
 **Response:**
 ```json
@@ -118,9 +118,12 @@ Authorization: Bearer <supabase_access_token>
   "message": "Sync completed",
   "updated": ["Breaking Bad", "The Bear"],
   "skipped": ["Game of Thrones"],
-  "errors": [{ "show": "Lost", "error": "API timeout" }]
+  "errors": [{ "show": "Lost", "error": "API timeout" }],
+  "notificationsSent": 3
 }
 ```
+
+`notificationsSent` is the total push messages successfully delivered during the run (omitted or `0` if VAPID is not configured).
 
 ---
 
@@ -252,7 +255,7 @@ Authorization: Bearer <supabase_access_token>
 |---|---|
 | **Method** | `GET` |
 | **Auth** | Bearer token (Supabase JWT) |
-| **Description** | Returns the user's watchlist (shows from default list with progress data). |
+| **Description** | Returns list membership rows with show and progress data for a given list. Does **not** filter by `is_completed` — the Home page applies `activeOnly` on the client. Prefer direct Supabase queries from `src/api/watchlist.js` for Home/My Shows when possible. |
 
 **Response:**
 ```json
@@ -320,6 +323,106 @@ Authorization: Bearer <supabase_access_token>
 
 ---
 
+### `getVapidPublicKey`
+
+| | |
+|---|---|
+| **Method** | `GET` |
+| **Auth** | None |
+| **Description** | Returns the public VAPID key for browser `PushManager.subscribe()`. |
+
+**Response:**
+```json
+{ "publicKey": "BGx..." }
+```
+
+**Errors:**
+- `503` — `VAPID_PUBLIC_KEY` not set in environment
+
+---
+
+### `savePushSubscription`
+
+| | |
+|---|---|
+| **Method** | `POST` |
+| **Auth** | Bearer token (Supabase JWT) |
+| **Description** | Upserts a Web Push subscription for the authenticated user (`push_subscriptions` table). |
+
+**Request body:**
+```json
+{
+  "subscription": {
+    "endpoint": "https://...",
+    "keys": { "p256dh": "...", "auth": "..." }
+  }
+}
+```
+
+**Response:** `{ "success": true }`
+
+---
+
+### `removePushSubscription`
+
+| | |
+|---|---|
+| **Method** | `POST` |
+| **Auth** | Bearer token (Supabase JWT) |
+| **Description** | Deletes push subscription(s) for the user. |
+
+**Request body (optional):**
+```json
+{ "endpoint": "https://..." }
+```
+
+If `endpoint` is omitted, all subscriptions for the user are removed.
+
+---
+
+### `followUser`
+
+| | |
+|---|---|
+| **Method** | `GET` / `POST` / `DELETE` |
+| **Auth** | Bearer token (Supabase JWT) |
+| **Description** | Manage `user_follows` — list following, follow by email, unfollow. |
+
+**POST body (follow):**
+```json
+{ "email": "friend@example.com" }
+```
+
+---
+
+### `getPublicUserStats`
+
+| | |
+|---|---|
+| **Method** | `GET` |
+| **Auth** | Bearer token (viewer must follow the target user) |
+| **Description** | Returns sanitized statistics for a followed user (used by `#user` route). |
+
+**Query params:** `userId` — UUID of the user to view
+
+---
+
+## Client-side API modules (Supabase direct)
+
+Several features use the Supabase JS client from the browser (RLS-protected) instead of Netlify Functions:
+
+| Module | Purpose |
+|--------|---------|
+| `src/api/watchlist.js` | Home/My Shows list data, upcoming episodes |
+| `src/api/lists.js` | CRUD lists, list membership cache |
+| `src/api/statsCache.js` | Read/write `user_stats_cache` |
+| `src/api/notes.js` | Show notes and profile note |
+| `src/api/social.js` | Wrapper around `followUser` function |
+| `src/api/push.js` | VAPID key + save/remove subscription |
+| `src/api/ratings.js` | Personal hype ratings (`user_show_ratings`) |
+
+---
+
 ## Server-side Libraries
 
 ### `netlify/lib/supabase.js`
@@ -344,6 +447,17 @@ Trakt API configuration and OAuth token management:
 | `getTraktHeaders()` | Returns default Trakt API headers |
 | `exchangeCode(code, redirectUri)` | Exchanges auth code for tokens |
 | `refreshToken(userId)` | Refreshes expired Trakt token |
+
+### `netlify/lib/webPush.js`
+
+| Function | Description |
+|----------|-------------|
+| `getVapidPublicKey()` | Reads `VAPID_PUBLIC_KEY` from env |
+| `upsertPushSubscription(userId, subscription, userAgent)` | Upserts into `push_subscriptions` |
+| `deletePushSubscriptionsForUser(userId, endpoint?)` | Removes subscription rows |
+| `notifyUsersForNewEpisodes(showId)` | Notifies users with show on any list + active subscription; removes 404/410 endpoints |
+
+Requires `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and optionally `VAPID_SUBJECT`.
 
 ---
 

@@ -14,6 +14,7 @@ import {
   BOOKMARK_OUTLINE_ICON,
   BOOKMARK_FILLED_ICON,
 } from "../utils/icons.js";
+import { renderPopcornRatingHtml, bindPopcornRating } from "./showRating.js";
 
 function computeSeasonProgress(episodes) {
   const total = episodes.length;
@@ -159,7 +160,10 @@ export function renderShowDetails(show) {
     <div class="show_poster-container">
       <img class="show_poster-img" src="https://${show.image_poster}">
       <div class="show-top-container">
-        <h2>${show.title} (${show.year})</h2>
+        <div class="show-title-row">
+          <h2>${show.title} (${show.year})</h2>
+          ${renderPopcornRatingHtml(show.user_rating ?? null)}
+        </div>
         <p class="status">Status: ${show.status}</p>
       </div>
     </div>
@@ -225,6 +229,7 @@ export function renderShowDetails(show) {
     });
   }
 
+  bindPopcornRating(show.id, show.user_rating ?? null);
   renderShowSeasons(showContainer, show.seasons, show.id);
   renderShowNotesBlock(show.id);
   void renderRecommendedShows(showContainer, show);

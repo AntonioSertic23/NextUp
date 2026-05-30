@@ -1,4 +1,6 @@
 import { getStatsData, getMultiListStats } from "../api/stats.js";
+import { getAllUserRatings } from "../api/ratings.js";
+import { computePersonalRatingStats } from "../utils/showRatings.js";
 import { getDefaultListId } from "../api/watchlist.js";
 import {
   readStatsCache,
@@ -23,6 +25,12 @@ async function loadStats() {
   const inMemory = getStats();
 
   if (!sessionStale && inMemory?.multiList && inMemory?.detail) {
+    if (!inMemory.personalHype) {
+      const personalHype = computePersonalRatingStats(await getAllUserRatings());
+      const merged = { ...inMemory, personalHype };
+      setStats(merged);
+      return merged;
+    }
     return inMemory;
   }
 
@@ -33,7 +41,8 @@ async function loadStats() {
   let detail = sessionStale ? null : getFreshDetailFromCache(cachedRow, listId);
 
   if (multiList && detail) {
-    const payload = { multiList, detail };
+    const personalHype = computePersonalRatingStats(await getAllUserRatings());
+    const payload = { multiList, detail, personalHype };
     setStats(payload);
     return payload;
   }
@@ -46,15 +55,17 @@ async function loadStats() {
   const needMulti = !multiList;
   const needDetail = !detail;
 
-  const [multiResult, detailResult] = await Promise.all([
+  const [multiResult, detailResult, ratingsRows] = await Promise.all([
     needMulti ? getMultiListStats() : Promise.resolve(multiList),
     needDetail ? getStatsData(listId) : Promise.resolve(detail),
+    getAllUserRatings(),
   ]);
 
   multiList = multiResult ?? multiList;
   detail = detailResult ?? detail;
+  const personalHype = computePersonalRatingStats(ratingsRows);
 
-  const payload = { multiList, detail };
+  const payload = { multiList, detail, personalHype };
   setStats(payload);
   persistStatsCache({
     multiList: needMulti ? multiList : null,

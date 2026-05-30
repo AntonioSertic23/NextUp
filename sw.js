@@ -2,7 +2,7 @@
  * NextUp service worker — PWA installability, network-first fetch, and Web Push.
  */
 
-const SW_VERSION = "nextup-pwa-v2";
+const SW_VERSION = "nextup-pwa-v2.8.0";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -52,7 +52,10 @@ self.addEventListener("notificationclick", (event) => {
       .matchAll({ type: "window", includeUncontrolled: true })
       .then((clientList) => {
         for (const client of clientList) {
-          if (client.url.startsWith(self.location.origin) && "focus" in client) {
+          if (
+            client.url.startsWith(self.location.origin) &&
+            "focus" in client
+          ) {
             client.navigate(absolute);
             return client.focus();
           }

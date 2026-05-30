@@ -480,11 +480,27 @@ export async function getShowWithSeasonsAndEpisodes(userId, traktIdentifier) {
 
     in_collection = (count ?? 0) > 0;
 
+    let user_rating = null;
+    const { data: ratingRow, error: ratingErr } = await SUPABASE.from(
+      "user_show_ratings",
+    )
+      .select("score")
+      .eq("user_id", userId)
+      .eq("show_id", show.id)
+      .maybeSingle();
+
+    if (ratingErr) {
+      console.error("Error fetching user rating:", ratingErr.message);
+    } else if (ratingRow?.score != null) {
+      user_rating = ratingRow.score;
+    }
+
     // Return show with nested seasons & episodes
     return {
       ...show,
       seasons: seasonsWithEpisodes,
       in_collection,
+      user_rating,
     };
   } catch (err) {
     console.error("Unexpected error:", err);

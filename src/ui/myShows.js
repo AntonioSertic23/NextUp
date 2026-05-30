@@ -10,7 +10,10 @@ import {
   getAvailableGenres,
   getCollectionGenreFilter,
   setCollectionGenreFilter,
+  getCollectionRatingFilter,
+  setCollectionRatingFilter,
 } from "../stores/myShowsStore.js";
+import { renderHypeBadgeHtml } from "./showRating.js";
 import { formatDate, formatEpisodeInfo, getTimeUntil } from "../utils/format.js";
 import {
   fetchListsWithShowMembership,
@@ -35,7 +38,9 @@ import {
   setAvailableGenres,
   setUpcomingEpisodes,
   getCollectionListId,
+  setShowRatingsMap,
 } from "../stores/myShowsStore.js";
+import { getRatingsMapForShows } from "../api/ratings.js";
 import { invalidateWatchlistAndStats } from "../services/pageCache.js";
 
 function escapeHtml(text) {
@@ -50,6 +55,19 @@ const COLLECTION_SORT_OPTIONS = [
   { value: "added_at", label: "Last added" },
   { value: "title", label: "Title" },
   { value: "year", label: "Year" },
+  { value: "user_rating", label: "My rating" },
+];
+
+const RATING_FILTER_OPTIONS = [
+  { value: "", label: "All ratings" },
+  { value: "top", label: "5–4 popcorn" },
+  { value: "5", label: "5 popcorn" },
+  { value: "4", label: "4 popcorn" },
+  { value: "3", label: "3 popcorn" },
+  { value: "2", label: "2 popcorn" },
+  { value: "1", label: "1 popcorn" },
+  { value: "rated", label: "Rated" },
+  { value: "unrated", label: "Unrated" },
 ];
 
 /**
@@ -142,6 +160,7 @@ export async function reloadMyShowsForList(listId) {
   const collection = await getAllCollectionShowsData(listId);
   setAllCollectionShows(collection, listId);
   setAvailableGenres(extractCollectionGenres(collection));
+  setShowRatingsMap(await getRatingsMapForShows(collectionShowIds(collection)));
   renderAllCollectionShows();
   prepareMyShowsListMenus(collectionShowIds(collection));
 
@@ -175,6 +194,7 @@ export async function renderCollectionFilterBar(parent) {
   const currentSort = getCollectionSort();
   const currentOrder = getCollectionOrder();
   const currentFilter = getCollectionFilter();
+  const currentRatingFilter = getCollectionRatingFilter();
 
   const listOptions = lists.length
     ? lists
@@ -245,6 +265,15 @@ export async function renderCollectionFilterBar(parent) {
       </div>`
           : ""
       }
+      <div class="my-shows-rating-filter">
+        <label for="my-shows-rating">Rating:</label>
+        <select id="my-shows-rating" class="sort-select" aria-label="Filter by popcorn rating">
+          ${RATING_FILTER_OPTIONS.map(
+            (opt) =>
+              `<option value="${opt.value}"${opt.value === currentRatingFilter ? " selected" : ""}>${opt.label}</option>`,
+          ).join("")}
+        </select>
+      </div>
     </div>
 
     <div id="genre-chips-container" class="genre-chips"></div>
@@ -284,6 +313,12 @@ export async function renderCollectionFilterBar(parent) {
       .querySelector(".sort-order-icon")
       .classList.toggle("flipped", next === "asc");
     setCollectionOrder(next);
+    renderAllCollectionShows();
+  });
+
+  const ratingSelect = bar.querySelector("#my-shows-rating");
+  ratingSelect?.addEventListener("change", (e) => {
+    setCollectionRatingFilter(e.target.value);
     renderAllCollectionShows();
   });
 
@@ -360,9 +395,10 @@ export function renderAllCollectionShows() {
   if (!shows.length) {
     const filter = getCollectionFilter().trim();
     const genre = getCollectionGenreFilter();
+    const hype = getCollectionRatingFilter();
     container.innerHTML = `<p class="no-show-message">
         ${
-          filter || genre
+          filter || genre || hype
             ? `No shows match your current filters.`
             : "No shows found in your collection."
         }
@@ -380,6 +416,7 @@ export function renderAllCollectionShows() {
       const posterSrc = posterPath ? `https://${posterPath}` : "";
 
       const showId = s.id != null ? String(s.id) : "";
+      const hypeBadge = renderHypeBadgeHtml(item.user_rating);
 
       return `
         <div
@@ -393,6 +430,7 @@ export function renderAllCollectionShows() {
             aria-label="Add to list"
             title="Lists"
           >⋮</button>
+          ${hypeBadge ? `<div class="collection-card-hype">${hypeBadge}</div>` : ""}
           <div class="discover-card-poster">
             ${
               posterSrc

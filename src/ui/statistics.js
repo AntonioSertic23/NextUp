@@ -1,4 +1,5 @@
 import { getStats } from "../stores/statsStore.js";
+import { HYPE_TIERS } from "../utils/showRatings.js";
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -72,7 +73,7 @@ function renderMainCollectionStats(detail) {
         <div class="stat-tile">
           <span class="stat-tile-icon" aria-hidden="true">⭐</span>
           <span class="stat-tile-value">${avgRating}</span>
-          <span class="stat-tile-label">Avg. show rating</span>
+          <span class="stat-tile-label">Avg. Trakt rating</span>
         </div>
         <div class="stat-tile">
           <span class="stat-tile-icon" aria-hidden="true">🏆</span>
@@ -201,6 +202,83 @@ function renderMainCollectionStats(detail) {
               .join("")}
           </ol>
         </div>`
+          : ""
+      }
+    </section>
+  `;
+}
+
+function renderPersonalHypeSection(personalHype) {
+  if (!personalHype?.totalRated) return "";
+
+  const maxTier = Math.max(
+    ...HYPE_TIERS.map((t) => personalHype.tierCounts[t.score] ?? 0),
+    1,
+  );
+
+  const tierBars = HYPE_TIERS.slice()
+    .reverse()
+    .map((tier) => {
+      const count = personalHype.tierCounts[tier.score] ?? 0;
+      const pct = (count / maxTier) * 100;
+      return `
+        <div class="hype-stats-tier-row">
+          <span class="hype-stats-tier-label">${tier.score} · ${tier.label}</span>
+          <div class="hype-stats-tier-track">
+            <div class="hype-stats-tier-fill hype-stats-tier-fill--${tier.score}" style="width: ${pct}%"></div>
+          </div>
+          <span class="hype-stats-tier-count">${count}</span>
+        </div>
+      `;
+    })
+    .join("");
+
+  const topList = personalHype.topRated.length
+    ? `<ol class="top-list hype-top-list">
+        ${personalHype.topRated
+          .map(
+            (row, i) => `
+          <li class="top-item">
+            <span class="top-rank">${i + 1}</span>
+            <span class="hype-stats-popcorn-count" aria-label="${row.score} of 5">${row.score}</span>
+            <a href="#show?traktIdentifier=${encodeURIComponent(row.slugId || "")}" class="top-name">${escapeHtml(row.title)}</a>
+          </li>
+        `,
+          )
+          .join("")}
+      </ol>`
+    : "";
+
+  return `
+    <section class="stats-hype-section" aria-label="Your popcorn ratings">
+      <h2 class="stats-section-heading">Your take</h2>
+      <p class="stats-section-lead">
+        Popcorn ratings from show pages — separate from Trakt scores.
+      </p>
+      <div class="stats-grid stats-hype-tiles">
+        <div class="stat-tile">
+          <span class="stat-tile-value">${personalHype.totalRated}</span>
+          <span class="stat-tile-label">Shows rated</span>
+        </div>
+        <div class="stat-tile">
+          <span class="stat-tile-value">${escapeHtml(String(personalHype.averageScore))}</span>
+          <span class="stat-tile-label">Avg. popcorn (1–5)</span>
+        </div>
+        <div class="stat-tile">
+          <span class="stat-tile-value">${personalHype.tierCounts[5] ?? 0}</span>
+          <span class="stat-tile-label">5 popcorn (Peak)</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <h3 class="stat-card-title">Tier breakdown</h3>
+        <div class="hype-stats-tiers">${tierBars}</div>
+      </div>
+      ${
+        topList
+          ? `<div class="stat-card">
+        <h3 class="stat-card-title">Top of your queue</h3>
+        ${topList}
+      </div>`
           : ""
       }
     </section>
@@ -344,6 +422,7 @@ export function renderStatistics(options = {}) {
   if (!container) return;
 
   const multi = stored?.multiList ?? null;
+  const personalHype = stored?.personalHype ?? null;
   const detail =
     stored?.detail ??
     (stored?.totalEpisodes != null || stored?.totalMinutes != null
@@ -375,6 +454,8 @@ export function renderStatistics(options = {}) {
     </header>
 
     ${renderMainCollectionStats(detail)}
+
+    ${renderPersonalHypeSection(personalHype)}
 
     ${showListsSection ? renderMultiListSection(multi) : ""}
   `;

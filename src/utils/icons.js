@@ -29,3 +29,4 @@ export const BOOKMARK_FILLED_ICON = `
     <path d="M6 3h12a1 1 0 0 1 1 1v18l-7-4.5L5 22V4a1 1 0 0 1 1-1z" />
   </svg>
 `;
+

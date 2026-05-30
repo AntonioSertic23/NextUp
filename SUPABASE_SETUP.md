@@ -16,17 +16,19 @@ This guide explains how to set up Supabase for NextUp.
 
 This will create:
 
-- `users` — extends Supabase `auth.users` with Trakt OAuth fields (`trakt_token`, `trakt_refresh_token`, `trakt_token_expires_at`)
-- `shows` — TV show metadata from Trakt
-- `seasons` — season metadata per show
-- `episodes` — episode metadata per season
-- `user_episodes` — per-user watch progress (which episodes are watched)
-- `lists` — user-created lists (each user gets a default "Collection" list)
-- `list_shows` — shows added to lists, with progress tracking
-- Row Level Security (RLS) policies for all tables
-- Triggers for automatic user record creation and timestamp updates
+- `users` — extends `auth.users` (Trakt tokens, optional `display_name`)
+- `shows`, `seasons`, `episodes` — catalog from Trakt
+- `user_episodes` — watch progress
+- `lists`, `list_shows` — multiple lists per user + progress per list
+- `genres`, `show_genres` — normalized genres
+- **v2.8:** `show_notes`, `user_notes`, `user_follows`, `user_stats_cache`, `push_subscriptions`, `user_show_ratings`
+- RLS policies and triggers (`handle_new_user` creates user row + default list)
 
 ### Migrating an existing database
+
+Apply only sections you have not run yet (see `docs/DATABASE.md`). Common upgrades:
+
+**Trakt token refresh columns:**
 
 If you already have the `users` table and need to add the Trakt token refresh columns:
 
@@ -50,6 +52,8 @@ SELECT tablename, policyname, cmd FROM pg_policies
 WHERE tablename IN ('shows', 'seasons', 'episodes', 'user_episodes', 'users', 'lists', 'list_shows');
 ```
 
+**v2.8.0 blocks** (end of `db/migration.sql`): notes, follows, `user_stats_cache`, `push_subscriptions`, `user_show_ratings`.
+
 **Important:** Passwords are NOT stored in the custom `users` table. Supabase Auth manages passwords (hashed and secured) in the built-in `auth.users` table. The custom `users` table only stores additional data like Trakt tokens. The `id` column references `auth.users(id)` via foreign key.
 
 ## Environment Variables
@@ -62,6 +66,11 @@ TRAKT_CLIENT_SECRET="your_trakt_client_secret_here"
 SUPABASE_URL="https://your-project.supabase.co"
 SUPABASE_ANON_KEY="your_supabase_anon_key"
 SUPABASE_SERVICE_ROLE_KEY="your_supabase_service_role_key"
+
+# Optional — Web Push (2.8+)
+VAPID_PUBLIC_KEY="from: npx web-push generate-vapid-keys"
+VAPID_PRIVATE_KEY="..."
+VAPID_SUBJECT="mailto:you@example.com"
 ```
 
 | Variable | Where to find it | Used by |

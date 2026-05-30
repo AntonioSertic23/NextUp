@@ -1109,6 +1109,176 @@ main {
   margin-left: 20px;
 }
 
+.show-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.65rem;
+}
+
+.show-title-row h2 {
+  margin: 0;
+  line-height: 1.25;
+}
+
+/* Popcorn rating (show title + My Shows badges) */
+.popcorn-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.show-popcorn-rating {
+  flex-shrink: 0;
+}
+
+.popcorn-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: transform 0.12s ease;
+}
+
+.popcorn-emoji {
+  font-size: 1.2rem;
+  line-height: 1;
+  display: block;
+  transition:
+    filter 0.15s ease,
+    opacity 0.15s ease;
+  user-select: none;
+}
+
+/* Same 🍿 glyph — inactive = light grey (readable on dark theme) */
+.popcorn-btn:not(.is-full) .popcorn-emoji {
+  filter: grayscale(1) brightness(1.85) contrast(0.9);
+  opacity: 0.62;
+}
+
+.popcorn-btn.is-full .popcorn-emoji {
+  filter: none;
+  opacity: 1;
+}
+
+.popcorn-btn:hover:not(:disabled) {
+  transform: scale(1.12);
+}
+
+.popcorn-btn:not(.is-full):hover:not(:disabled) .popcorn-emoji {
+  filter: grayscale(1) brightness(2.1) contrast(0.9);
+  opacity: 0.82;
+}
+
+.popcorn-btn:disabled {
+  cursor: wait;
+  opacity: 0.45;
+}
+
+.popcorn-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  line-height: 1;
+  font-size: 0.7rem;
+  letter-spacing: -0.05em;
+  user-select: none;
+}
+
+.collection-card-hype {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.92;
+}
+
+.my-shows-collection-card {
+  position: relative;
+}
+
+.my-shows-rating-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.my-shows-rating-filter label {
+  font-size: 0.85rem;
+  color: #a8a9b8;
+  white-space: nowrap;
+}
+
+.stats-hype-section {
+  margin-top: 2rem;
+}
+
+.stats-hype-tiles {
+  margin-bottom: 1.25rem;
+}
+
+.hype-stats-tier-row {
+  display: grid;
+  grid-template-columns: 7.5rem 1fr 2rem;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.55rem;
+}
+
+.hype-stats-tier-label {
+  font-size: 0.82rem;
+  color: #b8b9c8;
+}
+
+.hype-stats-tier-track {
+  height: 8px;
+  border-radius: 4px;
+  background: #2a2b34;
+  overflow: hidden;
+}
+
+.hype-stats-tier-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #857aff, #ef6bf3);
+  min-width: 2px;
+}
+
+.hype-stats-tier-count {
+  text-align: right;
+  font-size: 0.85rem;
+  color: #e0e0ea;
+  font-variant-numeric: tabular-nums;
+}
+
+.hype-top-list .top-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.hype-top-list .top-name {
+  flex: 1;
+}
+
+.hype-stats-popcorn-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #b8b0ff;
+  font-variant-numeric: tabular-nums;
+}
+
 .show_other_info-container {
   margin-top: 100px;
 }
@@ -3328,6 +3498,10 @@ body.modal-open {
     margin-top: 0.75rem;
     text-align: center;
     width: 100%;
+  }
+
+  .show-title-row {
+    justify-content: center;
   }
 
   .collection-btn {

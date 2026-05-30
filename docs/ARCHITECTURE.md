@@ -34,10 +34,15 @@
 │  └──────────────────────┘   │         │   Trakt.tv API   │
 │                             │────────▶│  (External)      │
 │  ┌──────────────────────┐   │         └──────────────────┘
+│  │  lib/webPush.js      │───┼──▶ Browser Push Services (FCM/Mozilla/…)
+│  └──────────────────────┘   │
+│  ┌──────────────────────┐   │
 │  │  Scheduled (cron)    │   │
 │  │  syncNextEpisodes    │   │
 │  └──────────────────────┘   │
 └─────────────────────────────┘
+
+sw.js: push event → showNotification; notificationclick → open #show or #home
 ```
 
 ---
@@ -111,14 +116,39 @@ Daily at 6:00 AM UTC (cron: 0 6 * * *)
 syncNextEpisodes function
     │
     ├─ Query all shows from DB
-    ├─ For each show:
-    │   ├─ Fetch latest data from Trakt
-    │   ├─ Compare with DB (new episodes?)
-    │   ├─ Upsert new seasons/episodes
-    │   ├─ Update genre associations
-    │   └─ Recalculate user progress (list_shows)
+    ├─ For each show with new aired episodes:
+    │   ├─ Fetch seasons/episodes from Trakt
+    │   ├─ Upsert DB + refresh list_shows for that show
+    │   └─ notifyUsersForNewEpisodes(showId) → Web Push (if VAPID configured)
     │
-    └─ Return summary (updated/skipped/errors)
+    └─ Return summary (updated/skipped/errors/notificationsSent)
+```
+
+### Web Push flow (v2.8+)
+
+```
+Profile: Enable notifications
+    → getVapidPublicKey
+    → PushManager.subscribe(applicationServerKey)
+    → savePushSubscription → push_subscriptions (Supabase)
+
+Login (if preference saved): syncPushSubscriptionIfEnabled()
+
+syncNextEpisodes detects new episodes for show X
+    → Users with X on ANY list + subscription row
+    → webpush.sendNotification (server, VAPID private key)
+    → Service worker push handler → system notification
+    → Click → #show?traktIdentifier=…
+```
+
+### Multi-list & cache (v2.8+)
+
+```
+listsStore: active list id (localStorage + validate against DB)
+watchlist.js / myShows pages: list filter + direct Supabase reads
+stats: default list for main dashboard; multiListStats + user_stats_cache for "Your lists"
+user_show_ratings: personal hype 1–5 on show page; My Shows filter; stats "Your hype"
+libraryCache / pageCache: invalidate after Trakt sync or mark episodes
 ```
 
 ---
@@ -132,8 +162,8 @@ app.js (entry point)
   ├── api/sync.js ── stores/userStore.js
   │
   ├── pages/home.js
-  │     ├── api/watchlist.js ── stores/userStore.js, services/supabase.js
-  │     ├── ui/watchlist.js ── stores/watchlistStore.js
+  │     ├── api/watchlist.js ── stores/listsStore.js, watchlistStore.js
+  │     ├── ui/watchlist.js, ui/listFilter.js
   │     └── ui/episodeModal.js ── api/episodes.js
   │
   ├── pages/show.js
@@ -145,15 +175,17 @@ app.js (entry point)
   │     └── ui/discover.js ── stores/discoverStore.js
   │
   ├── pages/myShows.js
-  │     ├── api/watchlist.js
-  │     └── ui/myShows.js ── stores/myShowsStore.js
+  │     ├── api/watchlist.js, api/lists.js
+  │     └── ui/myShows.js, ui/listFilter.js ── stores/myShowsStore.js
   │
   ├── pages/stats.js
-  │     ├── api/stats.js
-  │     └── ui/statistics.js ── stores/statsStore.js, utils/stats.js
+  │     ├── api/stats.js, api/statsCache.js
+  │     └── ui/statistics.js ── utils/multiListStats.js
+  │
+  ├── pages/userStats.js ── getPublicUserStats
   │
   └── pages/profile.js
-        └── ui/profile.js ── services/auth.js, api/sync.js
+        └── ui/profile.js ── lists, themes, push, notes, social, sync
 ```
 
 ---
@@ -177,7 +209,10 @@ app.js (entry point)
 | In-memory stores | Client | No redundant API calls per session |
 | Supabase direct queries | Client | Bypasses function cold start for reads |
 | localStorage | Client | Persists preferences without API calls |
-| Service worker | Client | Offline installability, caching |
+| Service worker | Client | PWA install, push display, notification routing |
+| `user_stats_cache` | Database | Avoid recomputing multi-list stats every visit |
+| `libraryCache` | Client | Reset Home/My Shows after Trakt sync |
+| Direct Supabase reads | Client | Faster list/watchlist than function cold start |
 | Upsert pattern | Server | Idempotent writes (safe to retry) |
-| Scheduled sync | Server | Background updates without user action |
+| Scheduled sync | Server | Background updates + optional push |
 | esbuild bundling | Build | Fast function builds |

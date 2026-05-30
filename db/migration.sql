@@ -479,3 +479,22 @@ CREATE POLICY "Users manage own push subscriptions"
   ON push_subscriptions FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
+
+-- Personal show ratings (1–5 hype tiers; global per user, not per list)
+CREATE TABLE IF NOT EXISTS user_show_ratings (
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  show_id uuid NOT NULL REFERENCES shows(id) ON DELETE CASCADE,
+  score smallint NOT NULL CHECK (score >= 1 AND score <= 5),
+  updated_at timestamptz DEFAULT now(),
+  PRIMARY KEY (user_id, show_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_show_ratings_user_id ON user_show_ratings(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_show_ratings_score ON user_show_ratings(user_id, score);
+
+ALTER TABLE user_show_ratings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users manage own show ratings"
+  ON user_show_ratings FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);

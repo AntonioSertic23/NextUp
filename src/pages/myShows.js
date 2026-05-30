@@ -12,7 +12,9 @@ import {
   getAllCollectionShows,
   setAvailableGenres,
   getCollectionListId,
+  setShowRatingsMap,
 } from "../stores/myShowsStore.js";
+import { getRatingsMapForShows } from "../api/ratings.js";
 import {
   getAllCollectionShowsData,
   getUpcomingEpisodesForShowIds,
@@ -24,6 +26,11 @@ import { resolveActiveListId } from "../stores/listsStore.js";
 
 function collectionShowIds(collection) {
   return collection.map((item) => item.shows?.id).filter(Boolean);
+}
+
+async function attachRatingsToStore(collection) {
+  const map = await getRatingsMapForShows(collectionShowIds(collection));
+  setShowRatingsMap(map);
 }
 
 /**
@@ -94,12 +101,14 @@ export async function renderMyShows(main) {
     cachedCollection.length && getCollectionListId() === listId;
 
   if (cacheValid) {
+    await attachRatingsToStore(cachedCollection);
     renderAllCollectionShows();
     prepareMyShowsListMenus(collectionShowIds(cachedCollection));
   } else {
     const collection = await getAllCollectionShowsData(listId);
     setAllCollectionShows(collection, listId);
     setAvailableGenres(extractCollectionGenres(collection));
+    await attachRatingsToStore(collection);
     renderAllCollectionShows();
     prepareMyShowsListMenus(collectionShowIds(collection));
   }
