@@ -441,3 +441,19 @@ CREATE POLICY "Users delete own follows"
   USING (auth.uid() = follower_id);
 
 -- display_name is updated via existing "Users can update own data" policy on users
+
+-- Cached statistics per user (avoids recomputing heavy aggregates on every visit)
+CREATE TABLE IF NOT EXISTS user_stats_cache (
+  user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  multi_list jsonb,
+  multi_list_computed_at timestamptz,
+  detail_by_list jsonb NOT NULL DEFAULT '{}'::jsonb,
+  updated_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE user_stats_cache ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users manage own stats cache"
+  ON user_stats_cache FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
