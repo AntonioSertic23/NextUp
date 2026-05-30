@@ -16,9 +16,13 @@ function formatMonth(monthStr) {
 
 /**
  * Renders user statistics in the statistics container.
+ * @param {{ title?: string, subtitle?: string }} [options]
  */
-export function renderStatistics() {
+export function renderStatistics(options = {}) {
   const stats = getStats();
+  const title = options.title ?? "Your Statistics";
+  const subtitle =
+    options.subtitle ?? "Time invested, episodes consumed, top picks.";
 
   const container = document.getElementById("stats-container");
 
@@ -52,8 +56,8 @@ export function renderStatistics() {
 
   container.innerHTML = `
     <header class="stats-header">
-      <h1 class="stats-page-title">Your Statistics</h1>
-      <p class="stats-page-subtitle">Time invested, episodes consumed, top picks.</p>
+      <h1 class="stats-page-title">${escapeHtml(title)}</h1>
+      <p class="stats-page-subtitle">${escapeHtml(subtitle)}</p>
     </header>
 
     <section class="stats-overview" aria-label="Overview">
