@@ -6,8 +6,9 @@ import { getUser } from "../stores/userStore.js";
  *
  * @returns {Promise<Array<Object>>} Array of watchlist items
  */
-export async function getWatchlistData() {
-  const listId = await getDefaultListId();
+export async function getWatchlistData(listIdParam) {
+  const listId = listIdParam ?? (await getDefaultListId());
+  if (!listId) return [];
 
   const res = await fetch("/.netlify/functions/getWatchlistData", {
     method: "POST",

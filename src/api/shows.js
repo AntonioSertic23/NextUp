@@ -135,8 +135,14 @@ export async function getRelatedShows(
  * @param {boolean} addToCollection - true to add, false to remove
  * @returns {Promise<Object>} API response
  */
-export async function manageCollection(showId, addToCollection) {
+export async function manageCollection(showId, addToCollection, listId) {
   const { access_token } = getSession();
+
+  const payload = {
+    showId,
+    action: addToCollection ? "add" : "remove",
+  };
+  if (listId) payload.listId = listId;
 
   const res = await fetch("/.netlify/functions/manageCollection", {
     method: "POST",
@@ -144,10 +150,7 @@ export async function manageCollection(showId, addToCollection) {
       "Content-Type": "application/json",
       Authorization: `Bearer ${access_token}`,
     },
-    body: JSON.stringify({
-      showId,
-      action: addToCollection ? "add" : "remove",
-    }),
+    body: JSON.stringify(payload),
   });
 
   if (!res.ok) {

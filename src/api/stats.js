@@ -11,9 +11,10 @@ import { getDefaultListId } from "./watchlist.js";
  *
  * @returns {Promise<Object|null>} Statistics object or null on error
  */
-export async function getStatsData() {
+export async function getStatsData(listIdParam) {
   const SUPABASE = await getSupabaseClient();
-  const listId = await getDefaultListId();
+  const listId = listIdParam ?? (await getDefaultListId());
+  if (!listId) return null;
 
   try {
     // RLS on user_episodes already filters by auth.uid(),
