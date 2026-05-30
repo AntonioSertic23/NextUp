@@ -1,4 +1,7 @@
 import { manageCollection, getRelatedShows } from "../api/shows.js";
+import { getDefaultListId } from "../api/watchlist.js";
+import { getShowNote, saveShowNote, deleteShowNote } from "../api/notes.js";
+import { invalidateWatchlistAndStats } from "../services/pageCache.js";
 import { markEpisodes } from "../api/episodes.js";
 import {
   attachEpisodeInfoHandler,
@@ -11,6 +14,7 @@ import {
   BOOKMARK_OUTLINE_ICON,
   BOOKMARK_FILLED_ICON,
 } from "../utils/icons.js";
+import { renderPopcornRatingHtml, bindPopcornRating } from "./showRating.js";
 
 function computeSeasonProgress(episodes) {
   const total = episodes.length;
@@ -156,7 +160,10 @@ export function renderShowDetails(show) {
     <div class="show_poster-container">
       <img class="show_poster-img" src="https://${show.image_poster}">
       <div class="show-top-container">
-        <h2>${show.title} (${show.year})</h2>
+        <div class="show-title-row">
+          <h2>${show.title} (${show.year})</h2>
+          ${renderPopcornRatingHtml(show.user_rating ?? null)}
+        </div>
         <p class="status">Status: ${show.status}</p>
       </div>
     </div>
@@ -184,6 +191,7 @@ export function renderShowDetails(show) {
       </div>
     </div>
     <div id="seasons"></div>
+    <div id="show-notes-mount"></div>
     <div id="related-shows-section" class="related-shows-section" aria-live="polite"></div>
   `;
 
@@ -198,7 +206,9 @@ export function renderShowDetails(show) {
       collectionBtn.disabled = true;
 
       try {
-        await manageCollection(showId, shouldAdd);
+        const defaultListId = await getDefaultListId();
+        await manageCollection(showId, shouldAdd, defaultListId);
+        invalidateWatchlistAndStats();
 
         collectionBtn.innerHTML = shouldAdd
           ? BOOKMARK_FILLED_ICON
@@ -219,8 +229,72 @@ export function renderShowDetails(show) {
     });
   }
 
+  bindPopcornRating(show.id, show.user_rating ?? null);
   renderShowSeasons(showContainer, show.seasons, show.id);
+  renderShowNotesBlock(show.id);
   void renderRecommendedShows(showContainer, show);
+}
+
+function renderShowNotesBlock(showId) {
+  const mount = document.getElementById("show-notes-mount");
+  if (!mount) return;
+
+  mount.innerHTML = `
+    <section class="show-notes-section" id="show-notes-section" aria-label="Notes">
+      <h3 class="show-notes-title">Notes</h3>
+      <textarea
+        id="show-notes-input"
+        class="show-notes-textarea"
+        rows="4"
+        placeholder="Your notes for this show…"
+      ></textarea>
+      <div class="show-notes-actions">
+        <button type="button" class="btn-secondary" id="show-notes-save">Save note</button>
+        <button type="button" class="btn-ghost" id="show-notes-clear">Clear</button>
+      </div>
+      <p class="show-notes-hint" id="show-notes-status" aria-live="polite"></p>
+    </section>
+  `;
+
+  setupShowNotes(showId);
+}
+
+async function setupShowNotes(showId) {
+  const input = document.getElementById("show-notes-input");
+  const status = document.getElementById("show-notes-status");
+  const saveBtn = document.getElementById("show-notes-save");
+  const clearBtn = document.getElementById("show-notes-clear");
+  if (!input || !saveBtn) return;
+
+  try {
+    const note = await getShowNote(showId);
+    if (note?.content) input.value = note.content;
+  } catch (err) {
+    console.error("load show note:", err);
+  }
+
+  saveBtn.addEventListener("click", async () => {
+    saveBtn.disabled = true;
+    if (status) status.textContent = "Saving…";
+    try {
+      await saveShowNote(showId, input.value);
+      if (status) status.textContent = "Saved";
+    } catch (err) {
+      if (status) status.textContent = err.message;
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  clearBtn?.addEventListener("click", async () => {
+    input.value = "";
+    try {
+      await deleteShowNote(showId);
+      if (status) status.textContent = "Cleared";
+    } catch (err) {
+      if (status) status.textContent = err.message;
+    }
+  });
 }
 
 /** Trakt slug preferred for routing / DB lookup; fallback to numeric trakt id. */

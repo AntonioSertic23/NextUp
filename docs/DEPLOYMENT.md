@@ -18,6 +18,9 @@
 | `SUPABASE_ANON_KEY` | Yes | Supabase anonymous/public key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase service role key (admin access) |
 | `TRAKT_REDIRECT_URI` | Optional | Fallback redirect URI for Trakt OAuth refresh |
+| `VAPID_PUBLIC_KEY` | For push | Web Push public key (`npx web-push generate-vapid-keys`) |
+| `VAPID_PRIVATE_KEY` | For push | Web Push private key (keep secret) |
+| `VAPID_SUBJECT` | Optional | `mailto:you@domain.com` or site URL (defaults to `mailto:hello@nextup.app`) |
 
 ### Where to find them
 
@@ -52,8 +55,11 @@ This creates all tables, triggers, RLS policies, and indexes.
 ### 3. Verify
 
 After running migration, verify in Table Editor:
-- Tables: `users`, `shows`, `seasons`, `episodes`, `user_episodes`, `lists`, `list_shows`, `genres`, `show_genres`
-- RLS is enabled on all tables (green shield icon)
+- Core: `users`, `shows`, `seasons`, `episodes`, `user_episodes`, `lists`, `list_shows`, `genres`, `show_genres`
+- v2.8+: `show_notes`, `user_notes`, `user_follows`, `user_stats_cache`, `push_subscriptions`, `user_show_ratings`
+- RLS enabled on all user tables (green shield icon)
+
+**Upgrading an existing project:** run only the new SQL blocks at the end of `db/migration.sql` (see [Database](DATABASE.md#migration)).
 
 ---
 
@@ -72,7 +78,15 @@ After running migration, verify in Table Editor:
 
 In Netlify Dashboard → Site settings → Environment variables:
 
-Add all 5 required environment variables listed above.
+Add all required environment variables listed above (including VAPID keys if you enable Web Push).
+
+Generate VAPID keys locally:
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+Copy the public and private keys into Netlify (and your local `.env` for `netlify dev`). Re-run the latest `db/migration.sql` section for `push_subscriptions` in Supabase if upgrading an existing project.
 
 ### 3. Deploy
 
@@ -125,17 +139,34 @@ Netlify automatically detects and registers this schedule on deploy.
 
 ---
 
+## Web Push setup (2.8+)
+
+1. Generate keys: `npx web-push generate-vapid-keys`
+2. Add `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` to Netlify env (and local `.env`)
+3. Optional: `VAPID_SUBJECT=mailto:you@yourdomain.com`
+4. Run the `push_subscriptions` section of `db/migration.sql` in Supabase
+5. Deploy, then verify `/.netlify/functions/getVapidPublicKey` returns `{ "publicKey": "..." }`
+6. On a device: Profile → Enable episode notifications → confirm row in `push_subscriptions`
+
+If VAPID keys are missing, the app works normally; push controls show a configuration error.
+
+---
+
 ## Production Checklist
 
-- [ ] All 5 env variables set in Netlify
-- [ ] Supabase migration executed
+- [ ] Trakt + Supabase env variables set in Netlify
+- [ ] VAPID keys set (if using push)
+- [ ] Supabase migration executed (including v2.8 tables)
 - [ ] RLS enabled on all tables
 - [ ] Trakt OAuth redirect URI matches production URL
 - [ ] Custom domain configured (optional)
 - [ ] HTTPS active
-- [ ] Test login/register flow
-- [ ] Test Trakt connection flow
-- [ ] Verify scheduled function appears in Netlify Functions tab
+- [ ] Test login/register
+- [ ] Test Trakt connect + sync (Home/My Shows show imported shows)
+- [ ] Test list filter on Home and My Shows
+- [ ] Test Statistics + “Your lists” section
+- [ ] Test push subscribe (optional)
+- [ ] Scheduled `syncNextEpisodes` visible in Netlify Functions
 
 ---
 
@@ -149,3 +180,5 @@ Netlify automatically detects and registers this schedule on deploy.
 | Sync timeout | Too many shows | Already set to 120s max; reduce batch if needed |
 | PWA not installing | Not HTTPS | Deploy to Netlify (auto SSL) |
 | Service worker stale | Cached old version | Hard refresh (Ctrl+Shift+R) or clear site data |
+| Push 503 | No VAPID keys | Set `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` and redeploy |
+| Push subscribe fails | HTTP localhost | Test on HTTPS deploy; iOS needs Home Screen PWA |

@@ -10,8 +10,38 @@ import {
   getAvailableGenres,
   getCollectionGenreFilter,
   setCollectionGenreFilter,
+  getCollectionRatingFilter,
+  setCollectionRatingFilter,
 } from "../stores/myShowsStore.js";
+import { renderHypeBadgeHtml } from "./showRating.js";
 import { formatDate, formatEpisodeInfo, getTimeUntil } from "../utils/format.js";
+import {
+  fetchListsWithShowMembership,
+  preloadListMembershipCache,
+  patchListMembershipCache,
+} from "../api/lists.js";
+import { manageCollection } from "../api/shows.js";
+import {
+  getAllCollectionShowsData,
+  getUpcomingEpisodesForShowIds,
+  extractCollectionGenres,
+} from "../api/watchlist.js";
+import { ensureListsLoaded } from "../ui/listFilter.js";
+import {
+  getLists,
+  getActiveListId,
+  setActiveListId,
+  resolveActiveListId,
+} from "../stores/listsStore.js";
+import {
+  setAllCollectionShows,
+  setAvailableGenres,
+  setUpcomingEpisodes,
+  getCollectionListId,
+  setShowRatingsMap,
+} from "../stores/myShowsStore.js";
+import { getRatingsMapForShows } from "../api/ratings.js";
+import { invalidateWatchlistAndStats } from "../services/pageCache.js";
 
 function escapeHtml(text) {
   return String(text ?? "")
@@ -25,6 +55,19 @@ const COLLECTION_SORT_OPTIONS = [
   { value: "added_at", label: "Last added" },
   { value: "title", label: "Title" },
   { value: "year", label: "Year" },
+  { value: "user_rating", label: "My rating" },
+];
+
+const RATING_FILTER_OPTIONS = [
+  { value: "", label: "All ratings" },
+  { value: "top", label: "5–4 popcorn" },
+  { value: "5", label: "5 popcorn" },
+  { value: "4", label: "4 popcorn" },
+  { value: "3", label: "3 popcorn" },
+  { value: "2", label: "2 popcorn" },
+  { value: "1", label: "1 popcorn" },
+  { value: "rated", label: "Rated" },
+  { value: "unrated", label: "Unrated" },
 ];
 
 /**
@@ -97,13 +140,73 @@ export function renderUpcomingEpisodes() {
  *
  * @param {HTMLElement} parent - Container element to append the bar into.
  */
-export function renderCollectionFilterBar(parent) {
+function collectionShowIds(collection) {
+  return collection.map((item) => item.shows?.id).filter(Boolean);
+}
+
+/**
+ * Reload grid + upcoming when the active list changes.
+ * @param {string} listId
+ */
+export async function reloadMyShowsForList(listId) {
+  const grid = document.getElementById("all_my_shows-container");
+  const upcoming = document.getElementById("upcoming_episodes-container");
+
+  if (grid) grid.innerHTML = "<p class='loading-text'>Loading...</p>";
+  if (upcoming) upcoming.innerHTML = "<p class='loading-text'>Loading...</p>";
+
+  setCollectionGenreFilter("");
+
+  const collection = await getAllCollectionShowsData(listId);
+  setAllCollectionShows(collection, listId);
+  setAvailableGenres(extractCollectionGenres(collection));
+  setShowRatingsMap(await getRatingsMapForShows(collectionShowIds(collection)));
+  renderAllCollectionShows();
+  prepareMyShowsListMenus(collectionShowIds(collection));
+
+  const ids = collectionShowIds(collection);
+  if (!ids.length) {
+    setUpcomingEpisodes([]);
+    renderUpcomingEpisodes();
+    return;
+  }
+
+  try {
+    const data = await getUpcomingEpisodesForShowIds(ids);
+    setUpcomingEpisodes(data || []);
+    renderUpcomingEpisodes();
+  } catch {
+    if (upcoming) {
+      upcoming.innerHTML =
+        "<p class='no-show-message'>Could not load upcoming episodes.</p>";
+    }
+  }
+}
+
+export async function renderCollectionFilterBar(parent) {
+  await ensureListsLoaded();
+  const lists = getLists();
+  const activeListId = resolveActiveListId() || "";
+
   const bar = document.createElement("div");
   bar.className = "my-shows-filter-bar";
 
   const currentSort = getCollectionSort();
   const currentOrder = getCollectionOrder();
   const currentFilter = getCollectionFilter();
+  const currentRatingFilter = getCollectionRatingFilter();
+
+  const listOptions = lists.length
+    ? lists
+        .map(
+          (list) => `
+        <option value="${escapeHtml(list.id)}"${list.id === activeListId ? " selected" : ""}>
+          ${escapeHtml(list.name)}
+        </option>
+      `,
+        )
+        .join("")
+    : "";
 
   bar.innerHTML = `
     <div class="search-input-wrap">
@@ -151,6 +254,26 @@ export function renderCollectionFilterBar(parent) {
           class="sort-order-icon ${currentOrder === "asc" ? "flipped" : ""}"
         />
       </button>
+      ${
+        lists.length
+          ? `
+      <div class="my-shows-list-filter">
+        <label for="my-shows-list">List:</label>
+        <select id="my-shows-list" class="sort-select" aria-label="Filter by list">
+          ${listOptions}
+        </select>
+      </div>`
+          : ""
+      }
+      <div class="my-shows-rating-filter">
+        <label for="my-shows-rating">Rating:</label>
+        <select id="my-shows-rating" class="sort-select" aria-label="Filter by popcorn rating">
+          ${RATING_FILTER_OPTIONS.map(
+            (opt) =>
+              `<option value="${opt.value}"${opt.value === currentRatingFilter ? " selected" : ""}>${opt.label}</option>`,
+          ).join("")}
+        </select>
+      </div>
     </div>
 
     <div id="genre-chips-container" class="genre-chips"></div>
@@ -191,6 +314,20 @@ export function renderCollectionFilterBar(parent) {
       .classList.toggle("flipped", next === "asc");
     setCollectionOrder(next);
     renderAllCollectionShows();
+  });
+
+  const ratingSelect = bar.querySelector("#my-shows-rating");
+  ratingSelect?.addEventListener("change", (e) => {
+    setCollectionRatingFilter(e.target.value);
+    renderAllCollectionShows();
+  });
+
+  const listSelect = bar.querySelector("#my-shows-list");
+  listSelect?.addEventListener("change", async () => {
+    const listId = listSelect.value;
+    if (!listId || listId === getCollectionListId()) return;
+    setActiveListId(listId);
+    await reloadMyShowsForList(listId);
   });
 }
 
@@ -258,9 +395,10 @@ export function renderAllCollectionShows() {
   if (!shows.length) {
     const filter = getCollectionFilter().trim();
     const genre = getCollectionGenreFilter();
+    const hype = getCollectionRatingFilter();
     container.innerHTML = `<p class="no-show-message">
         ${
-          filter || genre
+          filter || genre || hype
             ? `No shows match your current filters.`
             : "No shows found in your collection."
         }
@@ -277,8 +415,22 @@ export function renderAllCollectionShows() {
       const posterPath = s.image_poster;
       const posterSrc = posterPath ? `https://${posterPath}` : "";
 
+      const showId = s.id != null ? String(s.id) : "";
+      const hypeBadge = renderHypeBadgeHtml(item.user_rating);
+
       return `
-        <div class="discover-card my-shows-collection-card" data-id="${escapeHtml(slugId)}">
+        <div
+          class="discover-card my-shows-collection-card"
+          data-id="${escapeHtml(slugId)}"
+          data-show-id="${escapeHtml(showId)}"
+        >
+          <button
+            type="button"
+            class="collection-card-menu-btn"
+            aria-label="Add to list"
+            title="Lists"
+          >⋮</button>
+          ${hypeBadge ? `<div class="collection-card-hype">${hypeBadge}</div>` : ""}
           <div class="discover-card-poster">
             ${
               posterSrc
@@ -288,8 +440,181 @@ export function renderAllCollectionShows() {
           </div>
           <p class="discover-card-title">${title || "Untitled"}</p>
           <p class="discover-card-year">${year}</p>
+          <div class="collection-card-list-menu" hidden></div>
         </div>
       `;
     })
     .join("");
+}
+
+let openListMenuCard = null;
+let listMenuRequestId = 0;
+
+function renderListMenuHtml(lists) {
+  return `
+    <p class="collection-list-menu-title">Add to list</p>
+    ${lists
+      .map(
+        (list) => `
+        <button
+          type="button"
+          class="collection-list-menu-item ${list.hasShow ? "is-member" : ""}"
+          data-list-id="${escapeHtml(list.id)}"
+          data-has-show="${list.hasShow ? "1" : "0"}"
+          data-is-default="${list.is_default ? "1" : "0"}"
+        >
+          <span class="collection-list-menu-check">${list.hasShow ? "✓" : ""}</span>
+          <span>${escapeHtml(list.name)}</span>
+        </button>
+      `,
+      )
+      .join("")}
+  `;
+}
+
+/**
+ * Closes any open list picker dropdown on collection cards.
+ */
+export function closeCollectionListMenu() {
+  if (openListMenuCard) {
+    const menu = openListMenuCard.querySelector(".collection-card-list-menu");
+    if (menu) menu.hidden = true;
+    openListMenuCard = null;
+  }
+}
+
+/**
+ * Opens list membership menu for a collection card.
+ * @param {HTMLElement} card - .my-shows-collection-card element
+ */
+export async function toggleCollectionListMenu(card) {
+  if (openListMenuCard === card) {
+    closeCollectionListMenu();
+    return;
+  }
+  await openCollectionListMenu(card);
+}
+
+export async function openCollectionListMenu(card) {
+  const showId = card.dataset.showId;
+  if (!showId) return;
+
+  closeCollectionListMenu();
+
+  const menu = card.querySelector(".collection-card-list-menu");
+  if (!menu) return;
+
+  menu.hidden = false;
+  openListMenuCard = card;
+
+  const requestId = ++listMenuRequestId;
+
+  try {
+    const lists = await fetchListsWithShowMembership(showId);
+    if (requestId !== listMenuRequestId || openListMenuCard !== card) return;
+    menu.innerHTML = renderListMenuHtml(lists);
+  } catch (err) {
+    if (requestId !== listMenuRequestId || openListMenuCard !== card) return;
+    menu.innerHTML = `<p class="collection-list-menu-error">${escapeHtml(err.message)}</p>`;
+  }
+}
+
+/**
+ * Toggle show on a list from the collection card menu.
+ */
+export async function toggleShowOnList(showId, listId, currentlyMember, isDefault) {
+  if (currentlyMember && isDefault) {
+    const ok = confirm(
+      "Remove from your main collection? The show will disappear from this page.",
+    );
+    if (!ok) return { removedFromDefault: false };
+  }
+
+  await manageCollection(showId, !currentlyMember, listId);
+  patchListMembershipCache(showId, listId, !currentlyMember);
+  invalidateWatchlistAndStats();
+
+  return { removedFromDefault: currentlyMember && isDefault };
+}
+
+let myShowsClickBound = false;
+
+/**
+ * Registers a single delegated click handler for My Shows (safe across revisits).
+ * @param {HTMLElement} main
+ */
+export function bindMyShowsClickHandler(main) {
+  if (myShowsClickBound) return;
+  myShowsClickBound = true;
+
+  main.addEventListener("click", async (e) => {
+    const menuBtn = e.target.closest(".collection-card-menu-btn");
+    if (menuBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const card = menuBtn.closest(".my-shows-collection-card");
+      if (card) await toggleCollectionListMenu(card);
+      return;
+    }
+
+    const menuItem = e.target.closest(".collection-list-menu-item");
+    if (menuItem) {
+      e.preventDefault();
+      e.stopPropagation();
+      const card = menuItem.closest(".my-shows-collection-card");
+      const showId = card?.dataset.showId;
+      const listId = menuItem.dataset.listId;
+      const hasShow = menuItem.dataset.hasShow === "1";
+      const isDefault = menuItem.dataset.isDefault === "1";
+      if (!showId || !listId) return;
+
+      menuItem.disabled = true;
+      try {
+        const { removedFromDefault } = await toggleShowOnList(
+          showId,
+          listId,
+          hasShow,
+          isDefault,
+        );
+        closeCollectionListMenu();
+        if (removedFromDefault) {
+          const listId = getCollectionListId() || getActiveListId();
+          const shows = (await getAllCollectionShowsData(listId)) || [];
+          setAllCollectionShows(shows, listId);
+          setAvailableGenres(extractCollectionGenres(shows));
+          renderAllCollectionShows();
+        } else if (card) {
+          await openCollectionListMenu(card);
+        }
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        menuItem.disabled = false;
+      }
+      return;
+    }
+
+    if (e.target.closest(".collection-card-list-menu")) {
+      e.stopPropagation();
+      return;
+    }
+
+    const insideListMenu = e.target.closest(
+      ".collection-card-list-menu, .collection-card-menu-btn",
+    );
+    if (!insideListMenu) closeCollectionListMenu();
+
+    const card = e.target.closest(".show-card, .my-shows-collection-card");
+    if (!card) return;
+
+    location.hash = `show?traktIdentifier=${card.dataset.id}`;
+  });
+}
+
+/**
+ * Warms list-membership cache in the background (for ⋮ menus).
+ * @param {string[]} [showIds]
+ */
+export function prepareMyShowsListMenus(showIds) {
+  preloadListMembershipCache(showIds);
 }

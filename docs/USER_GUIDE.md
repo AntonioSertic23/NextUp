@@ -1,5 +1,7 @@
 # User Guide
 
+End-user documentation for NextUp **2.8.0**.
+
 ---
 
 ## Getting Started
@@ -9,7 +11,7 @@
 1. Open the app and click the **Register** tab
 2. Enter your email and password
 3. Click **Register**
-4. You're in! A default collection is created automatically
+4. A default list named **Collection** is created automatically
 
 ### Login
 
@@ -23,43 +25,44 @@
 
 ### Watchlist (Home)
 
-Your main hub — shows you're currently watching with progress tracking.
+Your main hub for shows you are **currently watching** on the selected list.
 
-**Features:**
-- See your next episode for each show
-- Progress bar showing episodes watched vs total
-- "X left" badge showing remaining episodes
-- Episode overview text (on desktop)
+**List filter:**
+- Use the **list dropdown** in the toolbar (next to sort controls) to switch lists
+- Home shows **active** shows (`is_completed = false`). If a list has no active items, all shows on that list are shown
 
 **Sorting:**
-- Click **Sort by** to change order
-- Options: Last added, Title, Year, Rating, Last watched, Episodes left
-- Toggle ascending/descending with the arrow button
-- Your preference is saved automatically
+- **Sort by**: Last added, Title, Year, Rating, Last watched, Episodes left
+- Toggle ascending/descending — saved automatically
 
-**Episode Info Modal:**
-- Click any show card to open the episode modal
-- See episode title, air date, overview, and screenshot
-- Click **Mark as watched** to progress to the next episode
-- Episodes that haven't aired yet cannot be marked
+**Cards:**
+- Next episode overview (desktop), progress pill, “X left” badge
+- Click a card for the **Episode Info** modal (mark watched, screenshot, air date)
+- Unaired episodes cannot be marked
 
 ---
 
 ### My Shows
 
-Two sections: upcoming episodes and your full collection.
+Two sections: **upcoming episodes** and **your collection**.
 
-**Upcoming Episodes:**
-- Shows episodes airing in the future
-- Includes show title, episode info, air date, and countdown
-- 2-column grid layout
+**List selector:**
+- Choose which list’s collection to browse (dropdown near sort controls)
+
+**Upcoming:**
+- Future air dates with countdown (2-column grid on larger screens)
 
 **Collection:**
-- All shows you've added to your list
-- **Search**: Type to filter by title
-- **Sort**: Last added, Title, or Year
-- **Genre filter**: Click genre chips to filter by genre
-- Click any poster to open the show details
+- Poster grid for all shows on the selected list
+- **Search** by title
+- **Sort**: Last added, Title, Year (asc/desc)
+- **Genre chips** to filter by genre
+- **Rating** dropdown — filter by popcorn count (5–1), “5–4 popcorn”, rated/unrated
+- **Sort** by **My rating** (most popcorn first)
+- Small **popcorn icons** on posters for rated shows
+- **⋮ menu** on each card — add or remove the show on other lists without opening the show page
+
+Click any poster to open **Show Details**.
 
 ---
 
@@ -67,76 +70,71 @@ Two sections: upcoming episodes and your full collection.
 
 Find new shows to watch.
 
-**Search:**
-- Type a show name and press Enter or click search
-- Results show with pagination
-- **Recent searches**: Your last 5 searches appear below for quick access
+**Search** with pagination; **Recent searches** (last 5) for one-click reuse.
 
-**Curated Lists:**
-- **Trending**: Currently most watched shows
-- **Popular**: All-time most popular
-- **Most Anticipated**: Upcoming shows with most buzz
-- Scroll horizontally through carousels
+**Curated carousels:** Trending, Popular, Most Anticipated.
+
+Add shows from the **Show** page (collection / list controls).
 
 ---
 
 ### Statistics
 
-Visual overview of your watching habits.
+Overview of your watching habits.
 
-**Overview tiles:**
-- Total watch time (hours/days)
-- Episodes watched
-- Shows tracked
-- Seasons completed
-- Completion rate
-- Average show rating
-- Shows finished
+**Main dashboard** (top of page):
+- Uses your **default Collection list** only
+- Total watch time, episodes, shows, seasons, completion rate, ratings
+- Charts: activity by day/month, top genres, top networks
+- Top 5 genres and top 5 shows
 
-**Charts:**
-- Watch activity by day of week
-- Recent monthly activity
-- Top genres (bar chart)
-- Top networks (ranked list)
+**Your hype** (2.8+):
+- How many shows you rated, average hype score, tier breakdown chart
+- **Top of your queue** — links to your Peak/Love shows
 
-**Top lists:**
-- Top 5 genres
-- Top 5 shows (by episodes watched)
+**Your lists** (bottom section, 2.8+):
+- One card per list you own with highlights for that list
+- Data is cached server-side for faster reloads
+
+**Following others:**
+- From Profile, follow a user by email
+- Open their stats from the following list (read-only)
 
 ---
 
 ### Show Details
 
-Full information about a specific show.
+**Header:** poster, metadata, overview, collection toggle.
 
-**Header:**
-- Poster, title, year, network, status, rating
-- Overview/synopsis
-- **Add to Collection** / **Remove from Collection** button
+**Lists:** bookmark/collection control; show can exist on multiple lists.
 
-**Seasons & Episodes:**
-- Expand seasons to see all episodes
-- Episode progress percentage per season
-- **Mark episode**: Click the checkmark icon
-- **Mark season**: Marks all aired, unwatched episodes in that season
-- Disabled buttons for episodes/seasons not yet aired
+**Notes:** private per-show note (saved to your account).
 
-**Recommended Shows:**
-- Related shows from Trakt displayed below seasons
+**Your take (popcorn rating):**
+- One minimal row: **5 popcorn icons** (tap to rate 1–5, like filling buckets)
+- Label shows **Peak**, **Love**, **Solid**, etc. — not Trakt star scores
+- **Clear** removes your rating; same score applies on every list
+
+**Seasons & episodes:** mark episode or whole season (aired only); progress per season.
+
+**Recommended shows** from Trakt below seasons.
 
 ---
 
 ### Profile
 
-Manage your account and app actions.
+**Access:** Navbar → **Actions** → **Profile**
 
-**Access:** Click "Actions" dropdown → "Profile" in the navbar.
-
-**Sections:**
-- **Account info**: Email, member since date
-- **Trakt Integration**: Connection status + sync actions
-- **App**: Refresh (reload page)
-- **Account**: Logout
+| Section | What you can do |
+|---------|-----------------|
+| **Account** | Email, member since |
+| **Lists** | Create, rename, delete lists (default list cannot be deleted) |
+| **Themes** | Midnight, Ocean, Ember, Forest |
+| **Notes** | General profile note; list of your show notes |
+| **Following** | Follow by email; unfollow; open friend stats |
+| **Trakt** | Connect, full sync, sync new episodes |
+| **App** | Enable/disable **episode notifications** (Web Push); refresh app |
+| **Account (danger)** | Logout (also removes push subscription on this device) |
 
 ---
 
@@ -144,67 +142,95 @@ Manage your account and app actions.
 
 ### Connecting
 
-1. Go to the **Profile** page
-2. Click **Sign in to Trakt**
-3. You'll be redirected to Trakt.tv to authorize
-4. After authorizing, you're redirected back automatically
+1. **Profile** → **Sign in to Trakt**
+2. Authorize on Trakt.tv
+3. You return to the app automatically
 
-### Syncing Watch History
+### Syncing watch history
 
-1. Go to **Profile** → click **Sync with Trakt**
-2. Wait for sync to complete (may take up to 2 minutes for large libraries)
-3. All your watched shows and progress will be imported
+1. **Profile** → **Sync with Trakt**
+2. Wait (large libraries may take up to ~2 minutes)
+3. Shows appear on your lists; open **Home** or **My Shows** — data refreshes after sync
 
-### Syncing New Episodes
+### Syncing new episodes
 
-- **Automatic**: Runs daily at 6:00 AM UTC
-- **Manual**: Go to **Profile** → click **Sync New Episodes**
+- **Automatic:** daily at **6:00 AM UTC**
+- **Manual:** **Profile** → **Sync New Episodes**
 
-This checks all your tracked shows for newly aired episodes and updates your watchlist.
+Updates episodes in the database and recalculates progress on your lists.
+
+---
+
+## Episode notifications (Web Push)
+
+Get a notification on **this device** when the daily sync finds a **new episode** for a show on **any of your lists**.
+
+### Requirements
+
+- **HTTPS** (your Netlify URL, not plain localhost)
+- **Installed PWA** recommended; on **iPhone**, add NextUp to the **Home Screen** first (iOS 16.4+)
+- Server must have VAPID keys configured (hosting admin)
+
+### Enable
+
+1. **Profile** → **Enable episode notifications**
+2. Allow notifications when the browser asks
+3. Status text confirms success
+
+### Disable
+
+**Profile** → **Turn off notifications**
+
+### What you receive
+
+- Title/body with show name and episode info
+- Tap notification → opens the **show page** in the app
+
+Notifications are **per device** — enable on each phone/browser where you want alerts.
 
 ---
 
 ## Installing as App (PWA)
 
-NextUp can be installed on your phone or computer like a native app.
+### Android (Chrome)
 
-### Android (Chrome):
-1. Open the app in Chrome
-2. Tap the menu (⋮) → "Install app" or "Add to Home Screen"
-3. The app appears on your home screen
+Menu → **Install app** or **Add to Home Screen**
 
-### iOS (Safari):
-1. Open the app in Safari
-2. Tap Share (↑) → "Add to Home Screen"
-3. Tap "Add"
+### iOS (Safari)
 
-### Desktop (Chrome/Edge):
-1. Look for the install icon (⊕) in the address bar
-2. Click "Install"
+**Share** → **Add to Home Screen** — required for reliable push on iPhone
 
-**Note:** PWA installation requires HTTPS (works on the deployed Netlify URL, not localhost).
+### Desktop (Chrome/Edge)
+
+Install icon in the address bar
+
+**Note:** Install and push need **HTTPS** (production deploy).
 
 ---
 
-## Tips & Tricks
+## Tips
 
 | Tip |
 |-----|
-| Use "Last watched" sort to see what you watched most recently at the top |
-| Click an episode in the watchlist to quickly mark it without opening the show page |
-| Use genre chips on My Shows to filter by mood (e.g. only comedies) |
-| Install as PWA for full-screen experience without browser UI |
-| Statistics update automatically as you mark episodes |
+| Rate favorites with **Tier V (Peak)** on the show page, then filter My Shows by hype |
+| Use **list filter** on Home to focus one list at a time |
+| Use **⋮ on My Shows** to organize shows across lists quickly |
+| **Last watched** sort surfaces what you watched recently |
+| **Your lists** on Statistics compares lists without changing the main overview |
+| Enable push on the PWA install you actually use daily |
+| After Trakt sync, use **Refresh App** if something looks stale |
 
 ---
 
 ## Troubleshooting
 
 | Problem | Solution |
-|---------|---------|
-| Can't mark episode | Episode hasn't aired yet (check air date) |
-| Watchlist not updating | Try refreshing the page (Profile → Refresh App) |
-| Trakt sync stuck | Wait up to 2 minutes; if still stuck, refresh and try again |
-| Show not found in search | Try alternative name or search by year |
-| PWA won't install | Make sure you're on HTTPS (deployed URL) |
-| Login fails | Check email/password; password is case-sensitive |
+|---------|----------|
+| Can't mark episode | Episode hasn't aired yet |
+| Home empty after Trakt sync | Pick the right **list** in the dropdown; try **Refresh App** on Profile |
+| Push not offered / fails | HTTPS + VAPID on server; iOS needs Home Screen PWA |
+| No notification after new episode | Wait for daily sync or run **Sync New Episodes**; show must be on a list and notifications enabled |
+| Statistics “Your lists” empty | Add shows to that list; open Statistics again to refresh cache |
+| Trakt sync stuck | Wait up to 2 minutes, then refresh |
+| PWA won't install | Use deployed HTTPS URL |
+| Login fails | Check email/password (case-sensitive) |

@@ -3,6 +3,7 @@
 // ========================================================
 
 let watchlist = [];
+let watchlistListId = null;
 let sortBy = localStorage.getItem("watchlist_sort") || "added_at";
 let sortOrder = localStorage.getItem("watchlist_order") || "desc";
 
@@ -10,10 +11,16 @@ let sortOrder = localStorage.getItem("watchlist_order") || "desc";
  * Initializes the watchlist state and applies the current sort.
  *
  * @param {Array<Object>} data - Raw watchlist data from the backend.
+ * @param {string|null} [listId] - List the data was fetched for.
  */
-export function setWatchlist(data) {
+export function setWatchlist(data, listId = null) {
   watchlist = data;
+  if (listId != null) watchlistListId = listId;
   sortShows();
+}
+
+export function getWatchlistListId() {
+  return watchlistListId;
 }
 
 /**

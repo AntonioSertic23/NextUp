@@ -24,19 +24,29 @@ function escapeHtml(text) {
 }
 
 function computeShowProgress(show) {
+  const total = show.total_episodes || 0;
+  const watched = show.watched_episodes || 0;
+  const progressBarPercent =
+    total > 0 ? Math.round((watched / total) * 100) : 0;
+  const progressText = `${watched}/${total}`;
+  const episodesLeft = Math.max(0, total - watched);
+
+  if (!show.next_episode || show.is_completed) {
+    return {
+      nextEpisodeInfo: "Completed",
+      progressBarPercent,
+      progressText,
+      episodesLeft: 0,
+      overview: "",
+      isCompleted: true,
+    };
+  }
+
   const nextEpisodeInfo = formatEpisodeInfo(
     show.next_episode.season_number,
     show.next_episode.episode_number,
     show.next_episode.title,
   );
-
-  const total = show.total_episodes || 0;
-  const watched = show.watched_episodes || 0;
-
-  const progressBarPercent =
-    total > 0 ? Math.round((watched / total) * 100) : 0;
-  const progressText = `${watched}/${total}`;
-  const episodesLeft = Math.max(0, total - watched);
 
   const overview = (show.next_episode.overview || "").trim();
 
@@ -46,6 +56,7 @@ function computeShowProgress(show) {
     progressText,
     episodesLeft,
     overview,
+    isCompleted: false,
   };
 }
 
@@ -59,7 +70,7 @@ export async function renderSortControls(main) {
   const savedOrder = localStorage.getItem("watchlist_order") || "desc";
 
   const sortDiv = document.createElement("div");
-  sortDiv.className = "sort-controls";
+  sortDiv.className = "sort-controls watchlist-toolbar";
   sortDiv.innerHTML = `
   <label for="sort-by">Sort by:</label>
   <select id="sort-by">
@@ -127,11 +138,26 @@ export async function renderWatchlist() {
         progressText,
         episodesLeft,
         overview,
+        isCompleted,
       } = computeShowProgress(show);
 
       const overviewBlock = overview
         ? `<p class="next_episode_overview">${escapeHtml(overview)}</p>`
         : "";
+
+      const episodeActions = isCompleted
+        ? `<p class="episodes_left completed-label">All episodes watched</p>`
+        : `
+            <div class="next_episode_info_container">
+              <button
+                class="episode_info_btn"
+                data-episode="${show.next_episode.id}"
+              >
+                Episode info
+              </button>
+              <p class="episodes_left">${episodesLeft} left</p>
+            </div>
+          `;
 
       return `
         <div class="show-card" data-id="${show.shows.slug_id}">
@@ -145,7 +171,7 @@ export async function renderWatchlist() {
 
           <div class="info-container">
             <p class="title">${show.shows.title}</p>
-            <p class="next_episode">${nextEpisodeInfo}</p>
+            <p class="next_episode">${escapeHtml(nextEpisodeInfo)}</p>
             ${overviewBlock}
 
             <div class="progress-container">
@@ -158,15 +184,7 @@ export async function renderWatchlist() {
               <p class="progress_text">${progressText}</p>
             </div>
 
-            <div class="next_episode_info_container">
-              <button
-                class="episode_info_btn"
-                data-episode="${show.next_episode.id}"
-              >
-                Episode info
-              </button>
-              <p class="episodes_left">${episodesLeft} left</p>
-            </div>
+            ${episodeActions}
           </div>
         </div>
       `;

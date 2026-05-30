@@ -7,32 +7,44 @@
 
 ## Project Description
 
-NextUp is a modern **TV show tracker** built with Vanilla JavaScript and Supabase. Track your watched episodes, explore shows, review seasons, and get detailed statistics — all in a **single-page application**. Optionally, link your Trakt.tv account to import existing shows and sync progress.
+NextUp is a modern **TV show tracker** built with Vanilla JavaScript and Supabase. Track your watched episodes, organize shows into **multiple lists**, explore new series, and review detailed statistics — all in a **single-page application**. Optionally link your **Trakt.tv** account to import progress, and install the **PWA** to get **push notifications** when new episodes are detected.
 
 ## Features
 
-- **Home watchlist**: Your default list on the home page with **sorting** (last added, title, year, rating, last watched, episodes left) and **ascending/descending** order — preferences persist in the browser (`localStorage`). Cards show the next episode's overview (clamped) on desktop alongside a pill progress bar and an "X left" badge.
-- **My Shows**: **Upcoming episodes** (future air dates) in a 2-col responsive grid with show title, episode title, season/episode code, air date, and a **countdown**; **all shows in your list** in a poster grid with a **filter bar** (text search, sort by Last added / Title / Year, asc/desc toggle) — filter and sort state persist in `localStorage`.
-- **Discover**: Pill-shaped **search** with a built-in clear button and pagination, plus Trakt **Trending**, **Popular**, and **Most Anticipated** carousels with scroll-snap and floating arrow controls. A **Recent searches** panel below the search bar remembers the last 5 queries (deduped, most recent first) so they're one click away.
-- **Show page**: Full details, seasons/episodes, and **Recommended shows** (Trakt related) under the seasons — grid or carousel depending on how many results are returned. Per-episode and per-season actions use **icon-only mark/unmark buttons**, and the collection toggle uses a bookmark icon with the brand purple/pink gradient when active.
-- **Statistics Dashboard**: A redesigned overview with a hero card for total watch time (gradient text), tile grid for episodes / shows / seasons, and ranked **Top genres** and **Top shows** lists with circular gradient rank badges.
-- **Episode experience**: Refreshed episode modal — centred dialog on desktop, slide-up bottom sheet on phone — with air dates, screenshots, watch toggles, a dedicated close button, Escape-to-close and body-scroll lock.
-- **Responsive navbar**: Hamburger menu with animated icon and slide-down panel on phone/tablet; **auto-hides on scroll down and reappears on scroll up** so the content has more room to breathe (always visible near the top of the page).
-- **Persistent Data**: Supabase handles all user-specific data with secure Row-Level Security (RLS).
-- **Trakt.tv Sync**: Optionally link your Trakt account to import existing shows and sync progress.
-- **Profile page**: Dedicated page for account management, Trakt status, and sync actions — accessible from the Actions dropdown.
-- **Genre filtering**: Normalized genre database (many-to-many) with filter chips on the My Shows page.
-- **Automatic Episode Sync**: A daily scheduled function (6 AM UTC) checks for new episodes across all tracked shows and updates the database automatically (seasons, episodes, and user progress).
-- **Unaired episode protection**: Mark-as-watched buttons are disabled for episodes that haven't aired yet.
-- **Secure Token Management**: Trakt OAuth uses the authorization code flow with automatic token refresh — no manual re-authentication needed.
+### Watching & lists
+
+- **Home watchlist** — Active (in-progress) shows from your selected list, with **list filter** dropdown, **sorting** (last added, title, year, rating, last watched, episodes left), and asc/desc order (saved in `localStorage`). Cards show next-episode overview, progress pill, and “X left” badge.
+- **Multiple lists** — Create, rename, and delete lists on Profile; filter Home and My Shows by list; use the **⋮ menu** on collection cards to add or remove a show on other lists.
+- **My Shows** — **Upcoming episodes** grid with countdown; **full collection** with text search, sort, **hype filter**, genre chips, and **list selector**.
+- **Show page** — Seasons/episodes, mark watch progress, **Hype meter** (your 5-tier personal rating), per-show notes, related shows from Trakt, collection toggle across lists.
+- **Discover** — Search with pagination, recent searches, Trending / Popular / Most Anticipated carousels.
+
+### Statistics & social
+
+- **Statistics dashboard** — Hero watch time, overview tiles, charts (activity, genres, networks); **Your hype** section for personal ratings; main view uses your **default collection**.
+- **Your lists (stats)** — Per-list insight cards for every list you own (cached in Supabase for speed).
+- **Follow users** — Follow friends by email on Profile and open their public stats page.
+
+### Account & sync
+
+- **Profile** — Lists, themes, notes, Trakt connect/sync, **Web Push** toggles, following, refresh, logout.
+- **Themes** — Midnight, Ocean, Ember, Forest (Profile picker).
+- **Trakt.tv sync** — OAuth import of shows and watch history; manual “Sync New Episodes”.
+- **Daily episode sync** — Scheduled function (6 AM UTC) updates the database; can send **push notifications** to subscribed devices.
+
+### App experience
+
+- **PWA** — Install to home screen; service worker with **push** + notification click → open show.
+- **Responsive navbar** — Hamburger on mobile; auto-hide on scroll; back button for in-app history.
+- **Episode modal** — Desktop dialog / mobile bottom sheet; unaired episodes cannot be marked watched.
+- **Secure auth** — Supabase Auth + RLS; Trakt tokens server-side with auto-refresh.
 
 ## Tech Stack
 
-- **Frontend**: HTML5, CSS3, Vanilla JavaScript (ES6 modules), SPA, **responsive** layout (mobile / tablet / desktop) with safe-area insets for installed PWAs
-- **Backend / Database**: Netlify Functions, Supabase
-- **APIs**: Trakt.tv (show & episode data)
-- **Deployment**: Netlify / Vercel-ready
-- **PWA**: Web App Manifest + service worker — install on phone (**Add to Home Screen** / **Install app**); shortcuts to Discover and My Shows.
+- **Frontend**: HTML5, CSS3, Vanilla JavaScript (ES6 modules), hash SPA, responsive + safe-area for PWAs
+- **Backend**: Netlify Functions, Supabase (PostgreSQL + Auth + RLS)
+- **APIs**: Trakt.tv; Web Push (VAPID via `web-push`)
+- **Deployment**: Netlify
 
   [![Skills](https://skillicons.dev/icons?i=html,css,js,supabase,netlify)](https://skillicons.dev)
 
@@ -40,194 +52,109 @@ NextUp is a modern **TV show tracker** built with Vanilla JavaScript and Supabas
 
 ```
 NextUp/
-├── index.html                          # Main SPA shell
-├── login.html                          # Login / registration page
-├── manifest.webmanifest                # PWA manifest (name, icons, shortcuts)
-├── sw.js                               # Service worker (installability, network-first)
-├── netlify.toml                        # Netlify build & function config
+├── index.html, login.html
+├── manifest.webmanifest          # PWA manifest
+├── sw.js                         # Service worker (fetch, push, notificationclick)
+├── netlify.toml
 ├── package.json
-├── .env                                # Environment variables (not committed)
+├── .env                          # Not committed — see SUPABASE_SETUP.md
 │
-├── css/
-│   └── style.css                       # Global styles
+├── css/style.css
+├── components/                   # header.html, footer.html
+├── db/migration.sql              # Full schema + incremental v2.8 blocks at end
 │
-├── components/                         # Reusable HTML fragments loaded at runtime
-│   ├── header.html                     # Navbar, dropdown actions
-│   └── footer.html
-│
-├── db/
-│   └── migration.sql                   # Supabase schema & seed (tables, RLS, triggers)
-│
-├── src/                                # Client-side JavaScript (ES modules)
-│   ├── app.js                          # Entry point: auth check, hash router, component loader
-│   ├── login.js                        # Login / register form logic
-│   ├── pwa/
-│   │   └── registerServiceWorker.js    # Registers /sw.js for PWA install
-│   │
-│   ├── api/                            # Server communication layer (one file per domain)
-│   │   ├── shows.js                    #   getShowDetails, searchShows, getTraktShows, getRelatedShows, manageCollection
-│   │   ├── episodes.js                 #   markEpisodes
-│   │   ├── watchlist.js                #   getWatchlistData, getShowNextEpisode, upcoming & collection queries
-│   │   ├── stats.js                    #   getStatsData (aggregates + calculations)
-│   │   └── sync.js                     #   Trakt OAuth redirect, connect, syncTraktAccount
-│   │
-│   ├── ui/                             # DOM rendering (one file per page section / concern)
-│   │   ├── navigation.js              #   updateActiveNav
-│   │   ├── watchlist.js               #   renderWatchlist, renderSortControls
-│   │   ├── showDetails.js            #   renderShowDetails, seasons, recommended shows (Trakt related)
-│   │   ├── discover.js               #   search, pagination, trending/popular/anticipated carousels
-│   │   ├── myShows.js                #   renderUpcomingEpisodes, renderAllCollectionShows
-│   │   ├── statistics.js             #   renderStatistics
-│   │   ├── profile.js                #   renderProfile, Trakt status, sync actions
-│   │   └── episodeModal.js           #   Episode info modal, mark/unmark, shared UI helpers
-│   │
-│   ├── pages/                          # Page renderers (called by the router)
-│   │   ├── home.js                     #   Watchlist page
-│   │   ├── show.js                     #   Single show details page
-│   │   ├── discover.js                 #   Search / discover page
-│   │   ├── myShows.js                  #   Upcoming episodes + full collection
-│   │   ├── stats.js                    #   Statistics dashboard
-│   │   └── profile.js                  #   Profile & account management
-│   │
-│   ├── stores/                         # Client-side state management (in-memory singletons)
-│   │   ├── userStore.js                #   Authenticated user, session, claims
-│   │   ├── watchlistStore.js           #   Watchlist items, sort/order state
-│   │   ├── myShowsStore.js             #   Upcoming episodes + collection cache, filter/sort state
-│   │   ├── discoverStore.js            #   Search query, results, pagination
-│   │   ├── recentSearchesStore.js      #   Last 5 Discover queries persisted in localStorage
-│   │   └── statsStore.js               #   Computed statistics cache
-│   │
-│   ├── services/                       # Client-side infrastructure
-│   │   ├── auth.js                     #   login, register, logout, getToken (Trakt token from DB)
-│   │   └── supabase.js                 #   Supabase client singleton (lazy-initialized from config endpoint)
-│   │
-│   └── utils/                          # Pure helper functions (no side effects)
-│       ├── format.js                   #   formatDate, formatEpisodeInfo, getTimeUntil
-│       ├── icons.js                    #   Inline SVG strings for mark/unmark/bookmark icons
-│       └── stats.js                    #   calculateStatistics, convertMinutesToTime, formatTimeBreakdown
+├── src/
+│   ├── app.js                    # Boot, router, push resync on login
+│   ├── login.js
+│   ├── api/                      # shows, episodes, watchlist, lists, ratings, stats, push, sync, notes, social
+│   ├── ui/                       # watchlist, myShows, listFilter, statistics, profile, discover, …
+│   ├── pages/                    # home, show, discover, myShows, stats, profile, userStats
+│   ├── stores/                   # user, watchlist, myShows, lists, discover, stats, …
+│   ├── services/                 # auth, supabase, theme, libraryCache, pageCache, navHistory
+│   ├── pwa/                      # registerServiceWorker, pushNotifications
+│   └── utils/                    # format, icons, stats, multiListStats
 │
 └── netlify/
-    ├── lib/                            # Shared server-side libraries
-    │   ├── supabase.js                 #   Supabase admin client, DB helpers (saveShow, saveEpisodes, etc.)
-    │   └── trakt.js                    #   Trakt API config, headers, OAuth token exchange/refresh
-    │
-    └── functions/                      # Serverless API endpoints (flat — Netlify requirement)
-        ├── getClientId.js              #   Returns Trakt client ID to the browser
-        ├── getSupabaseConfig.js        #   Returns Supabase URL + anon key
-        ├── traktAuth.js                #   Exchanges Trakt auth code for tokens
-        ├── syncTraktAccount.js         #   Full Trakt → DB sync (shows, episodes, progress)
-        ├── syncNextEpisodes.js         #   Scheduled: daily check for new episodes
-        ├── getShowDetails.js           #   Fetch or cache show with seasons/episodes
-        ├── searchShows.js              #   Trakt show search with pagination
-        ├── getTraktShows.js            #   Trakt trending / popular / anticipated lists
-        ├── getRelatedShows.js          #   Trakt related shows for a given show
-        ├── getNextEpisodes.js          #   Next episode data for multiple shows
-        ├── getEpisodeDetails.js        #   Single episode details from Trakt
-        ├── getWatchlistData.js         #   Watchlist query (Supabase)
-        ├── markEpisodes.js             #   Mark/unmark watched + Trakt sync
-        └── manageCollection.js         #   Add/remove show from user's list
+    ├── lib/                      # supabase.js, trakt.js, webPush.js
+    └── functions/                # Trakt, sync, push, followUser, getPublicUserStats, …
 ```
 
 ### How the layers connect
 
 ```
-Browser
-  │
-  ├─ index.html ──► src/app.js (router)
-  │                   ├─ src/pages/*        ← page renderers
-  │                   │    ├─ src/api/*     ← data fetching (calls Netlify Functions or Supabase directly)
-  │                   │    └─ src/ui/*      ← DOM rendering
-  │                   ├─ src/stores/*       ← in-memory state
-  │                   ├─ src/services/*     ← auth & Supabase client
-  │                   └─ src/utils/*        ← pure helpers
-  │
-  ├─ /.netlify/functions/* ◄── HTTP calls from src/api/
-  │     └─ netlify/lib/*       ← shared server-side Supabase + Trakt logic
-  │
-  └─ Supabase (PostgreSQL + Auth + RLS)
+Browser → app.js (router) → pages → api (Supabase direct or Netlify Functions) → ui + stores
+Scheduled syncNextEpisodes → Trakt → Supabase → optional Web Push to push_subscriptions
 ```
 
-**Data flow**: Pages call **api/** modules, which either query Supabase directly (for list/watchlist data) or call **Netlify Functions** (for Trakt-dependent operations). Functions use shared **lib/** modules for database writes and Trakt API communication.
-
-**State flow**: Pages read from and write to **stores/** (in-memory singletons). **UI/** modules read store state to render the DOM. Stores are populated once per page visit and cached until navigation.
+See [Architecture](docs/ARCHITECTURE.md) for data flows, security, and push pipeline.
 
 ## Quick Start
 
-1. **Clone the repository**
+1. **Clone**
 
    ```bash
    git clone git@github.com:AntonioSertic23/NextUp.git
+   cd NextUp
    ```
 
-2. **Set up Supabase and environment variables**
+2. **Supabase** — Follow [SUPABASE_SETUP.md](SUPABASE_SETUP.md): run `db/migration.sql` (full file for new projects; for upgrades, run new sections at the bottom of the file).
 
-   Follow the [Supabase Setup Guide](SUPABASE_SETUP.md) to create and configure your database.
-
-   Create a `.env` file with your Trakt and Supabase credentials:
+3. **Environment** — Create `.env` in the project root:
 
    ```sh
-   TRAKT_CLIENT_ID="your_trakt_client_id_here"
-   TRAKT_CLIENT_SECRET="your_trakt_client_secret_here"
-   SUPABASE_URL="your_supabase_url"
-   SUPABASE_ANON_KEY="your_supabase_anon_key"
-   SUPABASE_SERVICE_ROLE_KEY="your_supabase_service_role_key"
+   TRAKT_CLIENT_ID="your_trakt_client_id"
+   TRAKT_CLIENT_SECRET="your_trakt_client_secret"
+   SUPABASE_URL="https://your-project.supabase.co"
+   SUPABASE_ANON_KEY="your_anon_key"
+   SUPABASE_SERVICE_ROLE_KEY="your_service_role_key"
    ```
 
-   Optionally set **`TRAKT_REDIRECT_URI`** (e.g. `http://localhost:8888` for `netlify dev`, or your production origin) so it matches **Redirect URI** on your Trakt OAuth app — required for refreshing tokens if `trakt_oauth_redirect_uri` is not in the DB yet. After OAuth, the redirect used at login is saved per user (`trakt_oauth_redirect_uri` column; run the **`ALTER`** at the end of `db/migration.sql` on existing databases).
+   Optional:
 
-   You can find both `TRAKT_CLIENT_ID` and `TRAKT_CLIENT_SECRET` in your Trakt application settings at https://trakt.tv/oauth/applications.
+   - `TRAKT_REDIRECT_URI` — e.g. `http://localhost:8888` for `netlify dev` (must match Trakt app Redirect URI)
+   - **Web Push** (2.8+): `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, optional `VAPID_SUBJECT` (`mailto:you@example.com`). Generate with `npx web-push generate-vapid-keys`.
 
-3. **Install dependencies**
+4. **Install & run**
 
    ```bash
    npm install
    npm install -g netlify-cli
-   ```
-
-4. **Run locally**
-
-   ```bash
    netlify dev
    ```
 
-5. **Open** the displayed localhost URL in your browser.
-
-   **PWA / install on phone**: On **HTTPS** (e.g. production on Netlify), use the browser menu — **Install app** (Chrome/Android) or **Share → Add to Home Screen** (Safari/iOS). Local `netlify dev` over **http://localhost** may not offer install; use your deployed URL to test.
+5. **Open** the localhost URL. For PWA install and push, use your **HTTPS** Netlify deploy.
 
 ## Usage Overview
 
-- **Home watchlist**: Open the app to see your list; use **Sort by** and the order toggle to reorder; click a show for details.
-- **My Shows**: See **upcoming** air dates and the **full list** with posters, titles, and years; click any item to open the show.
-- **Discover**: Search or scroll **Trending / Popular / Most Anticipated**; add shows to your collection from the show page.
-- **Statistics Dashboard**: Visual overview of watched episodes, total watch time, top genres, and top shows.
-- **Show Details & Episodes**: Episode modals with air dates, screenshots, and watch toggles.
-- **Persistent Data**: Supabase handles all user-specific data securely.
-- **Trakt.tv Sync**: Optional import of shows and progress from Trakt.tv; syncing is **explicitly triggered** by the user.
-- **Profile**: Manage your Trakt connection, trigger syncs, and view account info.
-- **Sync New Episodes**: A scheduled Netlify function runs daily at 6:00 AM UTC to check all tracked shows for new episodes. It can also be triggered manually from the Profile page. When new episodes are found, the database is updated and user watchlist progress is recalculated automatically.
-- **Install as app (PWA)**: Add NextUp to your home screen for a fullscreen, app-like experience (see Quick Start note above).
+| Area | What you can do |
+|------|-----------------|
+| **Home** | Active shows on selected list; sort; open episode modal or show page |
+| **My Shows** | Upcoming air dates; browse collection by list, genre, search |
+| **Discover** | Search; trending/popular/anticipated; add shows from show page |
+| **Statistics** | Default-list overview; scroll to **Your lists** for per-list cards |
+| **Profile** | Lists, themes, notes, Trakt, push notifications, follow users, sync episodes |
+| **PWA** | Install app; enable notifications (iOS: add to Home Screen first) |
 
 ## Documentation
 
-Detailed documentation is available in the [`docs/`](docs/) folder:
-
 | Document | Contents |
 |----------|----------|
-| [API](docs/API.md) | All Netlify Functions endpoints, request/response formats, auth |
-| [Database](docs/DATABASE.md) | ER diagram, tables, RLS policies, indexes, triggers |
-| [Architecture](docs/ARCHITECTURE.md) | System diagram, data flows, security model |
-| [Deployment](docs/DEPLOYMENT.md) | Environment variables, Supabase & Netlify setup, production checklist |
-| [Developer Guide](docs/CONTRIBUTING.md) | Local setup, code conventions, how to add pages/functions |
-| [User Guide](docs/USER_GUIDE.md) | End-user documentation for all features |
-| [Changelog](docs/CHANGELOG.md) | Version history with all changes |
+| [API](docs/API.md) | Netlify Functions, push endpoints, auth |
+| [Database](docs/DATABASE.md) | Tables (lists, notes, cache, push), RLS, migrations |
+| [Architecture](docs/ARCHITECTURE.md) | Flows, push pipeline, module graph |
+| [Deployment](docs/DEPLOYMENT.md) | Env vars (incl. VAPID), Netlify, checklist |
+| [Developer Guide](docs/CONTRIBUTING.md) | Local setup, conventions, testing |
+| [User Guide](docs/USER_GUIDE.md) | End-user help for 2.8 features |
+| [Changelog](docs/CHANGELOG.md) | Version history (**2.8.0** latest) |
+| [Supabase Setup](SUPABASE_SETUP.md) | Database + env quick reference |
 
 ## Security & Privacy
 
-- User authentication is handled via **Supabase Auth**; no passwords or sensitive PII are ever stored externally.
-- Supabase RLS guarantees **user-specific data isolation**.
-- All backend logic is **serverless and transparent**.
-- Trakt sync is optional and **explicitly triggered**; it only imports show data and progress.
-- Trakt OAuth tokens are stored server-side and automatically refreshed — the client never handles or transmits Trakt credentials.
+- **Supabase Auth** for login; passwords only in `auth.users`.
+- **RLS** isolates user data (lists, progress, notes, push subscriptions, stats cache).
+- **Trakt tokens** stored server-side; refresh handled by Netlify functions.
+- **Push**: private VAPID key only on server; subscriptions tied to your user id; stale endpoints removed on delivery failure.
+- Trakt sync and push are **opt-in** (connect Trakt / enable notifications on Profile).
 
 ## Author
 

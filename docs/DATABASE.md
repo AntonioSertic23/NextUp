@@ -101,6 +101,35 @@ NextUp uses **Supabase** (PostgreSQL) with Row Level Security (RLS) for data iso
                                    │ next_episode_id (FK→ep) │
                                    │ UNIQUE(list_id, show_id)│
                                    └─────────────────────────┘
+
+┌──────────────────────────┐       ┌─────────────────────────┐
+│       show_notes         │       │       user_notes        │
+│──────────────────────────│       │─────────────────────────│
+│ user_id, show_id (UNIQUE)│       │ user_id PK              │
+│ content, updated_at      │       │ content (profile note)  │
+└──────────────────────────┘       └─────────────────────────┘
+
+┌──────────────────────────┐       ┌─────────────────────────┐
+│      user_follows        │       │   user_stats_cache      │
+│──────────────────────────│       │─────────────────────────│
+│ follower_id, following_id│       │ user_id PK              │
+│ PK (follower, following) │       │ multi_list (jsonb)      │
+└──────────────────────────┘       │ detail_by_list (jsonb)  │
+                                   └─────────────────────────┘
+
+┌──────────────────────────┐
+│   push_subscriptions     │
+│──────────────────────────│
+│ user_id, endpoint (UNIQ) │
+│ p256dh, auth, user_agent │
+└──────────────────────────┘
+
+┌──────────────────────────┐
+│  user_show_ratings       │
+│──────────────────────────│
+│ user_id, show_id (PK)    │
+│ score (1–5)              │
+└──────────────────────────┘
 ```
 
 ---
@@ -117,6 +146,7 @@ NextUp uses **Supabase** (PostgreSQL) with Row Level Security (RLS) for data iso
 | `trakt_refresh_token` | TEXT | Trakt OAuth refresh token |
 | `trakt_token_expires_at` | TIMESTAMPTZ | Token expiry time |
 | `trakt_oauth_redirect_uri` | TEXT | OAuth redirect URI used during auth |
+| `display_name` | TEXT | Optional display name (v2.8+) |
 | `created_at` | TIMESTAMPTZ | Registration time |
 | `updated_at` | TIMESTAMPTZ | Last update (auto-trigger) |
 
@@ -268,6 +298,97 @@ NextUp uses **Supabase** (PostgreSQL) with Row Level Security (RLS) for data iso
 
 ---
 
+### `show_notes` (v2.8+)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID PK | Note id |
+| `user_id` | UUID FK | Owner |
+| `show_id` | UUID FK | Show |
+| `content` | TEXT | Note body |
+| `updated_at` | TIMESTAMPTZ | Last edit |
+
+**Constraints:** `UNIQUE(user_id, show_id)`
+
+**RLS Policies:** Full CRUD for own rows
+
+---
+
+### `user_notes` (v2.8+)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `user_id` | UUID PK/FK | One profile note per user |
+| `content` | TEXT | General/private note |
+| `updated_at` | TIMESTAMPTZ | Last edit |
+
+**RLS Policies:** Full CRUD for own row
+
+---
+
+### `user_follows` (v2.8+)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `follower_id` | UUID FK/PK | User who follows |
+| `following_id` | UUID FK/PK | User being followed |
+| `created_at` | TIMESTAMPTZ | When follow was created |
+
+**Constraints:** `CHECK (follower_id <> following_id)`
+
+**RLS Policies:** SELECT if follower or following; INSERT/DELETE as follower only
+
+---
+
+### `user_stats_cache` (v2.8+)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `user_id` | UUID PK/FK | Owner |
+| `multi_list` | JSONB | Cached aggregate stats across lists |
+| `multi_list_computed_at` | TIMESTAMPTZ | When multi-list cache was built |
+| `detail_by_list` | JSONB | Per-list stat payloads keyed by list id |
+| `updated_at` | TIMESTAMPTZ | Row touch time |
+
+**RLS Policies:** Full CRUD for own row
+
+---
+
+### `user_show_ratings` (v2.8+)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `user_id` | UUID FK/PK | Rater |
+| `show_id` | UUID FK/PK | Show |
+| `score` | SMALLINT | Personal hype tier 1–5 (1 = Later, 5 = Peak) |
+| `updated_at` | TIMESTAMPTZ | Last change |
+
+**Constraints:** `CHECK (score >= 1 AND score <= 5)`
+
+**RLS Policies:** Full CRUD for own rows
+
+One rating per user per show (global — not per list). Used for favorites-style filtering on My Shows and the Statistics “Your hype” section.
+
+---
+
+### `push_subscriptions` (v2.8+)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID PK | Subscription row |
+| `user_id` | UUID FK | Owner |
+| `endpoint` | TEXT | Browser push endpoint URL |
+| `p256dh` | TEXT | Public key for encryption |
+| `auth` | TEXT | Auth secret |
+| `user_agent` | TEXT | Optional device hint |
+| `created_at` / `updated_at` | TIMESTAMPTZ | Timestamps |
+
+**Constraints:** `UNIQUE(user_id, endpoint)`
+
+**RLS Policies:** Full CRUD for own rows (client upserts via Netlify functions with service role for cross-user push sends)
+
+---
+
 ## Indexes
 
 | Table | Index | Column(s) |
@@ -283,6 +404,13 @@ NextUp uses **Supabase** (PostgreSQL) with Row Level Security (RLS) for data iso
 | `list_shows` | `idx_list_shows_next_episode_id` | `next_episode_id` |
 | `show_genres` | `idx_show_genres_show_id` | `show_id` |
 | `show_genres` | `idx_show_genres_genre_id` | `genre_id` |
+| `show_notes` | `idx_show_notes_user_id` | `user_id` |
+| `show_notes` | `idx_show_notes_show_id` | `show_id` |
+| `user_follows` | `idx_user_follows_follower` | `follower_id` |
+| `user_follows` | `idx_user_follows_following` | `following_id` |
+| `push_subscriptions` | `idx_push_subscriptions_user_id` | `user_id` |
+| `user_show_ratings` | `idx_user_show_ratings_user_id` | `user_id` |
+| `user_show_ratings` | `idx_user_show_ratings_score` | `user_id`, `score` |
 
 ---
 
@@ -304,8 +432,14 @@ The full schema is defined in `db/migration.sql`. To apply:
 -- Copy & paste the entire contents of db/migration.sql
 ```
 
-For existing databases needing the genres feature:
+For existing databases, run only the **new sections** from the bottom of `db/migration.sql` that you have not applied yet:
 
-```sql
--- Run the genres section from db/migration.sql (lines 342-375)
-```
+| Version | Section in `migration.sql` | Adds |
+|---------|---------------------------|------|
+| Genres | `genres`, `show_genres` | Normalized genre filtering |
+| v2.8.0 | Notes, follows, `display_name` | `show_notes`, `user_notes`, `user_follows` |
+| v2.8.0 | Stats cache | `user_stats_cache` |
+| v2.8.0 | Push | `push_subscriptions` |
+| v2.8.0 | Hype ratings | `user_show_ratings` |
+
+Always run blocks in order. Re-running `CREATE TABLE IF NOT EXISTS` is safe.

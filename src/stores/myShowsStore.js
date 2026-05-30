@@ -4,12 +4,17 @@
 
 let upcomingEpisodes = [];
 let allCollectionShows = [];
+let collectionListId = null;
 let availableGenres = [];
 
 let collectionFilter = "";
 let collectionGenreFilter = "";
+let collectionRatingFilter =
+  localStorage.getItem("my_shows_rating_filter") || "";
 let collectionSort = localStorage.getItem("my_shows_sort") || "added_at";
 let collectionOrder = localStorage.getItem("my_shows_order") || "desc";
+/** @type {Map<string, number>} */
+let ratingsByShowId = new Map();
 
 /**
  * Sets the myShows array in the store.
@@ -34,8 +39,13 @@ export function getUpcomingEpisodes() {
  *
  * @param {Array<Object>} data - Array of all shows in the user's collection
  */
-export function setAllCollectionShows(data) {
+export function setAllCollectionShows(data, listId = null) {
   allCollectionShows = data;
+  if (listId != null) collectionListId = listId;
+}
+
+export function getCollectionListId() {
+  return collectionListId;
 }
 
 /**
@@ -83,6 +93,34 @@ export function setCollectionGenreFilter(slug) {
   collectionGenreFilter = slug || "";
 }
 
+export function getCollectionRatingFilter() {
+  return collectionRatingFilter;
+}
+
+export function setCollectionRatingFilter(value) {
+  collectionRatingFilter = String(value ?? "");
+  try {
+    localStorage.setItem("my_shows_rating_filter", collectionRatingFilter);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function setShowRatingsMap(map) {
+  ratingsByShowId = map instanceof Map ? map : new Map();
+}
+
+export function getShowUserRating(showId) {
+  if (!showId) return null;
+  return ratingsByShowId.get(showId) ?? null;
+}
+
+export function patchShowUserRating(showId, score) {
+  if (!showId) return;
+  if (score == null) ratingsByShowId.delete(showId);
+  else ratingsByShowId.set(showId, Number(score));
+}
+
 export function getCollectionSort() {
   return collectionSort;
 }
@@ -118,9 +156,13 @@ export function setCollectionOrder(value) {
 export function getFilteredCollection() {
   const query = collectionFilter.trim().toLowerCase();
   const genreSlug = collectionGenreFilter;
+  const ratingFilter = collectionRatingFilter;
   const direction = collectionOrder === "asc" ? 1 : -1;
 
-  let filtered = allCollectionShows;
+  let filtered = allCollectionShows.map((item) => ({
+    ...item,
+    user_rating: getShowUserRating(item.shows?.id),
+  }));
 
   if (query) {
     filtered = filtered.filter((item) =>
@@ -133,6 +175,17 @@ export function getFilteredCollection() {
       const genres = item.shows?.show_genres ?? [];
       return genres.some((sg) => sg.genres?.slug === genreSlug);
     });
+  }
+
+  if (ratingFilter === "rated") {
+    filtered = filtered.filter((item) => item.user_rating != null);
+  } else if (ratingFilter === "unrated") {
+    filtered = filtered.filter((item) => item.user_rating == null);
+  } else if (ratingFilter === "top") {
+    filtered = filtered.filter((item) => (item.user_rating ?? 0) >= 4);
+  } else if (ratingFilter && /^[1-5]$/.test(ratingFilter)) {
+    const want = Number(ratingFilter);
+    filtered = filtered.filter((item) => item.user_rating === want);
   }
 
   filtered = [...filtered];
@@ -148,6 +201,11 @@ export function getFilteredCollection() {
       case "year":
         av = a.shows?.year ?? 0;
         bv = b.shows?.year ?? 0;
+        return (av - bv) * direction;
+
+      case "user_rating":
+        av = a.user_rating ?? 0;
+        bv = b.user_rating ?? 0;
         return (av - bv) * direction;
 
       case "added_at":

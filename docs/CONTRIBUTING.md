@@ -21,9 +21,9 @@ cd NextUp
 npm install
 npm install -g netlify-cli
 
-# 3. Create .env file
-cp .env.example .env
-# Fill in your credentials
+# 3. Create .env file (see SUPABASE_SETUP.md)
+# TRAKT_*, SUPABASE_* required
+# VAPID_* optional for Web Push testing
 
 # 4. Set up database
 # Run db/migration.sql in your Supabase SQL Editor
@@ -48,17 +48,18 @@ NextUp/
 ├── db/migration.sql        → Full database schema
 ├── docs/                   → Documentation
 ├── img/                    → Static images (logo, PWA icons)
-├── src/                    → Client-side JavaScript
-│   ├── app.js              → Entry point, router, boot sequence
-│   ├── api/                → Server communication (fetch calls)
-│   ├── pages/              → Page renderers (one per route)
-│   ├── ui/                 → DOM manipulation (rendering)
-│   ├── stores/             → Client state (in-memory singletons)
-│   ├── services/           → Auth, Supabase client
-│   └── utils/              → Pure helper functions
+├── src/
+│   ├── app.js              → Entry point, router, push resync on login
+│   ├── api/                → Supabase + Netlify fetch wrappers (incl. ratings.js)
+│   ├── pages/              → home, show, discover, myShows, stats, profile, userStats
+│   ├── ui/                 → Rendering (incl. listFilter.js, statistics.js)
+│   ├── stores/             → user, watchlist, myShows, lists, stats, discover, …
+│   ├── services/           → auth, supabase, theme, libraryCache, pageCache
+│   ├── pwa/                → registerServiceWorker, pushNotifications
+│   └── utils/              → format, stats, multiListStats, icons
 └── netlify/
-    ├── functions/          → Serverless API endpoints
-    └── lib/                → Shared server-side code
+    ├── functions/          → Trakt, sync, push, followUser, …
+    └── lib/                → supabase.js, trakt.js, webPush.js
 ```
 
 ---
@@ -92,7 +93,7 @@ NextUp/
 
 - Single `style.css` file (no preprocessor)
 - BEM-inspired naming: `.section-element` (e.g. `.profile-action-btn`)
-- CSS custom properties not used (hardcoded dark theme values)
+- Theme palettes via CSS variables set by `services/theme.js` (Midnight, Ocean, Ember, Forest)
 - Mobile-first responsive with `@media (max-width: 768px)`
 - Colors: dark backgrounds (`#15161b`, `#1a1b22`), white text, purple accents (`#857aff`, `#ef6bf3`)
 
@@ -256,14 +257,19 @@ Types: `feat`, `fix`, `style`, `refactor`, `docs`, `chore`, `perf`, `test`
 
 ## Testing Locally
 
-There is no automated test suite. Manual testing checklist:
+There is no automated test suite. Manual testing checklist (2.8+):
 
 1. **Auth:** Register → Login → Logout → Session persistence
-2. **Watchlist:** View shows → Sort → Mark episode → Verify progress
-3. **Show details:** Open show → Navigate seasons → Mark/unmark episodes
-4. **Discover:** Search → Pagination → Trending/Popular/Anticipated
-5. **My Shows:** Upcoming dates → Collection list → Genre filter
-6. **Statistics:** All charts render → Data correct
-7. **Profile:** Actions work → Trakt status correct
-8. **Mobile:** Hamburger menu → Responsive layouts → Touch targets
-9. **PWA:** Install prompt → Offline behavior
+2. **Lists:** Create/rename/delete on Profile → filter Home & My Shows → ⋮ menu on collection cards
+3. **Watchlist:** Active-only on Home → Sort → Mark episode from modal → progress updates
+4. **Trakt:** Connect → Sync → shows visible on correct list (refresh if needed)
+5. **Show details:** Seasons, notes, multi-list collection toggle
+6. **Discover:** Search, pagination, carousels
+7. **My Shows:** List selector, upcoming, genre + hype filter, sort by hype, badges
+8. **Show page:** Hype meter save/clear, reload My Shows filter
+9. **Statistics:** “Your hype” section after rating shows
+10. **Statistics:** Default-list overview → “Your hype” → “Your lists” cards
+11. **Social:** Follow by email → open `#user` stats
+12. **Profile:** Themes, notes, sync new episodes
+13. **Push (HTTPS + VAPID):** Enable on Profile → row in `push_subscriptions`
+14. **Mobile / PWA:** Navbar, back button, install

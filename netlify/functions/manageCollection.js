@@ -2,12 +2,18 @@
 // functions/manageCollection.js - Netlify serverless function for adding/removing shows from collection
 // ========================================================
 
+import { createClient } from "@supabase/supabase-js";
 import {
   addShowToList,
   removeShowFromList,
   getDefaultListId,
   resolveUserIdFromToken,
 } from "../lib/supabase.js";
+
+const admin = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+);
 
 /**
  * Netlify serverless function to add or remove a show from user's Trakt collection.
@@ -51,7 +57,7 @@ export async function handler(event) {
     };
   }
 
-  const { showId, action } = body;
+  const { showId, action, listId: listIdParam } = body;
 
   if (!showId) {
     return {
@@ -70,8 +76,23 @@ export async function handler(event) {
   }
 
   try {
-    // const userId = await resolveUserIdFromToken(token);
-    const listId = await getDefaultListId(userId);
+    let listId = listIdParam;
+    if (listId) {
+      const { data: owned } = await admin
+        .from("lists")
+        .select("id")
+        .eq("id", listId)
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (!owned) {
+        return {
+          statusCode: 403,
+          body: JSON.stringify({ error: "Invalid list" }),
+        };
+      }
+    } else {
+      listId = await getDefaultListId(userId);
+    }
 
     if (action === "add") {
       await addShowToList(showId, listId, userId);

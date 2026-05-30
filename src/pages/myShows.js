@@ -2,6 +2,8 @@ import {
   renderUpcomingEpisodes,
   renderAllCollectionShows,
   renderCollectionFilterBar,
+  bindMyShowsClickHandler,
+  prepareMyShowsListMenus,
 } from "../ui/myShows.js";
 import {
   setUpcomingEpisodes,
@@ -9,15 +11,55 @@ import {
   setAllCollectionShows,
   getAllCollectionShows,
   setAvailableGenres,
+  getCollectionListId,
+  setShowRatingsMap,
 } from "../stores/myShowsStore.js";
+import { getRatingsMapForShows } from "../api/ratings.js";
 import {
-  getUpcomingEpisodesData,
   getAllCollectionShowsData,
-  getCollectionGenres,
+  getUpcomingEpisodesForShowIds,
+  extractCollectionGenres,
 } from "../api/watchlist.js";
+import { getSupabaseClient } from "../services/supabase.js";
+import { ensureListsLoaded } from "../ui/listFilter.js";
+import { resolveActiveListId } from "../stores/listsStore.js";
+
+function collectionShowIds(collection) {
+  return collection.map((item) => item.shows?.id).filter(Boolean);
+}
+
+async function attachRatingsToStore(collection) {
+  const map = await getRatingsMapForShows(collectionShowIds(collection));
+  setShowRatingsMap(map);
+}
 
 /**
- * Renders the My Shows page with upcoming episodes and the full default-list grid.
+ * Loads upcoming episodes after the grid is visible (does not block first paint).
+ */
+function loadUpcomingEpisodesInBackground() {
+  const showIds = collectionShowIds(getAllCollectionShows());
+  if (!showIds.length) {
+    setUpcomingEpisodes([]);
+    renderUpcomingEpisodes();
+    return;
+  }
+
+  getUpcomingEpisodesForShowIds(showIds)
+    .then((data) => {
+      setUpcomingEpisodes(data || []);
+      renderUpcomingEpisodes();
+    })
+    .catch(() => {
+      const container = document.getElementById("upcoming_episodes-container");
+      if (container) {
+        container.innerHTML =
+          "<p class='no-show-message'>Could not load upcoming episodes.</p>";
+      }
+    });
+}
+
+/**
+ * Renders the My Shows page with upcoming episodes and the full list grid.
  * @param {HTMLElement} main - Main app container for this page.
  */
 export async function renderMyShows(main) {
@@ -27,6 +69,7 @@ export async function renderMyShows(main) {
 
   const allCollectionShowsDiv = document.createElement("div");
   allCollectionShowsDiv.id = "all_my_shows-container";
+  allCollectionShowsDiv.innerHTML = "<p class='loading-text'>Loading...</p>";
 
   const upcomingSection = document.createElement("section");
   upcomingSection.className = "my-shows-section";
@@ -42,33 +85,37 @@ export async function renderMyShows(main) {
   collectionTitle.className = "my-shows-section-title";
   collectionTitle.textContent = "All shows in your list";
   collectionSection.appendChild(collectionTitle);
-  renderCollectionFilterBar(collectionSection);
+  await renderCollectionFilterBar(collectionSection);
   collectionSection.appendChild(allCollectionShowsDiv);
 
   main.appendChild(upcomingSection);
   main.appendChild(collectionSection);
 
-  if (!getUpcomingEpisodes().length) {
-    setUpcomingEpisodes((await getUpcomingEpisodesData()) || []);
+  bindMyShowsClickHandler(main);
+  await Promise.all([getSupabaseClient(), ensureListsLoaded()]);
+
+  const listId = resolveActiveListId();
+  const cachedCollection = getAllCollectionShows();
+  const cachedUpcoming = getUpcomingEpisodes();
+  const cacheValid =
+    cachedCollection.length && getCollectionListId() === listId;
+
+  if (cacheValid) {
+    await attachRatingsToStore(cachedCollection);
+    renderAllCollectionShows();
+    prepareMyShowsListMenus(collectionShowIds(cachedCollection));
+  } else {
+    const collection = await getAllCollectionShowsData(listId);
+    setAllCollectionShows(collection, listId);
+    setAvailableGenres(extractCollectionGenres(collection));
+    await attachRatingsToStore(collection);
+    renderAllCollectionShows();
+    prepareMyShowsListMenus(collectionShowIds(collection));
   }
 
-  renderUpcomingEpisodes();
-
-  if (!getAllCollectionShows().length) {
-    const [shows, genres] = await Promise.all([
-      getAllCollectionShowsData(),
-      getCollectionGenres(),
-    ]);
-    setAllCollectionShows(shows || []);
-    setAvailableGenres(genres || []);
+  if (cachedUpcoming.length && cacheValid) {
+    renderUpcomingEpisodes();
+  } else {
+    loadUpcomingEpisodesInBackground();
   }
-
-  renderAllCollectionShows();
-
-  main.addEventListener("click", (e) => {
-    const card = e.target.closest(".show-card, .my-shows-collection-card");
-    if (!card) return;
-
-    location.hash = `show?traktIdentifier=${card.dataset.id}`;
-  });
 }

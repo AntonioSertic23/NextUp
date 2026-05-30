@@ -2,7 +2,7 @@
 // stores/statsStore.js - Stats state & sorting logic
 // ========================================================
 
-let stats = [];
+let stats = null;
 
 /**
  * Sets the stats array in the store.
@@ -20,4 +20,8 @@ export function setStats(data) {
  */
 export function getStats() {
   return stats;
+}
+
+export function clearStats() {
+  stats = null;
 }

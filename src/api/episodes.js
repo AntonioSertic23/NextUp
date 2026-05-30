@@ -1,4 +1,5 @@
 import { getSession } from "../stores/userStore.js";
+import { invalidateWatchlistAndStats } from "../services/pageCache.js";
 
 /**
  * Marks or unmarks episodes as watched via a Netlify function
@@ -30,5 +31,6 @@ export async function markEpisodes(showId, episodeIds, markAsWatched) {
     throw new Error(`markEpisodes failed: ${res.status} ${text}`);
   }
 
+  invalidateWatchlistAndStats();
   return true;
 }

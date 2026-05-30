@@ -13,7 +13,7 @@ const SUPABASE = createClient(
  * Netlify function to fetch the current user's watchlist.
  *
  * Behavior:
- * - Only returns shows that are not completed (is_completed = false)
+ * - Returns all shows on the list (including completed)
  * - Requires POST method
  * - Expects { listId } in JSON body
  *
@@ -73,8 +73,7 @@ export async function handler(event) {
         )
         `
       )
-      .eq("list_id", listId)
-      .eq("is_completed", false);
+      .eq("list_id", listId);
 
     if (error) {
       console.error("Supabase query error:", error);
