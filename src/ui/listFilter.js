@@ -64,7 +64,7 @@ export async function renderListFilter(main) {
     if (container) {
       container.innerHTML = "<p class='loading-text'>Loading...</p>";
     }
-    setWatchlist(await getWatchlistData(listId), listId);
+    setWatchlist(await getWatchlistData(listId, { activeOnly: true }), listId);
     renderWatchlist();
   });
 }

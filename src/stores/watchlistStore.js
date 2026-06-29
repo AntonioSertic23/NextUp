@@ -78,9 +78,8 @@ export function updateNextEpisode(nextEpisode) {
   watchlist[showIndex].watched_episodes = nextEpisode.watched_episodes;
   watchlist[showIndex].total_episodes = nextEpisode.total_episodes;
 
-  if (nextEpisode.shows?.last_watched_at) {
-    watchlist[showIndex].shows.last_watched_at =
-      nextEpisode.shows.last_watched_at;
+  if (nextEpisode.last_watched_at != null) {
+    watchlist[showIndex].last_watched_at = nextEpisode.last_watched_at;
   }
 }
 
@@ -167,11 +166,11 @@ function sortShows() {
         return (aValue - bValue) * direction;
 
       case "last_watched_at":
-        aValue = a.shows?.last_watched_at
-          ? new Date(a.shows.last_watched_at).getTime()
+        aValue = a.last_watched_at
+          ? new Date(a.last_watched_at).getTime()
           : 0;
-        bValue = b.shows?.last_watched_at
-          ? new Date(b.shows.last_watched_at).getTime()
+        bValue = b.last_watched_at
+          ? new Date(b.last_watched_at).getTime()
           : 0;
         return (aValue - bValue) * direction;
 

@@ -1,6 +1,6 @@
 import { getSupabaseClient } from "../services/supabase.js";
 import { getUser } from "../stores/userStore.js";
-import { getCachedDefaultListId } from "../stores/listsStore.js";
+import { getCachedDefaultListId, resolveActiveListId } from "../stores/listsStore.js";
 
 let cachedDefaultListId = null;
 let cachedDefaultListUserId = null;
@@ -52,6 +52,7 @@ const WATCHLIST_SELECT = `
   completed_at,
   watched_episodes,
   total_episodes,
+  last_watched_at,
   next_episode:episodes!next_episode_id (
     id,
     episode_number,
@@ -67,7 +68,6 @@ const WATCHLIST_SELECT = `
     title,
     year,
     rating,
-    last_watched_at,
     image_poster
   )
 `;
@@ -93,10 +93,20 @@ export async function getWatchlistData(listIdParam, options = {}) {
       query = query.eq("is_completed", false);
     }
 
-    const { data, error } = await query;
+    let { data, error } = await query;
 
     if (error) throw error;
-    return (data ?? []).filter((item) => item.shows);
+    data = (data ?? []).filter((item) => item.shows);
+
+    if (activeOnly && !data.length) {
+      const { data: allRows, error: allErr } = await SUPABASE.from("list_shows")
+        .select(WATCHLIST_SELECT)
+        .eq("list_id", listId);
+      if (allErr) throw allErr;
+      data = (allRows ?? []).filter((item) => item.shows);
+    }
+
+    return data;
   } catch (err) {
     console.error("getWatchlistData:", err);
     return [];
@@ -109,9 +119,10 @@ export async function getWatchlistData(listIdParam, options = {}) {
  * @param {string|number} showId - The unique identifier of the show.
  * @returns {Promise<Object|null>} Next episode data or null on error
  */
-export async function getShowNextEpisode(showId) {
+export async function getShowNextEpisode(showId, listIdParam) {
   const SUPABASE = await getSupabaseClient();
-  const listId = await getDefaultListId();
+  const listId =
+    listIdParam ?? resolveActiveListId() ?? (await getDefaultListId());
 
   try {
     const { data } = await SUPABASE.from("list_shows")
@@ -120,6 +131,7 @@ export async function getShowNextEpisode(showId) {
         is_completed,
         watched_episodes,
         total_episodes,
+        last_watched_at,
         next_episode:episodes!next_episode_id (
           id,
           episode_number,
@@ -135,14 +147,13 @@ export async function getShowNextEpisode(showId) {
           title,
           year,
           rating,
-          last_watched_at,
           image_poster
         )
         `,
       )
       .eq("list_id", listId)
       .eq("show_id", showId)
-      .single();
+      .maybeSingle();
 
     return data;
   } catch (err) {
