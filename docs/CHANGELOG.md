@@ -4,6 +4,21 @@ All notable changes to this project are documented here.
 
 ---
 
+## [2.8.1] — May 2026
+
+### Fixed
+
+- **Last Watched sort** — Uses per-user `list_shows.last_watched_at` instead of global `shows.last_watched_at` (no cross-account bleed)
+- **Home progress stale after marking** — Recomputes `watched_episodes` / `total_episodes` from `user_episodes` on every mark/unmark (all lists for that user)
+- **Special / bonus episodes** — Progress counts exclude season 0 and specials (fixes Naruto-style 498/500 mismatches)
+- **syncNextEpisodes** — Slug fallback for Trakt API; tolerates empty season payloads (Happy Tree Friends)
+
+### Changed
+
+- **Faster page loads** — Preload lists on app boot; parallel home toolbar + data fetch; lighter stats boot
+
+---
+
 ## [2.8.0] — May 2026
 
 ### Added
