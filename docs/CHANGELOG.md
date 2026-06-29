@@ -4,7 +4,7 @@ All notable changes to this project are documented here.
 
 ---
 
-## [2.8.1] — Unreleased
+## [2.8.1] — May 2026
 
 ### Fixed
 
