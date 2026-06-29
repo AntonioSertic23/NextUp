@@ -7,8 +7,7 @@ import { TRAKT_BASE_URL, getTraktHeaders } from "../lib/trakt.js";
 import {
   saveUserEpisodes,
   deleteUserEpisodes,
-  updateListShows,
-  updateShowLastWatchedAt,
+  refreshListShowsForUserShow,
   resolveUserIdFromToken,
   getValidTraktToken,
 } from "../lib/supabase.js";
@@ -121,15 +120,14 @@ export async function handler(event) {
       case "mark": {
         const traktIds = await saveUserEpisodes(userId, episodeIds);
         await markOnTrakt(traktToken, traktIds);
-        await updateListShows(userId, showId, "increment", traktIds.length);
-        await updateShowLastWatchedAt(showId);
+        await refreshListShowsForUserShow(userId, showId);
         break;
       }
 
       case "unmark": {
         const traktIds = await deleteUserEpisodes(userId, episodeIds);
         await unmarkOnTrakt(traktToken, traktIds);
-        await updateListShows(userId, showId, "decrement", traktIds.length);
+        await refreshListShowsForUserShow(userId, showId);
         break;
       }
 

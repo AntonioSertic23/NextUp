@@ -498,3 +498,24 @@ CREATE POLICY "Users manage own show ratings"
   ON user_show_ratings FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
+
+-- Per-user last watch time on a list (fixes Last Watched sort across accounts)
+ALTER TABLE list_shows ADD COLUMN IF NOT EXISTS last_watched_at timestamptz;
+
+CREATE INDEX IF NOT EXISTS idx_list_shows_last_watched
+  ON list_shows(list_id, last_watched_at DESC NULLS LAST);
+
+-- Backfill from existing watch history (run once on upgrade)
+UPDATE list_shows ls
+SET last_watched_at = sub.max_watched
+FROM (
+  SELECT
+    ls.id AS list_show_id,
+    MAX(ue.watched_at) AS max_watched
+  FROM list_shows ls
+  JOIN lists l ON l.id = ls.list_id
+  JOIN episodes e ON e.show_id = ls.show_id AND e.season_number > 0
+  JOIN user_episodes ue ON ue.episode_id = e.id AND ue.user_id = l.user_id
+  GROUP BY ls.id
+) sub
+WHERE ls.id = sub.list_show_id;
