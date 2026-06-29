@@ -11,7 +11,6 @@ import {
 import { renderStatistics } from "../ui/statistics.js";
 import { setStats, getStats } from "../stores/statsStore.js";
 import { consumeStatsStale } from "../services/pageCache.js";
-import { ensureListsLoaded } from "../ui/listFilter.js";
 import { getSupabaseClient } from "../services/supabase.js";
 
 /**
@@ -86,7 +85,6 @@ export async function renderStats(main) {
   statsDiv.innerHTML = "<p class='loading-text'>Loading statistics...</p>";
   main.appendChild(statsDiv);
 
-  await Promise.all([getSupabaseClient(), ensureListsLoaded()]);
-  await loadStats();
+  await Promise.all([getSupabaseClient(), loadStats()]);
   renderStatistics();
 }

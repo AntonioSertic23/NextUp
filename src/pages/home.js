@@ -28,12 +28,14 @@ export async function renderHome(main) {
   });
 
   const clientWarm = getSupabaseClient();
-  await Promise.all([clientWarm, ensureListsLoaded()]);
-
   const listId = resolveActiveListId();
 
-  await renderSortControls(main);
-  await renderListFilter(main);
+  await Promise.all([
+    clientWarm,
+    ensureListsLoaded(),
+    renderSortControls(main),
+    renderListFilter(main),
+  ]);
 
   const stale = consumeWatchlistStale();
   const cacheValid =
@@ -45,10 +47,7 @@ export async function renderHome(main) {
   }
 
   watchlistDiv.innerHTML = "<p class='loading-text'>Loading...</p>";
-  let data = await getWatchlistData(listId, { activeOnly: true });
-  if (!data.length) {
-    data = await getWatchlistData(listId, { activeOnly: false });
-  }
+  const data = await getWatchlistData(listId, { activeOnly: true });
   setWatchlist(data, listId);
   renderWatchlist();
 }

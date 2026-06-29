@@ -15,6 +15,8 @@
 import { logout, setupAuthGuard } from "./services/auth.js";
 import { handleTraktAuthRedirect } from "./api/sync.js";
 import { isAuthenticated, initUserStore } from "./stores/userStore.js";
+import { fetchUserLists } from "./api/lists.js";
+import { setLists } from "./stores/listsStore.js";
 import { updateActiveNav } from "./ui/navigation.js";
 import { renderHome } from "./pages/home.js";
 import { renderShow } from "./pages/show.js";
@@ -65,6 +67,11 @@ if (!isAuthenticated()) {
 
   document.body.classList.add("authenticated");
   syncPushSubscriptionIfEnabled();
+  fetchUserLists()
+    .then((lists) => {
+      if (lists?.length) setLists(lists);
+    })
+    .catch(() => {});
 }
 
 async function router() {
