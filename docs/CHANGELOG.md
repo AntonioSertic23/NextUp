@@ -4,7 +4,7 @@ All notable changes to this project are documented here.
 
 ---
 
-## [2.9.0] — Unreleased
+## [2.8.1] — Unreleased
 
 ### Fixed
 
