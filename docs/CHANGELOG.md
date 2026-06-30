@@ -4,6 +4,14 @@ All notable changes to this project are documented here.
 
 ---
 
+## [2.9.0] — Unreleased
+
+### Added
+
+- **PWA update banner** — Notifies users when a new version is deployed; **Refresh** applies the update without reinstalling the app
+
+---
+
 ## [2.8.1] — May 2026
 
 ### Fixed
