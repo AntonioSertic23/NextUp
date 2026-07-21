@@ -1470,6 +1470,23 @@ main {
   box-shadow: none;
 }
 
+.mark-watched.is-busy,
+.unmark-watched.is-busy {
+  opacity: 0.55;
+  pointer-events: none;
+  animation: mark-btn-pulse 0.9s ease-in-out infinite;
+}
+
+@keyframes mark-btn-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.75;
+  }
+}
+
 /* Per-season mark btn slightly larger so it's easier to tap */
 .season_mark_btn {
   width: 40px;

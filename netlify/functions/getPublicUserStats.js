@@ -73,14 +73,19 @@ export async function handler(event) {
       .select(
         `
         show:shows (
-          *,
+          title,
+          runtime,
+          rating,
+          network,
+          genres,
           show_genres (
             genres (name, slug)
           ),
           seasons (
-            *,
+            season_number,
+            title,
             episodes (
-              *,
+              id,
               user_episodes (
                 watched_at,
                 user_id

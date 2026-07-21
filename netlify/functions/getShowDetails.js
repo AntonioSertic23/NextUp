@@ -77,14 +77,21 @@ export async function handler(event) {
   // If not in DB, fallback to Trakt
   try {
     const traktToken = await getValidTraktToken(userId);
+    const encodedId = encodeURIComponent(String(traktIdentifier).trim());
+    const headers = getTraktHeaders(traktToken);
 
-    // Fetch show details
-    const showRes = await fetch(
-      `${TRAKT_BASE_URL}/shows/${encodeURIComponent(
-        traktIdentifier.trim()
-      )}?extended=full,images`,
-      { headers: getTraktHeaders(traktToken) }
-    );
+    // Show metadata and seasons/episodes are independent Trakt calls.
+    const [showRes, seasonsRes] = await Promise.all([
+      fetch(`${TRAKT_BASE_URL}/shows/${encodedId}?extended=full,images`, {
+        headers,
+      }),
+      // `extended=full,episodes,images` is needed so episodes include
+      // `first_aired`, `overview`, `runtime` etc.
+      fetch(
+        `${TRAKT_BASE_URL}/shows/${encodedId}/seasons?extended=full,episodes,images&specials=false&count_specials=false`,
+        { headers },
+      ),
+    ]);
 
     if (!showRes.ok) {
       const text = await showRes.text();
@@ -94,17 +101,6 @@ export async function handler(event) {
       };
     }
 
-    const show = await showRes.json();
-
-    // Fetch seasons with episodes.
-    // `extended=full,episodes,images` is needed so episodes include
-    // `first_aired`, `overview`, `runtime` etc. Without `full` Trakt
-    // returns minimal episode data and these fields end up null in the DB.
-    const seasonsRes = await fetch(
-      `${TRAKT_BASE_URL}/shows/${traktIdentifier}/seasons?extended=full,episodes,images&specials=false&count_specials=false`,
-      { headers: getTraktHeaders(traktToken) }
-    );
-
     if (!seasonsRes.ok) {
       const text = await seasonsRes.text();
       return {
@@ -113,7 +109,10 @@ export async function handler(event) {
       };
     }
 
-    const seasons = await seasonsRes.json();
+    const [show, seasons] = await Promise.all([
+      showRes.json(),
+      seasonsRes.json(),
+    ]);
 
     const { showId: newShowId, traktIdentifier: newTraktIdentifier } =
       await saveShow(show);

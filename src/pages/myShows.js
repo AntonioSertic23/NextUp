@@ -101,16 +101,16 @@ export async function renderMyShows(main) {
     cachedCollection.length && getCollectionListId() === listId;
 
   if (cacheValid) {
-    await attachRatingsToStore(cachedCollection);
     renderAllCollectionShows();
     prepareMyShowsListMenus(collectionShowIds(cachedCollection));
+    attachRatingsToStore(cachedCollection).then(() => renderAllCollectionShows());
   } else {
     const collection = await getAllCollectionShowsData(listId);
     setAllCollectionShows(collection, listId);
     setAvailableGenres(extractCollectionGenres(collection));
-    await attachRatingsToStore(collection);
     renderAllCollectionShows();
     prepareMyShowsListMenus(collectionShowIds(collection));
+    attachRatingsToStore(collection).then(() => renderAllCollectionShows());
   }
 
   if (cachedUpcoming.length && cacheValid) {

@@ -96,17 +96,7 @@ export async function getWatchlistData(listIdParam, options = {}) {
     let { data, error } = await query;
 
     if (error) throw error;
-    data = (data ?? []).filter((item) => item.shows);
-
-    if (activeOnly && !data.length) {
-      const { data: allRows, error: allErr } = await SUPABASE.from("list_shows")
-        .select(WATCHLIST_SELECT)
-        .eq("list_id", listId);
-      if (allErr) throw allErr;
-      data = (allRows ?? []).filter((item) => item.shows);
-    }
-
-    return data;
+    return (data ?? []).filter((item) => item.shows);
   } catch (err) {
     console.error("getWatchlistData:", err);
     return [];

@@ -361,150 +361,164 @@ export async function saveShowSeasonsAndEpisodes(seasons, showId) {
 }
 
 /**
- * Retrieves a show from the database together with its seasons, episodes,
- * user watch progress, and collection status.
- *
- * Lookup strategy:
- * - Matches by internal show ID if provided
- * - Optionally matches by Trakt-related identifiers (slug, trakt_id, imdb_id, etc.)
- *   with automatic type handling (numeric vs string identifiers)
- *
- * Data returned:
- * - Show base fields
- * - Nested seasons with episodes
- * - Each episode enriched with optional user watch metadata
- * - Boolean `in_collection` indicating whether the show exists
- *   in the user's default list
- *
- * Notes:
- * - All data is retrieved from Supabase
+ * Fetches a show with nested seasons/episodes and user-specific state.
+ * Looks up by slug_id, or by trakt_id when the identifier is numeric
+ * (so Discover links with Trakt IDs still hit the DB cache).
  *
  * @param {string} userId - Authenticated user UUID
- * @param {string} traktIdentifier - Trakt identifier (slug ID)
+ * @param {string} traktIdentifier - Trakt slug or numeric id
  * @returns {Promise<Object|null>}
- * Returns `null` if the show does not exist or on unrecoverable error.
  */
 export async function getShowWithSeasonsAndEpisodes(userId, traktIdentifier) {
   try {
-    // TODO: This can be implemented in a simpler way, similar to getStatsData()
+    const id = String(traktIdentifier ?? "").trim();
+    if (!id) return null;
 
-    // Fetch show from database
-    const { data: show, error: showError } = await SUPABASE.from("shows")
-      .select("*")
-      .eq("slug_id", traktIdentifier)
-      .maybeSingle();
+    const SHOW_SELECT = `
+      id,
+      trakt_id,
+      slug_id,
+      title,
+      year,
+      status,
+      tagline,
+      overview,
+      rating,
+      genres,
+      runtime,
+      network,
+      image_poster,
+      image_fanart
+    `;
+
+    const SEASON_SELECT = "id, show_id, season_number, title, episode_count";
+    const EPISODE_SELECT = `
+      id,
+      season_id,
+      show_id,
+      title,
+      season_number,
+      episode_number,
+      first_aired,
+      overview,
+      image_screenshot,
+      episode_type
+    `;
+
+    // Prefer slug; also match trakt_id when the caller passes a numeric id.
+    let showQuery = SUPABASE.from("shows").select(SHOW_SELECT);
+    if (/^\d+$/.test(id)) {
+      showQuery = showQuery.or(`slug_id.eq.${id},trakt_id.eq.${id}`);
+    } else {
+      showQuery = showQuery.eq("slug_id", id);
+    }
+
+    const { data: show, error: showError } = await showQuery.maybeSingle();
 
     if (showError || !show) {
       console.error("Show not found:", showError?.message);
       return null;
     }
 
-    // Fetch seasons for this show
-    const { data: seasons, error: seasonsError } = await SUPABASE.from(
-      "seasons",
-    )
-      .select("*")
-      .eq("show_id", show.id)
-      .order("season_number", { ascending: true });
+    const [
+      seasonsResult,
+      episodesResult,
+      watchedResult,
+      listId,
+      ratingResult,
+      noteResult,
+    ] = await Promise.all([
+      SUPABASE.from("seasons")
+        .select(SEASON_SELECT)
+        .eq("show_id", show.id)
+        .order("season_number", { ascending: true }),
+      SUPABASE.from("episodes")
+        .select(EPISODE_SELECT)
+        .eq("show_id", show.id)
+        .order("season_number", { ascending: true })
+        .order("episode_number", { ascending: true }),
+      SUPABASE.from("user_episodes")
+        .select("episode_id, watched_at, episodes!inner(id)")
+        .eq("user_id", userId)
+        .eq("episodes.show_id", show.id),
+      getDefaultListId(userId),
+      SUPABASE.from("user_show_ratings")
+        .select("score")
+        .eq("user_id", userId)
+        .eq("show_id", show.id)
+        .maybeSingle(),
+      SUPABASE.from("show_notes")
+        .select("content")
+        .eq("user_id", userId)
+        .eq("show_id", show.id)
+        .maybeSingle(),
+    ]);
 
-    if (seasonsError) {
-      console.error("Error fetching seasons:", seasonsError.message);
-      return { ...show, seasons: [] };
+    if (seasonsResult.error) {
+      console.error("Error fetching seasons:", seasonsResult.error.message);
+      return { ...show, seasons: [], in_collection: false, user_rating: null };
     }
 
-    // Fetch episodes for this show directly (avoids large .in() filter on season IDs)
-    const { data: episodes, error: episodesError } = await SUPABASE.from(
-      "episodes",
-    )
-      .select("*")
-      .eq("show_id", show.id)
-      .order("episode_number", { ascending: true });
-
-    if (episodesError) {
-      console.error("Error fetching episodes:", episodesError.message);
+    const seasons = seasonsResult.data ?? [];
+    const episodes = episodesResult.error ? [] : (episodesResult.data ?? []);
+    if (episodesResult.error) {
+      console.error("Error fetching episodes:", episodesResult.error.message);
     }
 
-    // Fetch user watch data via inner join (avoids large .in() on episode IDs)
-    const { data: watchedData, error: watchedError } = await SUPABASE.from(
-      "user_episodes",
-    )
-      .select("episode_id, watched_at, episodes!inner(id)")
-      .eq("user_id", userId)
-      .eq("episodes.show_id", show.id);
-
-    if (watchedError) {
-      console.error("Error fetching watched episodes:", watchedError);
+    const watchedData = watchedResult.error ? [] : (watchedResult.data ?? []);
+    if (watchedResult.error) {
+      console.error("Error fetching watched episodes:", watchedResult.error);
     }
 
-    let seasonsWithEpisodes;
+    const watchedMap = new Map(
+      watchedData.map((row) => [row.episode_id, row.watched_at ?? null]),
+    );
 
-    if (watchedData?.length) {
-      // Nest watched data into episodes
-      const episodesWithWatchedData = episodes.map((episode) => ({
-        ...episode,
-        watched_at: watchedData
-          ? watchedData.find((ep) => ep.episode_id === episode.id)
-              ?.watched_at || null
-          : null,
-      }));
-
-      // Nest episodes with watched data into seasons
-      seasonsWithEpisodes = seasons.map((season) => ({
-        ...season,
-        episodes: episodesWithWatchedData
-          ? episodesWithWatchedData.filter((ep) => ep.season_id === season.id)
-          : [],
-      }));
-    } else {
-      // Nest episodes into seasons
-      seasonsWithEpisodes = seasons.map((season) => ({
-        ...season,
-        episodes: episodes
-          ? episodes.filter((ep) => ep.season_id === season.id)
-          : [],
-      }));
-    }
+    const seasonsWithEpisodes = seasons.map((season) => ({
+      ...season,
+      episodes: episodes
+        .filter((ep) => ep.season_id === season.id)
+        .map((episode) => ({
+          ...episode,
+          watched_at: watchedMap.get(episode.id) ?? null,
+        })),
+    }));
 
     let in_collection = false;
-    const listId = await getDefaultListId(userId);
+    if (listId) {
+      const { count, error: lsError } = await SUPABASE.from("list_shows")
+        .select("id", { count: "exact", head: true })
+        .eq("show_id", show.id)
+        .eq("list_id", listId);
 
-    // Check if show is in the default list
-    const { count, error: lsError } = await SUPABASE.from("list_shows")
-      .select("id", { count: "exact", head: true })
-      .eq("show_id", show.id)
-      .eq("list_id", listId);
-
-    if (lsError) {
-      console.error(
-        "Error checking if show is in collection:",
-        lsError.message,
-      );
-      return { ...show, seasons: seasonsWithEpisodes, in_collection };
+      if (lsError) {
+        console.error(
+          "Error checking if show is in collection:",
+          lsError.message,
+        );
+      } else {
+        in_collection = (count ?? 0) > 0;
+      }
     }
-
-    in_collection = (count ?? 0) > 0;
 
     let user_rating = null;
-    const { data: ratingRow, error: ratingErr } = await SUPABASE.from(
-      "user_show_ratings",
-    )
-      .select("score")
-      .eq("user_id", userId)
-      .eq("show_id", show.id)
-      .maybeSingle();
-
-    if (ratingErr) {
-      console.error("Error fetching user rating:", ratingErr.message);
-    } else if (ratingRow?.score != null) {
-      user_rating = ratingRow.score;
+    if (ratingResult.error) {
+      console.error("Error fetching user rating:", ratingResult.error.message);
+    } else if (ratingResult.data?.score != null) {
+      user_rating = ratingResult.data.score;
     }
 
-    // Return show with nested seasons & episodes
+    const note = noteResult.error ? null : (noteResult.data ?? null);
+    if (noteResult.error) {
+      console.error("Error fetching show note:", noteResult.error.message);
+    }
+
     return {
       ...show,
       seasons: seasonsWithEpisodes,
       in_collection,
       user_rating,
+      note,
     };
   } catch (err) {
     console.error("Unexpected error:", err);
@@ -512,14 +526,6 @@ export async function getShowWithSeasonsAndEpisodes(userId, traktIdentifier) {
   }
 }
 
-/**
- * Marks one or more episodes as watched for a user and returns their Trakt IDs.
- *
- * @param {string} userId - User UUID.
- * @param {string[]} episodeIds - List of episode UUIDs.
- * @returns {Promise<number[]>} Array of Trakt episode IDs.
- * @throws {Error} If upsert or lookup fails.
- */
 export async function saveUserEpisodes(userId, episodeIds) {
   try {
     // Prepare rows for bulk upsert
@@ -652,44 +658,45 @@ function maxWatchedAt(watchedRows) {
  * Uses actual user_episodes counts — not increment/decrement deltas.
  */
 export async function refreshListShowsForUserShow(userId, showId) {
-  const countable = await getCountableEpisodesForShow(showId);
-  const countableIds = countable.map((ep) => ep.id);
-  const totalEpisodes = countableIds.length;
-
-  const { data: userLists, error: listErr } = await SUPABASE.from("lists")
-    .select("id")
-    .eq("user_id", userId);
+  const [{ data: userLists, error: listErr }, countable] = await Promise.all([
+    SUPABASE.from("lists").select("id").eq("user_id", userId),
+    getCountableEpisodesForShow(showId),
+  ]);
 
   if (listErr) throw listErr;
+  const countableIds = countable.map((ep) => ep.id);
+  const totalEpisodes = countableIds.length;
   const listIds = (userLists ?? []).map((l) => l.id);
-  if (!listIds.length) return;
+  if (!listIds.length) return null;
 
-  const { data: listShows, error: lsErr } = await SUPABASE.from("list_shows")
+  const listShowsPromise = SUPABASE.from("list_shows")
     .select("id, list_id, is_completed, completed_at")
     .eq("show_id", showId)
     .in("list_id", listIds);
 
+  const watchedPromise = countableIds.length
+    ? SUPABASE.from("user_episodes")
+        .select("episode_id, watched_at")
+        .eq("user_id", userId)
+        .in("episode_id", countableIds)
+    : Promise.resolve({ data: [], error: null });
+
+  const [{ data: listShows, error: lsErr }, { data: watchedData, error: watchedErr }] =
+    await Promise.all([listShowsPromise, watchedPromise]);
+
   if (lsErr) throw lsErr;
-  if (!listShows?.length) return;
+  if (watchedErr) throw watchedErr;
+  if (!listShows?.length) return null;
 
-  let watchedRows = [];
-  if (countableIds.length) {
-    const { data, error: watchedErr } = await SUPABASE.from("user_episodes")
-      .select("episode_id, watched_at")
-      .eq("user_id", userId)
-      .in("episode_id", countableIds);
-
-    if (watchedErr) throw watchedErr;
-    watchedRows = data ?? [];
-  }
-
+  const watchedRows = watchedData ?? [];
   const watchedIds = watchedRows.map((r) => r.episode_id);
   const watchedCount = watchedIds.length;
   const lastWatchedAt = maxWatchedAt(watchedRows);
 
   let nextEpisodeId = null;
   if (totalEpisodes > 0 && watchedCount < totalEpisodes) {
-    nextEpisodeId = await getNextUnwatchedEpisode(showId, watchedIds);
+    const watchedSet = new Set(watchedIds);
+    nextEpisodeId = countable.find((ep) => !watchedSet.has(ep.id))?.id ?? null;
   }
 
   const isCompleted = totalEpisodes > 0 && watchedCount >= totalEpisodes;
@@ -702,18 +709,105 @@ export async function refreshListShowsForUserShow(userId, showId) {
     last_watched_at: lastWatchedAt,
   };
 
-  for (const listShow of listShows) {
-    const { error: updateError } = await SUPABASE.from("list_shows")
-      .update({
-        ...updatePayload,
-        completed_at: isCompleted
-          ? listShow.completed_at || new Date().toISOString()
-          : null,
-      })
-      .eq("id", listShow.id);
+  await Promise.all(
+    listShows.map(async (listShow) => {
+      const { error: updateError } = await SUPABASE.from("list_shows")
+        .update({
+          ...updatePayload,
+          completed_at: isCompleted
+            ? listShow.completed_at || new Date().toISOString()
+            : null,
+        })
+        .eq("id", listShow.id);
 
-    if (updateError) throw updateError;
+      if (updateError) throw updateError;
+    }),
+  );
+
+  // Return one refreshed row (with next episode) for the client — avoids a
+  // second lists lookup in getListShowProgressForUser.
+  const { data: listShow, error: progressErr } = await SUPABASE.from("list_shows")
+    .select(
+      `
+      is_completed,
+      watched_episodes,
+      total_episodes,
+      last_watched_at,
+      next_episode:episodes!next_episode_id (
+        id,
+        episode_number,
+        season_number,
+        title,
+        image_screenshot,
+        overview,
+        first_aired
+      ),
+      shows (
+        id,
+        slug_id,
+        title,
+        year,
+        rating,
+        image_poster
+      )
+      `,
+    )
+    .eq("id", listShows[0].id)
+    .maybeSingle();
+
+  if (progressErr) {
+    console.warn("refreshListShowsForUserShow: progress fetch failed:", progressErr);
+    return updatePayload;
   }
+
+  return listShow ?? updatePayload;
+}
+
+
+export async function getListShowProgressForUser(userId, showId) {
+  if (!showId) return null;
+
+  const { data: userLists, error: listErr } = await SUPABASE.from("lists")
+    .select("id")
+    .eq("user_id", userId);
+
+  if (listErr) throw listErr;
+  const listIds = (userLists ?? []).map((l) => l.id);
+  if (!listIds.length) return null;
+
+  const { data, error } = await SUPABASE.from("list_shows")
+    .select(
+      `
+      is_completed,
+      watched_episodes,
+      total_episodes,
+      last_watched_at,
+      next_episode:episodes!next_episode_id (
+        id,
+        episode_number,
+        season_number,
+        title,
+        image_screenshot,
+        overview,
+        first_aired
+      ),
+      shows (
+        id,
+        slug_id,
+        title,
+        year,
+        rating,
+        image_poster
+      )
+      `,
+    )
+    .eq("show_id", showId)
+    .in("list_id", listIds)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data ?? null;
 }
 
 /**
@@ -969,8 +1063,8 @@ async function getListShowInformation(showId, listId, userId) {
 
   let nextEpisodeId = null;
   if (!isCompleted && totalEpisodes > 0) {
-    const watchedIds = watchedData.map((ep) => ep.episode_id);
-    nextEpisodeId = await getNextUnwatchedEpisode(showId, watchedIds);
+    const watchedSet = new Set(watchedData.map((ep) => ep.episode_id));
+    nextEpisodeId = countable.find((ep) => !watchedSet.has(ep.id))?.id ?? null;
   }
 
   return {
