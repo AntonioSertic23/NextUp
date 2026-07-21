@@ -2,7 +2,7 @@
  * NextUp service worker — PWA installability, network-first fetch, and Web Push.
  */
 
-const SW_VERSION = "nextup-pwa-v2.9.0";
+const SW_VERSION = "nextup-pwa-v2.9.1";
 
 self.addEventListener("install", () => {
   // First install: activate immediately. Updates wait for the in-app banner.

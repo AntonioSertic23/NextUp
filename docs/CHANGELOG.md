@@ -4,6 +4,22 @@ All notable changes to this project are documented here.
 
 ---
 
+## [2.9.1] — Unreleased
+
+### Fixed
+
+- **Episode info mark button** — Disables and shows busy state while saving; dialog stays open until the next episode is ready, then closes and refreshes the card
+
+### Performance
+
+- **Faster show page** — Parallel Supabase queries, slimmer selects, lookup by slug or Trakt id (Discover no longer misses the DB cache)
+- **Faster mark watched** — Returns refreshed list progress without waiting on Trakt; Trakt sync runs in the background
+- **Lighter Discover / related / search** — Trakt `extended=images` instead of full payloads
+- **Slimmer stats queries** — Only fields needed for calculations
+- **Profile & My Shows** — Parallel profile fetches; collection grid paints before ratings load
+
+---
+
 ## [2.9.0] — Unreleased
 
 ### Added
