@@ -231,11 +231,11 @@ export function renderShowDetails(show) {
 
   bindPopcornRating(show.id, show.user_rating ?? null);
   renderShowSeasons(showContainer, show.seasons, show.id);
-  renderShowNotesBlock(show.id);
+  renderShowNotesBlock(show.id, show.note);
   void renderRecommendedShows(showContainer, show);
 }
 
-function renderShowNotesBlock(showId) {
+function renderShowNotesBlock(showId, preloadedNote) {
   const mount = document.getElementById("show-notes-mount");
   if (!mount) return;
 
@@ -256,21 +256,25 @@ function renderShowNotesBlock(showId) {
     </section>
   `;
 
-  setupShowNotes(showId);
+  setupShowNotes(showId, preloadedNote);
 }
 
-async function setupShowNotes(showId) {
+async function setupShowNotes(showId, preloadedNote) {
   const input = document.getElementById("show-notes-input");
   const status = document.getElementById("show-notes-status");
   const saveBtn = document.getElementById("show-notes-save");
   const clearBtn = document.getElementById("show-notes-clear");
   if (!input || !saveBtn) return;
 
-  try {
-    const note = await getShowNote(showId);
-    if (note?.content) input.value = note.content;
-  } catch (err) {
-    console.error("load show note:", err);
+  if (preloadedNote !== undefined) {
+    if (preloadedNote?.content) input.value = preloadedNote.content;
+  } else {
+    try {
+      const note = await getShowNote(showId);
+      if (note?.content) input.value = note.content;
+    } catch (err) {
+      console.error("load show note:", err);
+    }
   }
 
   saveBtn.addEventListener("click", async () => {

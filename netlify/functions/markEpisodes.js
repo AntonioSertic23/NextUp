@@ -114,21 +114,36 @@ export async function handler(event) {
   }
 
   try {
-    const traktToken = await getValidTraktToken(userId);
-
     switch (action) {
       case "mark": {
-        const traktIds = await saveUserEpisodes(userId, episodeIds);
-        await markOnTrakt(traktToken, traktIds);
-        await refreshListShowsForUserShow(userId, showId);
-        break;
+        // DB write + token fetch in parallel; Trakt sync must not block the UI response.
+        const [traktToken, traktIds] = await Promise.all([
+          getValidTraktToken(userId),
+          saveUserEpisodes(userId, episodeIds),
+        ]);
+        const listShow = await refreshListShowsForUserShow(userId, showId);
+        void markOnTrakt(traktToken, traktIds).catch((err) => {
+          console.error("Background Trakt mark failed:", err);
+        });
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ success: true, listShow: listShow ?? null }),
+        };
       }
 
       case "unmark": {
-        const traktIds = await deleteUserEpisodes(userId, episodeIds);
-        await unmarkOnTrakt(traktToken, traktIds);
-        await refreshListShowsForUserShow(userId, showId);
-        break;
+        const [traktToken, traktIds] = await Promise.all([
+          getValidTraktToken(userId),
+          deleteUserEpisodes(userId, episodeIds),
+        ]);
+        const listShow = await refreshListShowsForUserShow(userId, showId);
+        void unmarkOnTrakt(traktToken, traktIds).catch((err) => {
+          console.error("Background Trakt unmark failed:", err);
+        });
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ success: true, listShow: listShow ?? null }),
+        };
       }
 
       default:
@@ -137,11 +152,6 @@ export async function handler(event) {
           body: JSON.stringify({ error: "Unknown action" }),
         };
     }
-
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ success: true }),
-    };
   } catch (err) {
     const detail = err.message || err.details || JSON.stringify(err);
     console.error("markEpisodes handler failed:", detail);

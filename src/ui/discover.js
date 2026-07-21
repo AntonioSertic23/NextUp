@@ -226,7 +226,7 @@ function renderBrowseSection(parent, title, shows) {
               ? `https://${poster}`
               : "";
             return `
-            <div class="discover-card" data-id="${show.ids?.trakt || ""}">
+            <div class="discover-card" data-id="${show.ids?.slug || show.ids?.trakt || ""}">
               <div class="discover-card-poster">
                 ${posterSrc ? `<img src="${posterSrc}" alt="${show.title}" loading="lazy" />` : ""}
               </div>
@@ -314,7 +314,7 @@ function displaySearchResults(results) {
   container.innerHTML = results
     .map((show) => {
       const title = show.show?.title || "";
-      const showId = show.show?.ids?.trakt || "";
+      const showId = show.show?.ids?.slug || show.show?.ids?.trakt || "";
 
       return `
         <div class="search-result-card" data-id="${showId}">
@@ -323,7 +323,11 @@ function displaySearchResults(results) {
           </div>
           <div class="search-result-info">
             <h3 class="search-result-title">${title} ${show.show?.year}</h3>
-            <p class="search-result-overview">${show.show?.overview}</p>
+            ${
+              show.show?.overview
+                ? `<p class="search-result-overview">${show.show.overview}</p>`
+                : ""
+            }
           </div>
         </div>
       `;

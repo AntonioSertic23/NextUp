@@ -169,14 +169,15 @@ export function attachEpisodeInfoHandler(element, episode) {
       return;
     }
 
-    const updateUICallback = async () => {
+    const updateUICallback = async (listShow) => {
       if (episode) {
         const markButton = element.querySelector("button");
         updateSeasonProgress(markButton, !episodeData.watched_at);
         return;
       }
 
-      const nextEpisode = await getShowNextEpisode(episodeData.show_id);
+      const nextEpisode =
+        listShow ?? (await getShowNextEpisode(episodeData.show_id));
 
       if (!nextEpisode) return;
 
@@ -202,6 +203,7 @@ export function attachEpisodeInfoHandler(element, episode) {
  *
  * @param {Object} episode - The episode object to display.
  * @param {Function} updateUICallback - Callback invoked after marking/unmarking.
+ *   Receives optional refreshed `listShow` from the mark response.
  * @param {boolean} [isWatched=false] - Whether the episode is already marked as watched.
  */
 function showEpisodeInfoModal(episode, updateUICallback, isWatched = false) {
@@ -213,6 +215,7 @@ function showEpisodeInfoModal(episode, updateUICallback, isWatched = false) {
   document.body.classList.add("modal-open");
 
   function closeModal() {
+    if (markingInFlight) return;
     overlay.style.display = "none";
     modal.style.display = "none";
     document.body.classList.remove("modal-open");
@@ -264,31 +267,58 @@ function showEpisodeInfoModal(episode, updateUICallback, isWatched = false) {
   const episodeAired = !episode.first_aired ||
     new Date(episode.first_aired).getTime() <= Date.now();
   markBtn.disabled = !isWatched && !episodeAired;
+  markBtn.classList.remove("is-busy");
+  markBtn.removeAttribute("aria-busy");
   if (markBtn.disabled) {
     markBtn.setAttribute("title", "Not yet aired");
   }
 
   let mark = isWatched;
+  let markingInFlight = false;
 
   markBtn.onclick = async () => {
+    if (markBtn.disabled || markingInFlight) return;
+
+    markingInFlight = true;
+    markBtn.disabled = true;
+    markBtn.classList.add("is-busy");
+    markBtn.setAttribute("aria-busy", "true");
+    markBtn.setAttribute("title", "Saving…");
+
+    const nextMark = !mark;
+
     try {
-      const showUpdated = await markEpisodes(
+      const result = await markEpisodes(
         episode.show_id,
         [episode.id],
-        !mark
+        nextMark
       );
 
-      if (showUpdated) {
-        mark = !mark;
-        updateMarkButton(markBtn, mark);
-
-        if (typeof updateUICallback === "function") {
-          await updateUICallback();
-        }
-        closeModal();
+      if (result?.success === false) {
+        throw new Error("markEpisodes returned unsuccessful");
       }
+
+      mark = nextMark;
+      updateMarkButton(markBtn, mark);
+
+      if (typeof updateUICallback === "function") {
+        await updateUICallback(result?.listShow ?? null);
+      }
+
+      markingInFlight = false;
+      markBtn.classList.remove("is-busy");
+      markBtn.removeAttribute("aria-busy");
+      closeModal();
     } catch (err) {
       alert("Failed to mark episode as watched. Please try again.");
+      markingInFlight = false;
+      markBtn.disabled = !mark && !episodeAired;
+      markBtn.classList.remove("is-busy");
+      markBtn.removeAttribute("aria-busy");
+      updateMarkButton(markBtn, mark);
+      if (markBtn.disabled) {
+        markBtn.setAttribute("title", "Not yet aired");
+      }
     }
   };
 }

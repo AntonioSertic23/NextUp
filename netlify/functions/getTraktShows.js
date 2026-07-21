@@ -55,7 +55,7 @@ export async function handler(event) {
       // User may not have connected Trakt yet — public endpoints still work
     }
 
-    const url = `${TRAKT_BASE_URL}/shows/${type}?extended=full,images&page=${page}&limit=${limit}`;
+    const url = `${TRAKT_BASE_URL}/shows/${type}?extended=images&page=${page}&limit=${limit}`;
     const res = await fetch(url, { headers: getTraktHeaders(traktToken) });
 
     if (!res.ok) {

@@ -8,7 +8,7 @@ import { invalidateWatchlistAndStats } from "../services/pageCache.js";
  * @param {string} showId - Internal show UUID.
  * @param {Array} episodeIds - List of internal episode UUIDs.
  * @param {boolean} markAsWatched - true to mark, false to unmark.
- * @returns {Promise<boolean>} True on success.
+ * @returns {Promise<{success: boolean, listShow?: Object|null}>} Result payload.
  */
 export async function markEpisodes(showId, episodeIds, markAsWatched) {
   const { access_token } = getSession();
@@ -32,5 +32,10 @@ export async function markEpisodes(showId, episodeIds, markAsWatched) {
   }
 
   invalidateWatchlistAndStats();
-  return true;
+
+  try {
+    return await res.json();
+  } catch {
+    return { success: true, listShow: null };
+  }
 }

@@ -54,7 +54,7 @@ export async function handler(event) {
     }
 
     const id = encodeURIComponent(String(traktIdentifier).trim());
-    const url = `${TRAKT_BASE_URL}/shows/${id}/related?extended=full,images&page=${page}&limit=${limit}`;
+    const url = `${TRAKT_BASE_URL}/shows/${id}/related?extended=images&page=${page}&limit=${limit}`;
 
     const res = await fetch(url, { headers: getTraktHeaders(traktToken) });
 

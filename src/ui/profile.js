@@ -63,21 +63,22 @@ function formatMemberSince(dateStr) {
 export async function renderProfile() {
   const container = document.getElementById("profile-container");
   const user = getUser();
-  const traktToken = await getToken();
+
+  const [traktToken, lists, profileNote, showNotes, followingResult] =
+    await Promise.all([
+      getToken(),
+      fetchUserLists(),
+      getProfileNote(),
+      listShowNotesWithTitles(),
+      getFollowing().catch(() => []),
+    ]);
+
   const traktConnected = !!traktToken;
+  setLists(lists);
+  const following = followingResult || [];
 
   const email = escapeHtml(user?.email ?? "Unknown");
   const memberSince = formatMemberSince(user?.created_at);
-  const lists = await fetchUserLists();
-  setLists(lists);
-  const profileNote = await getProfileNote();
-  const showNotes = await listShowNotesWithTitles();
-  let following = [];
-  try {
-    following = await getFollowing();
-  } catch {
-    following = [];
-  }
 
   const themeOptions = THEMES.map(
     (t) =>

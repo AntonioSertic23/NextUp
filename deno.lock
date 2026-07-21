@@ -12,7 +12,8 @@
     "packageJson": {
       "dependencies": [
         "npm:@supabase/supabase-js@^2.89.0",
-        "npm:node-fetch@^3.3.2"
+        "npm:node-fetch@^3.3.2",
+        "npm:web-push@^3.6.7"
       ]
     }
   }

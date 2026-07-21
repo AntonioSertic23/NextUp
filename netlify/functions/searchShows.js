@@ -64,7 +64,7 @@ export async function handler(event) {
     const searchRes = await fetch(
       `${TRAKT_BASE_URL}/search/show?query=${encodeURIComponent(
         query.trim()
-      )}&extended=full,images&page=${page}&limit=${limit}`,
+      )}&extended=images&page=${page}&limit=${limit}`,
       { headers: getTraktHeaders(traktToken) }
     );
 
