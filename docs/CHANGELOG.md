@@ -4,6 +4,27 @@ All notable changes to this project are documented here.
 
 ---
 
+## [2.10.0] — Unreleased
+
+### Fixed
+
+- **Last Watched order on Home** — After marking from the Episode Info modal, the watchlist re-sorts and re-renders so the show moves when sorted by last watched (no full network refetch)
+- **Mark watched timestamp** — Upserts now set `watched_at` explicitly so re-marks bump `last_watched_at`
+- **Daily episode sync schedule** — Split manual HTTP `syncNextEpisodes` from a Netlify **scheduled background** function (`syncNextEpisodes-background`, cron `0 6 * * *` in `netlify.toml`). A function with `schedule` cannot be URL-invoked; the old combined setup meant the cron often never registered while Profile sync still worked over HTTP
+
+### Changed
+
+- **Shared client utils** — `computeListShowProgress`, `hasEpisodeAired`, `compareShows` / `sortShowsCopy` (Home + My Shows)
+- **Watchlist order toggle** — Re-sorts via `compareShows` instead of `reverse()` (correct after field updates)
+- **Removed unused Netlify routes** — `getWatchlistData`, `getNextEpisodes`, `getEpisodeDetails` (client already uses Supabase / mark response)
+- **Removed dead helpers** — `getListShowProgressForUser`, `updateListShows`, `updateShowLastWatchedAt`, `invalidateStatsOnly`
+
+### Added
+
+- **Unit tests** — `npm test` runs Node’s test runner over `test/core-utils.test.js` (progress, sort, aired, binge/tonight pickers, episode countable rules)
+
+---
+
 ## [2.9.1] — Unreleased
 
 ### Fixed

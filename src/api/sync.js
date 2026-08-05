@@ -107,8 +107,9 @@ export async function syncTraktAccount() {
 /**
  * Trigger the backend "new episodes" sync for all tracked shows.
  *
- * Hits the same handler as the weekly scheduled job, so it walks every
- * tracked show, checks Trakt for newly aired episodes, and updates the DB.
+ * Hits the HTTP handler (manual). The daily cron uses
+ * `syncNextEpisodes-background` instead — Netlify scheduled functions
+ * cannot share a public URL with the Profile button.
  *
  * @returns {Promise<{message: string, updated?: string[], skipped?: string[], errors?: Array<{show: string, error: string}>}>}
  * @throws {Error} If the request fails or the function returns a non-2xx status.

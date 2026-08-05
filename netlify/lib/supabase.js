@@ -528,10 +528,12 @@ export async function getShowWithSeasonsAndEpisodes(userId, traktIdentifier) {
 
 export async function saveUserEpisodes(userId, episodeIds) {
   try {
-    // Prepare rows for bulk upsert
+    const watchedAt = new Date().toISOString();
+    // Explicit watched_at so re-marks / upserts bump last_watched_at
     const rows = episodeIds.map((episodeId) => ({
       user_id: userId,
       episode_id: episodeId,
+      watched_at: watchedAt,
     }));
 
     //  Bulk upsert
@@ -725,7 +727,7 @@ export async function refreshListShowsForUserShow(userId, showId) {
   );
 
   // Return one refreshed row (with next episode) for the client — avoids a
-  // second lists lookup in getListShowProgressForUser.
+  // second lists lookup was removed with getListShowProgressForUser.
   const { data: listShow, error: progressErr } = await SUPABASE.from("list_shows")
     .select(
       `
@@ -761,60 +763,6 @@ export async function refreshListShowsForUserShow(userId, showId) {
   }
 
   return listShow ?? updatePayload;
-}
-
-
-export async function getListShowProgressForUser(userId, showId) {
-  if (!showId) return null;
-
-  const { data: userLists, error: listErr } = await SUPABASE.from("lists")
-    .select("id")
-    .eq("user_id", userId);
-
-  if (listErr) throw listErr;
-  const listIds = (userLists ?? []).map((l) => l.id);
-  if (!listIds.length) return null;
-
-  const { data, error } = await SUPABASE.from("list_shows")
-    .select(
-      `
-      is_completed,
-      watched_episodes,
-      total_episodes,
-      last_watched_at,
-      next_episode:episodes!next_episode_id (
-        id,
-        episode_number,
-        season_number,
-        title,
-        image_screenshot,
-        overview,
-        first_aired
-      ),
-      shows (
-        id,
-        slug_id,
-        title,
-        year,
-        rating,
-        image_poster
-      )
-      `,
-    )
-    .eq("show_id", showId)
-    .in("list_id", listIds)
-    .limit(1)
-    .maybeSingle();
-
-  if (error) throw error;
-  return data ?? null;
-}
-
-/**
- * @deprecated Use refreshListShowsForUserShow — kept as alias for compatibility.
- */
-export async function updateListShows(userId, showId) {
-  await refreshListShowsForUserShow(userId, showId);
 }
 
 /**
@@ -910,23 +858,6 @@ export async function getAllTrackedShows() {
   }
 
   return data || [];
-}
-
-/**
- * Updates the last_watched_at timestamp on a show to the current time.
- *
- * @param {string} showId - Supabase show UUID
- * @throws {Error} If the update fails
- */
-export async function updateShowLastWatchedAt(showId) {
-  const { error } = await SUPABASE.from("shows")
-    .update({ last_watched_at: new Date().toISOString() })
-    .eq("id", showId);
-
-  if (error) {
-    console.error("Failed to update show last_watched_at:", error);
-    throw new Error(`Failed to update last_watched_at: ${error.message}`);
-  }
 }
 
 /**

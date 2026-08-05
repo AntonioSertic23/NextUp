@@ -30,8 +30,3 @@ export function consumeStatsStale() {
   statsStale = false;
   return stale;
 }
-
-export function invalidateStatsOnly() {
-  statsStale = true;
-  clearStatsCache().catch(() => {});
-}

@@ -3,7 +3,7 @@ import {
   changeSort,
   changeOrder,
 } from "../stores/watchlistStore.js";
-import { formatEpisodeInfo } from "../utils/format.js";
+import { computeListShowProgress } from "../utils/progress.js";
 import { attachEpisodeInfoHandler } from "./episodeModal.js";
 
 const sortOptions = [
@@ -21,43 +21,6 @@ function escapeHtml(text) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
-}
-
-function computeShowProgress(show) {
-  const total = show.total_episodes || 0;
-  const watched = show.watched_episodes || 0;
-  const progressBarPercent =
-    total > 0 ? Math.round((watched / total) * 100) : 0;
-  const progressText = `${watched}/${total}`;
-  const episodesLeft = Math.max(0, total - watched);
-
-  if (!show.next_episode || show.is_completed) {
-    return {
-      nextEpisodeInfo: "Completed",
-      progressBarPercent,
-      progressText,
-      episodesLeft: 0,
-      overview: "",
-      isCompleted: true,
-    };
-  }
-
-  const nextEpisodeInfo = formatEpisodeInfo(
-    show.next_episode.season_number,
-    show.next_episode.episode_number,
-    show.next_episode.title,
-  );
-
-  const overview = (show.next_episode.overview || "").trim();
-
-  return {
-    nextEpisodeInfo,
-    progressBarPercent,
-    progressText,
-    episodesLeft,
-    overview,
-    isCompleted: false,
-  };
 }
 
 /**
@@ -139,7 +102,7 @@ export async function renderWatchlist() {
         episodesLeft,
         overview,
         isCompleted,
-      } = computeShowProgress(show);
+      } = computeListShowProgress(show);
 
       const overviewBlock = overview
         ? `<p class="next_episode_overview">${escapeHtml(overview)}</p>`

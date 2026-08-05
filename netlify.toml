@@ -23,3 +23,9 @@
 [functions."syncNextEpisodes"]
   timeout = 120
 
+# Daily cron (06:00 UTC). Must be a separate function from the HTTP
+# manual trigger — Netlify scheduled functions are not URL-invokable.
+# Background variant allows longer than the 30s scheduled sync limit.
+[functions."syncNextEpisodes-background"]
+  schedule = "0 6 * * *"
+

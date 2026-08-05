@@ -15,6 +15,7 @@ import {
   BOOKMARK_FILLED_ICON,
 } from "../utils/icons.js";
 import { renderPopcornRatingHtml, bindPopcornRating } from "./showRating.js";
+import { hasEpisodeAired } from "../utils/aired.js";
 
 function computeSeasonProgress(episodes) {
   const total = episodes.length;
@@ -27,13 +28,6 @@ function computeSeasonProgress(episodes) {
     progressText: `${completed}/${total}`,
     seasonCompleted: completed >= total,
   };
-}
-
-function hasEpisodeAired(episode) {
-  if (!episode.first_aired) return false;
-  const airDate = new Date(episode.first_aired);
-  if (isNaN(airDate.getTime())) return false;
-  return airDate.getTime() <= Date.now();
 }
 
 function computeEpisodeProgress(episode) {
