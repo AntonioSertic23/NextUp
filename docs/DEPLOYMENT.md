@@ -120,13 +120,27 @@ Key points:
 
 ## Scheduled Functions
 
-`syncNextEpisodes` runs automatically via cron schedule defined in the function's `config`:
+Daily episode sync uses a **dedicated background function** (not the Profile HTTP trigger):
 
-```javascript
-export const config = { schedule: "0 6 * * *" }; // Daily at 6:00 AM UTC
-```
+| Function | Role |
+|----------|------|
+| `syncNextEpisodes` | Manual “Sync New Episodes” via `POST /.netlify/functions/syncNextEpisodes` |
+| `syncNextEpisodes-background` | Cron only — schedule in `netlify.toml`: `0 6 * * *` (06:00 UTC) |
 
-Netlify automatically detects and registers this schedule on deploy.
+Netlify **scheduled functions are not invokable by URL**. Putting `schedule` on the same function as the Profile button prevented reliable cron registration. After deploy, confirm **Functions → `syncNextEpisodes-background`** shows a **Scheduled** badge and a next run time.
+
+Background functions may run longer than the **30s** limit of regular scheduled functions (needed when many shows are tracked).
+
+Shared logic: `netlify/lib/syncNextEpisodesCore.js`.
+
+### Air-time episode push (v2.10+)
+
+| Function | Role |
+|----------|------|
+| `notifyAiredEpisodes` | Manual HTTP check |
+| `notifyAiredEpisodes-background` | Cron `*/30 * * * *` — episodes whose `first_aired` just passed |
+
+Uses the same air dates as **My Shows → Upcoming**. Requires `episode_air_notifications` table (end of `db/migration.sql`) and VAPID keys. Dedupes so each user gets one push per episode.
 
 ---
 

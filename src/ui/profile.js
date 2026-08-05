@@ -225,7 +225,7 @@ export async function renderProfile() {
         isPushSupported()
           ? `
       <p class="profile-section-hint profile-push-hint">
-        Get notified on this device when a new episode is detected for shows on any of your lists (after the daily sync).
+        Get a phone notification when an upcoming episode airs — the same air times you see under My Shows → Upcoming (checked every 30 minutes).
         Works best with the installed PWA — on iPhone, add NextUp to the Home Screen first.
       </p>
       <div class="profile-actions-grid profile-push-actions">

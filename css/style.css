@@ -610,6 +610,7 @@ main {
 }
 
 .poster-container {
+  position: relative;
   flex: 0 0 auto;
   width: 180px;
   height: auto;
@@ -4622,5 +4623,276 @@ body.modal-open {
 
   .pwa-update-banner__actions {
     justify-content: center;
+  }
+}
+
+/* ========================================================
+   Tonight picks + binge (v2.10)
+   Scaled to match Home show-card chrome (poster ~96–110px)
+   ======================================================== */
+
+.tonight-section {
+  margin: 0.5rem 0 1rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.tonight-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.tonight-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  color: #fff;
+}
+
+.tonight-subtitle {
+  margin: 0.15rem 0 0;
+  font-size: 0.85rem;
+  color: #9aa0b0;
+}
+
+.tonight-shuffle-btn {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: 1px solid #2a2b32;
+  background: #1a1b22;
+  color: #e8e9ef;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.tonight-shuffle-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.tonight-shuffle-btn:hover:not(:disabled) {
+  border-color: #3a3b45;
+  background: #1f2028;
+  transform: rotate(-8deg) scale(1.04);
+}
+
+.tonight-shuffle-btn.is-busy,
+.tonight-shuffle-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.tonight-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.tonight-card {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0.9rem;
+  padding: 0.7rem;
+  border: 1px solid #2a2b32;
+  border-radius: 10px;
+  background: #1a1b22;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  min-width: 0;
+  transition:
+    transform 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.tonight-card:hover {
+  background-color: #1f2028;
+  border-color: #3a3b45;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  transform: translateY(-1px);
+}
+
+.tonight-poster {
+  width: 96px;
+  height: auto;
+  flex-shrink: 0;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: 6px;
+  border: none;
+  background: #181920;
+  display: block;
+}
+
+.tonight-card:hover .tonight-poster {
+  border-color: transparent;
+}
+
+.tonight-card-meta {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.1rem 0;
+}
+
+.tonight-card-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: #fff;
+  line-height: 1.25;
+  letter-spacing: -0.005em;
+  white-space: normal;
+  text-overflow: unset;
+}
+
+.tonight-card-ep {
+  display: block;
+  font-size: 0.88rem;
+  color: #bbb;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tonight-empty,
+.tonight-loading {
+  margin: 0;
+  color: #9aa0b0;
+  font-size: 0.9rem;
+}
+
+.show-card.is-tonight-focus {
+  outline: 2px solid color-mix(in srgb, var(--accent, #4a9eff) 70%, transparent);
+  outline-offset: 2px;
+}
+
+.tonight-focus-badge {
+  position: absolute;
+  top: 0.45rem;
+  left: 0.45rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: color-mix(in srgb, var(--accent, #4a9eff) 90%, #000);
+  color: #fff;
+}
+
+.modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  margin-top: auto;
+  padding-top: 0.75rem;
+}
+
+.modal-binge {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-right: auto;
+}
+
+.modal-binge[hidden] {
+  display: none !important;
+}
+
+.modal-binge-label,
+.binge-bar-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #8b91a3;
+}
+
+.modal-binge-btn,
+.binge-bar-btn {
+  padding: 0.35rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid #2a2b32;
+  background: #12131a;
+  color: #d6d7db;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.modal-binge-btn:hover:not(:disabled),
+.binge-bar-btn:hover:not(:disabled) {
+  border-color: var(--accent, #4a9eff);
+  color: #fff;
+}
+
+.binge-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 1rem;
+}
+
+@media (max-width: 900px) {
+  .tonight-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .tonight-poster {
+    width: 80px;
+  }
+
+  .tonight-card-title {
+    font-size: 1rem;
+  }
+}
+
+@media (min-width: 901px) {
+  /* Desktop watchlist posters are 180px — Tonight stays ~half so
+     three cards fit without dominating the page */
+  .tonight-poster {
+    width: 110px;
+  }
+
+  .tonight-card {
+    padding: 0.85rem;
+    gap: 1rem;
+    border-radius: 12px;
+  }
+
+  .tonight-card-title {
+    font-size: 1.15rem;
+  }
+
+  .tonight-card-ep {
+    font-size: 0.95rem;
+    color: #c1c2c8;
   }
 }

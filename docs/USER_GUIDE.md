@@ -163,13 +163,14 @@ Updates episodes in the database and recalculates progress on your lists.
 
 ## Episode notifications (Web Push)
 
-Get a notification on **this device** when the daily sync finds a **new episode** for a show on **any of your lists**.
+Get a notification on **this device** when an episode **airs** — using the same `first_aired` times as **My Shows → Upcoming**. Example: if Upcoming says Rick and Morty in 1 day 5 hours, you should get a push around that time (job runs every 30 minutes).
 
 ### Requirements
 
 - **HTTPS** (your Netlify URL, not plain localhost)
 - **Installed PWA** recommended; on **iPhone**, add NextUp to the **Home Screen** first (iOS 16.4+)
 - Server must have VAPID keys configured (hosting admin)
+- Run the `episode_air_notifications` section of `db/migration.sql` (v2.10)
 
 ### Enable
 
@@ -183,10 +184,10 @@ Get a notification on **this device** when the daily sync finds a **new episode*
 
 ### What you receive
 
-- Title/body with show name and episode info
-- Tap notification → opens the **show page** in the app
+- e.g. `Rick and Morty: New episode just aired — S08E01 — Title`
+- Tap → opens the **show page**
 
-Notifications are **per device** — enable on each phone/browser where you want alerts.
+Notifications are **per device** — enable on each phone/browser where you want alerts. Each episode is notified once per user (deduped in the database).
 
 ---
 

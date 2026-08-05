@@ -3,8 +3,9 @@ import {
   changeSort,
   changeOrder,
 } from "../stores/watchlistStore.js";
-import { formatEpisodeInfo } from "../utils/format.js";
+import { computeListShowProgress } from "../utils/progress.js";
 import { attachEpisodeInfoHandler } from "./episodeModal.js";
+import { getTonightFocusShowIds } from "./tonight.js";
 
 const sortOptions = [
   { value: "added_at", label: "Last Added" },
@@ -21,43 +22,6 @@ function escapeHtml(text) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
-}
-
-function computeShowProgress(show) {
-  const total = show.total_episodes || 0;
-  const watched = show.watched_episodes || 0;
-  const progressBarPercent =
-    total > 0 ? Math.round((watched / total) * 100) : 0;
-  const progressText = `${watched}/${total}`;
-  const episodesLeft = Math.max(0, total - watched);
-
-  if (!show.next_episode || show.is_completed) {
-    return {
-      nextEpisodeInfo: "Completed",
-      progressBarPercent,
-      progressText,
-      episodesLeft: 0,
-      overview: "",
-      isCompleted: true,
-    };
-  }
-
-  const nextEpisodeInfo = formatEpisodeInfo(
-    show.next_episode.season_number,
-    show.next_episode.episode_number,
-    show.next_episode.title,
-  );
-
-  const overview = (show.next_episode.overview || "").trim();
-
-  return {
-    nextEpisodeInfo,
-    progressBarPercent,
-    progressText,
-    episodesLeft,
-    overview,
-    isCompleted: false,
-  };
 }
 
 /**
@@ -122,6 +86,7 @@ export async function renderSortControls(main) {
 export async function renderWatchlist() {
   const shows = getWatchlist();
   const container = document.getElementById("watchlist-container");
+  const focusIds = getTonightFocusShowIds();
 
   if (!shows.length) {
     container.innerHTML = `<p class="no-show-message">
@@ -139,7 +104,7 @@ export async function renderWatchlist() {
         episodesLeft,
         overview,
         isCompleted,
-      } = computeShowProgress(show);
+      } = computeListShowProgress(show);
 
       const overviewBlock = overview
         ? `<p class="next_episode_overview">${escapeHtml(overview)}</p>`
@@ -159,14 +124,21 @@ export async function renderWatchlist() {
             </div>
           `;
 
+      const isFocus = focusIds.has(show.shows?.id);
+      const focusClass = isFocus ? " is-tonight-focus" : "";
+      const focusBadge = isFocus
+        ? `<span class="tonight-focus-badge">Tonight</span>`
+        : "";
+
       return `
-        <div class="show-card" data-id="${show.shows.slug_id}">
+        <div class="show-card${focusClass}" data-id="${show.shows.slug_id}">
           <div class="poster-container">
             <img
               class="poster"
               src="https://${show.shows.image_poster}"
               alt="${show.shows.title} poster"
             />
+            ${focusBadge}
           </div>
 
           <div class="info-container">

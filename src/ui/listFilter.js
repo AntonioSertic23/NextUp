@@ -65,6 +65,8 @@ export async function renderListFilter(main) {
       container.innerHTML = "<p class='loading-text'>Loading...</p>";
     }
     setWatchlist(await getWatchlistData(listId, { activeOnly: true }), listId);
+    const { renderTonightSection } = await import("./tonight.js");
+    await renderTonightSection(main);
     renderWatchlist();
   });
 }

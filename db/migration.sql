@@ -519,3 +519,45 @@ FROM (
   GROUP BY ls.id
 ) sub
 WHERE ls.id = sub.list_show_id;
+
+-- ========================================================
+-- v2.10.0 — Tonight picks (persisted “what to watch” suggestions)
+-- ========================================================
+
+CREATE TABLE IF NOT EXISTS tonight_picks (
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  list_id uuid NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
+  show_ids uuid[] NOT NULL DEFAULT '{}',
+  generated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, list_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_tonight_picks_list_id ON tonight_picks(list_id);
+
+ALTER TABLE tonight_picks ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users manage own tonight picks"
+  ON tonight_picks FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+-- ========================================================
+-- v2.10.0 — Dedup log for “episode just aired” push notifications
+-- ========================================================
+
+CREATE TABLE IF NOT EXISTS episode_air_notifications (
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  episode_id uuid NOT NULL REFERENCES episodes(id) ON DELETE CASCADE,
+  sent_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, episode_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_episode_air_notifications_sent_at
+  ON episode_air_notifications(sent_at DESC);
+
+ALTER TABLE episode_air_notifications ENABLE ROW LEVEL SECURITY;
+
+-- Server (service role) writes these; users don't need client access
+CREATE POLICY "Users can read own air notifications"
+  ON episode_air_notifications FOR SELECT
+  USING (auth.uid() = user_id);

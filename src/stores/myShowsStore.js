@@ -2,6 +2,8 @@
 // stores/myShowsStore.js - My Shows state, filtering & sorting
 // ========================================================
 
+import { compareShows } from "../utils/sortShows.js";
+
 let upcomingEpisodes = [];
 let allCollectionShows = [];
 let collectionListId = null;
@@ -157,7 +159,6 @@ export function getFilteredCollection() {
   const query = collectionFilter.trim().toLowerCase();
   const genreSlug = collectionGenreFilter;
   const ratingFilter = collectionRatingFilter;
-  const direction = collectionOrder === "asc" ? 1 : -1;
 
   let filtered = allCollectionShows.map((item) => ({
     ...item,
@@ -189,32 +190,9 @@ export function getFilteredCollection() {
   }
 
   filtered = [...filtered];
-
-  filtered.sort((a, b) => {
-    let av, bv;
-    switch (collectionSort) {
-      case "title":
-        av = (a.shows?.title || "").toLowerCase();
-        bv = (b.shows?.title || "").toLowerCase();
-        return av.localeCompare(bv) * direction;
-
-      case "year":
-        av = a.shows?.year ?? 0;
-        bv = b.shows?.year ?? 0;
-        return (av - bv) * direction;
-
-      case "user_rating":
-        av = a.user_rating ?? 0;
-        bv = b.user_rating ?? 0;
-        return (av - bv) * direction;
-
-      case "added_at":
-      default:
-        av = a.added_at ? new Date(a.added_at).getTime() : 0;
-        bv = b.added_at ? new Date(b.added_at).getTime() : 0;
-        return (av - bv) * direction;
-    }
-  });
+  filtered.sort((a, b) =>
+    compareShows(a, b, collectionSort, collectionOrder),
+  );
 
   return filtered;
 }

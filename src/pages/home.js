@@ -1,5 +1,6 @@
 import { getWatchlistData } from "../api/watchlist.js";
 import { renderWatchlist, renderSortControls } from "../ui/watchlist.js";
+import { renderTonightSection } from "../ui/tonight.js";
 import { renderListFilter, ensureListsLoaded } from "../ui/listFilter.js";
 import {
   setWatchlist,
@@ -24,6 +25,7 @@ export async function renderHome(main) {
   watchlistDiv.addEventListener("click", (e) => {
     const card = e.target.closest(".show-card");
     if (!card) return;
+    if (e.target.closest(".episode_info_btn")) return;
     location.hash = `show?traktIdentifier=${card.dataset.id}`;
   });
 
@@ -42,6 +44,7 @@ export async function renderHome(main) {
     !stale && getWatchlist().length && getWatchlistListId() === listId;
 
   if (cacheValid) {
+    await renderTonightSection(main);
     renderWatchlist();
     return;
   }
@@ -49,5 +52,6 @@ export async function renderHome(main) {
   watchlistDiv.innerHTML = "<p class='loading-text'>Loading...</p>";
   const data = await getWatchlistData(listId, { activeOnly: true });
   setWatchlist(data, listId);
+  await renderTonightSection(main);
   renderWatchlist();
 }
