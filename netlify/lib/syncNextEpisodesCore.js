@@ -9,7 +9,6 @@ import {
   updateShowMetadata,
   refreshListShowsForShow,
 } from "./supabase.js";
-import { notifyUsersForNewEpisodes } from "./webPush.js";
 
 const BATCH_SIZE = 5;
 
@@ -90,12 +89,9 @@ async function processShow(show, results) {
 
     await refreshListShowsForShow(show.id);
 
-    const pushResult = await notifyUsersForNewEpisodes(show.id);
+    // Push for “just aired” is handled by notifyAiredEpisodes-background
+    // using episodes.first_aired (same countdown as My Shows → Upcoming).
     results.updated.push(show.title);
-    if (pushResult.sent) {
-      results.notificationsSent =
-        (results.notificationsSent || 0) + pushResult.sent;
-    }
   } catch (err) {
     console.error(`Error syncing "${show.title}":`, err);
     results.errors.push({ show: show.title, error: err.message });
@@ -111,14 +107,13 @@ export async function runSyncNextEpisodes() {
   const shows = await getAllTrackedShows();
 
   if (!shows?.length) {
-    return { message: "No shows to sync", updated: [], skipped: [], errors: [], notificationsSent: 0 };
+    return { message: "No shows to sync", updated: [], skipped: [], errors: [] };
   }
 
   const results = {
     updated: [],
     skipped: [],
     errors: [],
-    notificationsSent: 0,
   };
 
   for (let i = 0; i < shows.length; i += BATCH_SIZE) {

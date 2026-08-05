@@ -133,6 +133,15 @@ Background functions may run longer than the **30s** limit of regular scheduled 
 
 Shared logic: `netlify/lib/syncNextEpisodesCore.js`.
 
+### Air-time episode push (v2.10+)
+
+| Function | Role |
+|----------|------|
+| `notifyAiredEpisodes` | Manual HTTP check |
+| `notifyAiredEpisodes-background` | Cron `*/30 * * * *` — episodes whose `first_aired` just passed |
+
+Uses the same air dates as **My Shows → Upcoming**. Requires `episode_air_notifications` table (end of `db/migration.sql`) and VAPID keys. Dedupes so each user gets one push per episode.
+
 ---
 
 ## Custom Domain

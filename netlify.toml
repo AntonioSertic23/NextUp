@@ -29,3 +29,8 @@
 [functions."syncNextEpisodes-background"]
   schedule = "0 6 * * *"
 
+# Every 30 min: push when episodes.first_aired just passed
+# (My Shows countdown → phone notification).
+[functions."notifyAiredEpisodes-background"]
+  schedule = "*/30 * * * *"
+

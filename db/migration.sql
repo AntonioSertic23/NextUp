@@ -540,3 +540,24 @@ CREATE POLICY "Users manage own tonight picks"
   ON tonight_picks FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
+
+-- ========================================================
+-- v2.10.0 — Dedup log for “episode just aired” push notifications
+-- ========================================================
+
+CREATE TABLE IF NOT EXISTS episode_air_notifications (
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  episode_id uuid NOT NULL REFERENCES episodes(id) ON DELETE CASCADE,
+  sent_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, episode_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_episode_air_notifications_sent_at
+  ON episode_air_notifications(sent_at DESC);
+
+ALTER TABLE episode_air_notifications ENABLE ROW LEVEL SECURITY;
+
+-- Server (service role) writes these; users don't need client access
+CREATE POLICY "Users can read own air notifications"
+  ON episode_air_notifications FOR SELECT
+  USING (auth.uid() = user_id);
