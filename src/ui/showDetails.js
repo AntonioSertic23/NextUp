@@ -3,6 +3,9 @@ import { getDefaultListId } from "../api/watchlist.js";
 import { getShowNote, saveShowNote, deleteShowNote } from "../api/notes.js";
 import { invalidateWatchlistAndStats } from "../services/pageCache.js";
 import { markEpisodes } from "../api/episodes.js";
+import { getEpisodesForBinge } from "../api/tonight.js";
+import { resolveBingeEpisodeIds } from "../utils/tonightAndBinge.js";
+import { hasEpisodeAired } from "../utils/aired.js";
 import {
   attachEpisodeInfoHandler,
   updateMarkButton,
@@ -15,7 +18,6 @@ import {
   BOOKMARK_FILLED_ICON,
 } from "../utils/icons.js";
 import { renderPopcornRatingHtml, bindPopcornRating } from "./showRating.js";
-import { hasEpisodeAired } from "../utils/aired.js";
 
 function computeSeasonProgress(episodes) {
   const total = episodes.length;
@@ -425,6 +427,54 @@ export function renderShowSeasons(container, seasons, showId) {
   seasonsTitle.classList.add("seasons_title");
   seasonsTitle.textContent = "Seasons";
   seasonsContainer.appendChild(seasonsTitle);
+
+  const bingeBar = document.createElement("div");
+  bingeBar.className = "binge-bar";
+  bingeBar.innerHTML = `
+    <span class="binge-bar-label">Binge / focus</span>
+    <button type="button" class="binge-bar-btn" data-binge="next">Next</button>
+    <button type="button" class="binge-bar-btn" data-binge="count" data-count="3">+3</button>
+    <button type="button" class="binge-bar-btn" data-binge="count" data-count="5">+5</button>
+  `;
+  seasonsContainer.appendChild(bingeBar);
+
+  bingeBar.querySelectorAll(".binge-bar-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      try {
+        const mode =
+          btn.getAttribute("data-binge") === "next" ? "next" : "count";
+        const episodes = await getEpisodesForBinge(showId);
+        const ids = resolveBingeEpisodeIds(episodes, {
+          mode,
+          count: Number(btn.getAttribute("data-count") || 1),
+          hasAired: hasEpisodeAired,
+        });
+        if (!ids.length) {
+          alert("No aired unwatched episodes to mark.");
+          return;
+        }
+        const result = await markEpisodes(showId, ids, true);
+        if (result) {
+          // Refresh season UI from local episode state
+          ids.forEach((id) => {
+            const epDiv = seasonsContainer.querySelector(
+              `.episode[data-episode-id="${id}"]`,
+            );
+            const epBtn = epDiv?.querySelector("button");
+            if (epBtn && epBtn.classList.contains("mark-watched")) {
+              updateSeasonProgress(epBtn, true);
+            }
+          });
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Failed to mark episodes.");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
 
   seasons.forEach((season) => {
     seasonsContainer.appendChild(renderSeason(season));

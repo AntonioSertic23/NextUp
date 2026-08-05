@@ -519,3 +519,24 @@ FROM (
   GROUP BY ls.id
 ) sub
 WHERE ls.id = sub.list_show_id;
+
+-- ========================================================
+-- v2.10.0 — Tonight picks (persisted “what to watch” suggestions)
+-- ========================================================
+
+CREATE TABLE IF NOT EXISTS tonight_picks (
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  list_id uuid NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
+  show_ids uuid[] NOT NULL DEFAULT '{}',
+  generated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, list_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_tonight_picks_list_id ON tonight_picks(list_id);
+
+ALTER TABLE tonight_picks ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users manage own tonight picks"
+  ON tonight_picks FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);

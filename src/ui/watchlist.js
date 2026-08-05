@@ -5,6 +5,7 @@ import {
 } from "../stores/watchlistStore.js";
 import { computeListShowProgress } from "../utils/progress.js";
 import { attachEpisodeInfoHandler } from "./episodeModal.js";
+import { getTonightFocusShowIds } from "./tonight.js";
 
 const sortOptions = [
   { value: "added_at", label: "Last Added" },
@@ -85,6 +86,7 @@ export async function renderSortControls(main) {
 export async function renderWatchlist() {
   const shows = getWatchlist();
   const container = document.getElementById("watchlist-container");
+  const focusIds = getTonightFocusShowIds();
 
   if (!shows.length) {
     container.innerHTML = `<p class="no-show-message">
@@ -122,14 +124,21 @@ export async function renderWatchlist() {
             </div>
           `;
 
+      const isFocus = focusIds.has(show.shows?.id);
+      const focusClass = isFocus ? " is-tonight-focus" : "";
+      const focusBadge = isFocus
+        ? `<span class="tonight-focus-badge">Tonight</span>`
+        : "";
+
       return `
-        <div class="show-card" data-id="${show.shows.slug_id}">
+        <div class="show-card${focusClass}" data-id="${show.shows.slug_id}">
           <div class="poster-container">
             <img
               class="poster"
               src="https://${show.shows.image_poster}"
               alt="${show.shows.title} poster"
             />
+            ${focusBadge}
           </div>
 
           <div class="info-container">

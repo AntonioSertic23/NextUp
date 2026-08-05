@@ -22,6 +22,8 @@ All notable changes to this project are documented here.
 ### Added
 
 - **Unit tests** — `npm test` runs Node’s test runner over `test/core-utils.test.js` (progress, sort, aired, binge/tonight pickers, episode countable rules)
+- **Tonight** — Home strip with 3 smart picks persisted in `tonight_picks`; dice shuffle regenerates; focus badge on matching watchlist cards
+- **Binge** — Modal **+3** / **Season** and show-page **Next / +3 / +5** for marking multiple aired episodes
 
 ---
 

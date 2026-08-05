@@ -6,10 +6,12 @@ import {
 } from "../stores/watchlistStore.js";
 import { markEpisodes } from "../api/episodes.js";
 import { getShowNextEpisode } from "../api/watchlist.js";
+import { getEpisodesForBinge } from "../api/tonight.js";
 import { formatDate, formatEpisodeInfo } from "../utils/format.js";
 import { MARK_ICON, UNMARK_ICON } from "../utils/icons.js";
 import { computeListShowProgress } from "../utils/progress.js";
 import { hasEpisodeAired } from "../utils/aired.js";
+import { resolveBingeEpisodeIds } from "../utils/tonightAndBinge.js";
 
 /**
  * Updates the mark/unmark button to reflect the watched state.
@@ -256,6 +258,11 @@ function showEpisodeInfoModal(episode, updateUICallback, isWatched = false) {
   const markBtn = modal.querySelector(".modal-mark-btn");
   updateMarkButton(markBtn, isWatched);
 
+  const bingeRow = modal.querySelector(".modal-binge");
+  if (bingeRow) {
+    bingeRow.hidden = isWatched || !episode.show_id;
+  }
+
   const episodeAired = hasEpisodeAired(episode);
   markBtn.disabled = !isWatched && !episodeAired;
   markBtn.classList.remove("is-busy");
@@ -267,29 +274,30 @@ function showEpisodeInfoModal(episode, updateUICallback, isWatched = false) {
   let mark = isWatched;
   let markingInFlight = false;
 
-  markBtn.onclick = async () => {
-    if (markBtn.disabled || markingInFlight) return;
+  async function runMark(episodeIds, markAsWatched) {
+    if (markingInFlight || !episodeIds.length) return;
 
     markingInFlight = true;
     markBtn.disabled = true;
     markBtn.classList.add("is-busy");
     markBtn.setAttribute("aria-busy", "true");
     markBtn.setAttribute("title", "Saving…");
-
-    const nextMark = !mark;
+    bingeRow?.querySelectorAll("button").forEach((b) => {
+      b.disabled = true;
+    });
 
     try {
       const result = await markEpisodes(
         episode.show_id,
-        [episode.id],
-        nextMark
+        episodeIds,
+        markAsWatched,
       );
 
       if (result?.success === false) {
         throw new Error("markEpisodes returned unsuccessful");
       }
 
-      mark = nextMark;
+      mark = markAsWatched;
       updateMarkButton(markBtn, mark);
 
       if (typeof updateUICallback === "function") {
@@ -307,9 +315,36 @@ function showEpisodeInfoModal(episode, updateUICallback, isWatched = false) {
       markBtn.classList.remove("is-busy");
       markBtn.removeAttribute("aria-busy");
       updateMarkButton(markBtn, mark);
+      bingeRow?.querySelectorAll("button").forEach((b) => {
+        b.disabled = false;
+      });
       if (markBtn.disabled) {
         markBtn.setAttribute("title", "Not yet aired");
       }
     }
+  }
+
+  markBtn.onclick = async () => {
+    if (markBtn.disabled || markingInFlight) return;
+    await runMark([episode.id], !mark);
   };
+
+  bingeRow?.querySelectorAll(".modal-binge-btn").forEach((btn) => {
+    btn.onclick = async () => {
+      if (markingInFlight || mark) return;
+      const mode = btn.getAttribute("data-binge");
+      const episodes = await getEpisodesForBinge(episode.show_id);
+      const ids = resolveBingeEpisodeIds(episodes, {
+        mode: mode === "season" ? "season" : "count",
+        count: Number(btn.getAttribute("data-count") || 3),
+        seasonNumber: episode.season_number,
+        hasAired: hasEpisodeAired,
+      });
+      if (!ids.length) {
+        alert("No aired unwatched episodes to mark.");
+        return;
+      }
+      await runMark(ids, true);
+    };
+  });
 }
