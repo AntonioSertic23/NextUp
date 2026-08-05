@@ -7,16 +7,16 @@
 
 ## Project Description
 
-NextUp is a modern **TV show tracker** built with Vanilla JavaScript and Supabase. Track your watched episodes, organize shows into **multiple lists**, explore new series, and review detailed statistics — all in a **single-page application**. Optionally link your **Trakt.tv** account to import progress, and install the **PWA** to get **push notifications** when new episodes are detected.
+NextUp is a modern **TV show tracker** built with Vanilla JavaScript and Supabase. Track your watched episodes, organize shows into **multiple lists**, explore new series, and review detailed statistics — all in a **single-page application**. Optionally link your **Trakt.tv** account to import progress, and install the **PWA** to get **push notifications** when upcoming episodes air.
 
 ## Features
 
 ### Watching & lists
 
-- **Home watchlist** — Active (in-progress) shows from your selected list, with **list filter** dropdown, **sorting** (last added, title, year, rating, last watched, episodes left), and asc/desc order (saved in `localStorage`). Cards show next-episode overview, progress pill, and “X left” badge.
+- **Home watchlist** — Active (in-progress) shows from your selected list, with **list filter** dropdown, **sorting** (last added, title, year, rating, last watched, episodes left), and asc/desc order (saved in `localStorage`). Cards show next-episode overview, progress pill, and “X left” badge. **Tonight** suggests three shows to focus on (shuffle to regenerate).
 - **Multiple lists** — Create, rename, and delete lists on Profile; filter Home and My Shows by list; use the **⋮ menu** on collection cards to add or remove a show on other lists.
 - **My Shows** — **Upcoming episodes** grid with countdown; **full collection** with text search, sort, **hype filter**, genre chips, and **list selector**.
-- **Show page** — Seasons/episodes, mark watch progress, **Hype meter** (your 5-tier personal rating), per-show notes, related shows from Trakt, collection toggle across lists.
+- **Show page** — Seasons/episodes, mark watch progress, **binge** controls (next / +3 / +5), **Hype meter** (your 5-tier personal rating), per-show notes, related shows from Trakt, collection toggle across lists.
 - **Discover** — Search with pagination, recent searches, Trending / Popular / Most Anticipated carousels.
 
 ### Statistics & social
@@ -30,7 +30,8 @@ NextUp is a modern **TV show tracker** built with Vanilla JavaScript and Supabas
 - **Profile** — Lists, themes, notes, Trakt connect/sync, **Web Push** toggles, following, refresh, logout.
 - **Themes** — Midnight, Ocean, Ember, Forest (Profile picker).
 - **Trakt.tv sync** — OAuth import of shows and watch history; manual “Sync New Episodes”.
-- **Daily episode sync** — Scheduled function (6 AM UTC) updates the database; can send **push notifications** to subscribed devices.
+- **Daily episode sync** — Scheduled function (6 AM UTC) updates the database from Trakt.
+- **Air-time push** — Every 30 minutes, notify subscribed devices when an upcoming episode’s air time has just passed (same dates as My Shows → Upcoming).
 
 ### App experience
 

@@ -4,7 +4,7 @@ All notable changes to this project are documented here.
 
 ---
 
-## [2.10.0] — Unreleased
+## [2.10.0] — August 2026
 
 ### Fixed
 
@@ -28,7 +28,7 @@ All notable changes to this project are documented here.
 
 ---
 
-## [2.9.1] — Unreleased
+## [2.9.1] — August 2026
 
 ### Fixed
 
@@ -44,7 +44,7 @@ All notable changes to this project are documented here.
 
 ---
 
-## [2.9.0] — Unreleased
+## [2.9.0] — August 2026
 
 ### Added
 
