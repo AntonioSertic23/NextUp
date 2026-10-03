@@ -40,22 +40,29 @@ import {
 
 /**
  * In-app result for Trakt sync and Sync New Episodes.
- * @param {{ title: string, summary: string, details?: string[], failed?: boolean }} options
+ * @param {{ title: string, summary: string, updated?: string[], failedItems?: string[], failed?: boolean }} options
  */
-function showSyncDialog({ title, summary, details = [], failed = false }) {
+function showSyncDialog({
+  title,
+  summary,
+  updated = [],
+  failedItems = [],
+  failed = false,
+}) {
   document.getElementById("sync-notice-dialog")?.remove();
 
   const dialog = document.createElement("dialog");
   dialog.id = "sync-notice-dialog";
   dialog.className = "sync-dialog";
-  const lines = details.filter(Boolean);
-  const hasProblems = failed || lines.length > 0;
+  const updatedLines = updated.filter(Boolean);
+  const problemLines = failedItems.filter(Boolean);
+  const hasProblems = failed || problemLines.length > 0;
 
   dialog.innerHTML = `
     <div class="sync-dialog-card">
       <h2 class="sync-dialog-title"></h2>
       <p class="sync-dialog-summary"></p>
-      ${lines.length ? `<ul class="sync-dialog-list"></ul>` : ""}
+      <div class="sync-dialog-body"></div>
       <div class="sync-dialog-actions">
         <button type="button" class="btn-secondary sync-dialog-close">OK</button>
       </div>
@@ -66,12 +73,9 @@ function showSyncDialog({ title, summary, details = [], failed = false }) {
   dialog.querySelector(".sync-dialog-summary").textContent = summary;
   dialog.querySelector(".sync-dialog-card").classList.toggle("is-problem", hasProblems);
 
-  const list = dialog.querySelector(".sync-dialog-list");
-  for (const line of lines) {
-    const item = document.createElement("li");
-    item.textContent = line;
-    list.appendChild(item);
-  }
+  const body = dialog.querySelector(".sync-dialog-body");
+  appendSyncList(body, "Updated", updatedLines, "is-updated");
+  appendSyncList(body, "Failed", problemLines, "is-failed");
 
   const close = () => dialog.close();
   dialog.querySelector(".sync-dialog-close").addEventListener("click", close);
@@ -82,6 +86,27 @@ function showSyncDialog({ title, summary, details = [], failed = false }) {
 
   document.body.appendChild(dialog);
   dialog.showModal();
+}
+
+function appendSyncList(parent, label, lines, className) {
+  if (!lines.length) return;
+
+  const section = document.createElement("section");
+  section.className = "sync-dialog-section";
+
+  const heading = document.createElement("h3");
+  heading.textContent = `${label} (${lines.length})`;
+  section.appendChild(heading);
+
+  const list = document.createElement("ul");
+  list.className = `sync-dialog-list ${className}`;
+  for (const line of lines) {
+    const item = document.createElement("li");
+    item.textContent = line;
+    list.appendChild(item);
+  }
+  section.appendChild(list);
+  parent.appendChild(section);
 }
 
 function escapeHtml(value) {
@@ -515,7 +540,8 @@ function setupProfileActions(container, traktConnected) {
         showSyncDialog({
           title: "Trakt sync",
           summary: result?.message || "Sync completed",
-          details: result?.errors || [],
+          updated: result?.updated || [],
+          failedItems: result?.errors || [],
         });
       } catch (error) {
         showSyncDialog({
@@ -538,7 +564,9 @@ function setupProfileActions(container, traktConnected) {
 
       try {
         const result = await syncNewEpisodes();
-        const updated = result?.updated?.length ?? 0;
+        const updated = [...(result?.updated || [])].sort((a, b) =>
+          String(a).localeCompare(String(b)),
+        );
         const skipped = result?.skipped?.length ?? 0;
         const errors = (result?.errors ?? []).map((entry) =>
           typeof entry === "string" ? entry : `${entry.show}: ${entry.error}`,
@@ -546,8 +574,9 @@ function setupProfileActions(container, traktConnected) {
 
         showSyncDialog({
           title: "New episodes",
-          summary: `${result?.message || "Episode sync completed"}. Updated ${updated}, skipped ${skipped}.`,
-          details: errors,
+          summary: `${result?.message || "Episode sync completed"}. Updated ${updated.length}, skipped ${skipped}.`,
+          updated,
+          failedItems: errors,
         });
       } catch (error) {
         showSyncDialog({

@@ -157,16 +157,19 @@ export async function handler(event) {
     );
     const results = await runWithConcurrency(tasks, CONCURRENCY);
 
-    let synced = 0;
+    const updated = [];
     const errors = [];
 
     for (const result of results) {
       if (result.status === "fulfilled") {
-        synced++;
+        updated.push(result.value);
       } else {
         errors.push(result.reason.message);
       }
     }
+
+    updated.sort((a, b) => String(a).localeCompare(String(b)));
+    const synced = updated.length;
 
     const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
     console.log(
@@ -179,6 +182,7 @@ export async function handler(event) {
       body: JSON.stringify({
         message: `Sync completed in ${elapsed}s: ${synced} synced, ${errors.length} failed`,
         synced,
+        updated,
         failed: errors.length,
         errors: errors.length ? errors : undefined,
       }),
@@ -244,6 +248,7 @@ async function syncSingleShow(entry, index, total, traktToken, listId, userId) {
     console.log(
       `[sync] (${index + 1}/${total}) "${title}" OK in ${Date.now() - t0}ms`,
     );
+    return title;
   } catch (err) {
     console.error(
       `[sync] (${index + 1}/${total}) "${title}" FAILED in ${Date.now() - t0}ms: ${err.message}`,

@@ -2597,10 +2597,16 @@ body.modal-open {
 }
 
 .sync-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(480px, calc(100vw - 2rem));
+  max-width: min(480px, calc(100vw - 2rem));
+  height: fit-content;
+  max-height: min(82vh, 680px);
   border: none;
   padding: 0;
   background: transparent;
-  max-width: min(440px, calc(100vw - 2rem));
   color: var(--text-primary, #fff);
 }
 
@@ -2609,11 +2615,15 @@ body.modal-open {
 }
 
 .sync-dialog-card {
+  display: flex;
+  flex-direction: column;
+  max-height: min(82vh, 680px);
   background: var(--bg-card, #1e1f26);
   border: 1px solid #2a2b32;
   border-radius: 14px;
   padding: 1.25rem 1.3rem 1.1rem;
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+  text-align: center;
 }
 
 .sync-dialog-card.is-problem {
@@ -2633,17 +2643,47 @@ body.modal-open {
   line-height: 1.45;
 }
 
+.sync-dialog-body {
+  min-height: 0;
+  overflow: auto;
+  margin-top: 0.85rem;
+  text-align: left;
+}
+
+.sync-dialog-body:empty {
+  display: none;
+}
+
+.sync-dialog-section + .sync-dialog-section {
+  margin-top: 0.85rem;
+}
+
+.sync-dialog-section h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: center;
+  color: #9e9fa6;
+}
+
 .sync-dialog-list {
   list-style: none;
-  margin: 0.9rem 0 0;
+  margin: 0;
   padding: 0.7rem 0.8rem;
-  max-height: 220px;
+  max-height: 200px;
   overflow: auto;
   background: var(--bg-body, #15161b);
   border-radius: 10px;
-  color: #f0b4b4;
+  color: #d5d6dc;
   font-size: 0.86rem;
   line-height: 1.4;
+  text-align: left;
+}
+
+.sync-dialog-list.is-failed {
+  color: #f0b4b4;
 }
 
 .sync-dialog-list li + li {
@@ -2652,7 +2692,7 @@ body.modal-open {
 
 .sync-dialog-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   margin-top: 1rem;
 }
 
