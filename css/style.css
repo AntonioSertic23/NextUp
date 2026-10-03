@@ -1232,17 +1232,50 @@ main {
   position: relative;
 }
 
-.my-shows-rating-filter {
+.my-shows-rating-filter,
+.my-shows-status-filter {
   display: flex;
   align-items: center;
   gap: 0.35rem;
   flex-shrink: 0;
 }
 
-.my-shows-rating-filter label {
+.my-shows-rating-filter label,
+.my-shows-status-filter label {
   font-size: 0.85rem;
   color: #a8a9b8;
   white-space: nowrap;
+}
+
+.show-status-badge {
+  display: inline-block;
+  margin: 0.15rem 0 0;
+  padding: 0.08rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+}
+
+.show-status-badge.is-returning {
+  background: #1e3a2f;
+  color: #7dcea0;
+}
+
+.show-status-badge.is-ended {
+  background: #2a2b32;
+  color: #c8c8d0;
+}
+
+.show-status-badge.is-canceled {
+  background: #3d2020;
+  color: #f0b4b4;
+}
+
+.show-status-badge.is-other {
+  background: #2a2b32;
+  color: #9e9fa6;
 }
 
 .stats-hype-section {
@@ -2561,6 +2594,66 @@ body.modal-open {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
+}
+
+.sync-dialog {
+  border: none;
+  padding: 0;
+  background: transparent;
+  max-width: min(440px, calc(100vw - 2rem));
+  color: var(--text-primary, #fff);
+}
+
+.sync-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.62);
+}
+
+.sync-dialog-card {
+  background: var(--bg-card, #1e1f26);
+  border: 1px solid #2a2b32;
+  border-radius: 14px;
+  padding: 1.25rem 1.3rem 1.1rem;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+}
+
+.sync-dialog-card.is-problem {
+  border-color: #5c2d2d;
+}
+
+.sync-dialog-title {
+  margin: 0 0 0.45rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.sync-dialog-summary {
+  margin: 0;
+  color: #c8c8d0;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.sync-dialog-list {
+  list-style: none;
+  margin: 0.9rem 0 0;
+  padding: 0.7rem 0.8rem;
+  max-height: 220px;
+  overflow: auto;
+  background: var(--bg-body, #15161b);
+  border-radius: 10px;
+  color: #f0b4b4;
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
+.sync-dialog-list li + li {
+  margin-top: 0.55rem;
+}
+
+.sync-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1rem;
 }
 
 .profile-action-btn {

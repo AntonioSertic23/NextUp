@@ -3,6 +3,7 @@
 // ========================================================
 
 import { compareShows } from "../utils/sortShows.js";
+import { showStatusGroup } from "../utils/showStatus.js";
 
 let upcomingEpisodes = [];
 let allCollectionShows = [];
@@ -13,6 +14,8 @@ let collectionFilter = "";
 let collectionGenreFilter = "";
 let collectionRatingFilter =
   localStorage.getItem("my_shows_rating_filter") || "";
+let collectionStatusFilter =
+  localStorage.getItem("my_shows_status_filter") || "";
 let collectionSort = localStorage.getItem("my_shows_sort") || "added_at";
 let collectionOrder = localStorage.getItem("my_shows_order") || "desc";
 /** @type {Map<string, number>} */
@@ -108,6 +111,19 @@ export function setCollectionRatingFilter(value) {
   }
 }
 
+export function getCollectionStatusFilter() {
+  return collectionStatusFilter;
+}
+
+export function setCollectionStatusFilter(value) {
+  collectionStatusFilter = String(value ?? "");
+  try {
+    localStorage.setItem("my_shows_status_filter", collectionStatusFilter);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function setShowRatingsMap(map) {
   ratingsByShowId = map instanceof Map ? map : new Map();
 }
@@ -159,6 +175,7 @@ export function getFilteredCollection() {
   const query = collectionFilter.trim().toLowerCase();
   const genreSlug = collectionGenreFilter;
   const ratingFilter = collectionRatingFilter;
+  const statusFilter = collectionStatusFilter;
 
   let filtered = allCollectionShows.map((item) => ({
     ...item,
@@ -187,6 +204,12 @@ export function getFilteredCollection() {
   } else if (ratingFilter && /^[1-5]$/.test(ratingFilter)) {
     const want = Number(ratingFilter);
     filtered = filtered.filter((item) => item.user_rating === want);
+  }
+
+  if (statusFilter) {
+    filtered = filtered.filter(
+      (item) => showStatusGroup(item.shows?.status) === statusFilter,
+    );
   }
 
   filtered = [...filtered];

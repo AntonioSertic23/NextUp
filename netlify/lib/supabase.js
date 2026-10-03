@@ -8,6 +8,7 @@ import {
   filterCountableEpisodes,
 } from "./episodeProgress.js";
 import { traktImageColumns } from "./traktImages.js";
+import { planEpisodeWrites } from "./episodeWrites.js";
 
 const SUPABASE = createClient(
   process.env.SUPABASE_URL,
@@ -345,7 +346,7 @@ export async function saveShowSeasonsAndEpisodes(seasons, showId) {
         ]),
         episode_number: episode.number,
         rating: episode.rating ?? null,
-        season_number: episode.season,
+        season_number: episode.season ?? season.number,
         runtime: episode.runtime ?? null,
         overview: episode.overview ?? null,
         updated_at: episode.updated_at ?? null,
@@ -357,13 +358,39 @@ export async function saveShowSeasonsAndEpisodes(seasons, showId) {
 
   if (!episodeRows.length) return;
 
-  const { error: episodeError } = await SUPABASE.from("episodes").upsert(
-    episodeRows,
-    { onConflict: "trakt_id" },
-  );
+  const { data: existing, error: existingError } = await SUPABASE.from(
+    "episodes",
+  )
+    .select("id, trakt_id, season_number, episode_number")
+    .eq("show_id", showId);
 
-  if (episodeError) {
-    throw new Error(`Episodes upsert failed: ${episodeError.message}`);
+  if (existingError) {
+    throw new Error(`Episodes lookup failed: ${formatDbError(existingError)}`);
+  }
+
+  const { upserts, retargets } = planEpisodeWrites(episodeRows, existing ?? []);
+
+  // Move episodes that already occupy the season/episode slot before
+  // inserting rows that may reuse a trakt id those rows are giving up.
+  await upsertEpisodeChunks(retargets, "id");
+  await upsertEpisodeChunks(upserts, "trakt_id");
+}
+
+const EPISODE_UPSERT_CHUNK = 100;
+
+function formatDbError(error) {
+  return [error?.message, error?.details, error?.hint].filter(Boolean).join(" — ");
+}
+
+async function upsertEpisodeChunks(rows, onConflict) {
+  for (let i = 0; i < rows.length; i += EPISODE_UPSERT_CHUNK) {
+    const chunk = rows.slice(i, i + EPISODE_UPSERT_CHUNK);
+    const { error } = await SUPABASE.from("episodes").upsert(chunk, {
+      onConflict,
+    });
+    if (error) {
+      throw new Error(`Episodes upsert failed: ${formatDbError(error)}`);
+    }
   }
 }
 

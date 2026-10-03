@@ -12,7 +12,10 @@ import {
   setCollectionGenreFilter,
   getCollectionRatingFilter,
   setCollectionRatingFilter,
+  getCollectionStatusFilter,
+  setCollectionStatusFilter,
 } from "../stores/myShowsStore.js";
+import { showStatusGroup, showStatusLabel } from "../utils/showStatus.js";
 import { renderHypeBadgeHtml } from "./showRating.js";
 import { formatDate, formatEpisodeInfo, getTimeUntil } from "../utils/format.js";
 import {
@@ -56,6 +59,13 @@ const COLLECTION_SORT_OPTIONS = [
   { value: "title", label: "Title" },
   { value: "year", label: "Year" },
   { value: "user_rating", label: "My rating" },
+];
+
+const STATUS_FILTER_OPTIONS = [
+  { value: "", label: "All statuses" },
+  { value: "returning", label: "Returning" },
+  { value: "ended", label: "Ended" },
+  { value: "canceled", label: "Canceled" },
 ];
 
 const RATING_FILTER_OPTIONS = [
@@ -195,6 +205,7 @@ export async function renderCollectionFilterBar(parent) {
   const currentOrder = getCollectionOrder();
   const currentFilter = getCollectionFilter();
   const currentRatingFilter = getCollectionRatingFilter();
+  const currentStatusFilter = getCollectionStatusFilter();
 
   const listOptions = lists.length
     ? lists
@@ -265,6 +276,15 @@ export async function renderCollectionFilterBar(parent) {
       </div>`
           : ""
       }
+      <div class="my-shows-status-filter">
+        <label for="my-shows-status">Status:</label>
+        <select id="my-shows-status" class="sort-select" aria-label="Filter by show status">
+          ${STATUS_FILTER_OPTIONS.map(
+            (opt) =>
+              `<option value="${opt.value}"${opt.value === currentStatusFilter ? " selected" : ""}>${opt.label}</option>`,
+          ).join("")}
+        </select>
+      </div>
       <div class="my-shows-rating-filter">
         <label for="my-shows-rating">Rating:</label>
         <select id="my-shows-rating" class="sort-select" aria-label="Filter by popcorn rating">
@@ -319,6 +339,12 @@ export async function renderCollectionFilterBar(parent) {
   const ratingSelect = bar.querySelector("#my-shows-rating");
   ratingSelect?.addEventListener("change", (e) => {
     setCollectionRatingFilter(e.target.value);
+    renderAllCollectionShows();
+  });
+
+  const statusSelect = bar.querySelector("#my-shows-status");
+  statusSelect?.addEventListener("change", (e) => {
+    setCollectionStatusFilter(e.target.value);
     renderAllCollectionShows();
   });
 
@@ -396,9 +422,10 @@ export function renderAllCollectionShows() {
     const filter = getCollectionFilter().trim();
     const genre = getCollectionGenreFilter();
     const hype = getCollectionRatingFilter();
+    const status = getCollectionStatusFilter();
     container.innerHTML = `<p class="no-show-message">
         ${
-          filter || genre || hype
+          filter || genre || hype || status
             ? `No shows match your current filters.`
             : "No shows found in your collection."
         }
@@ -417,6 +444,11 @@ export function renderAllCollectionShows() {
 
       const showId = s.id != null ? String(s.id) : "";
       const hypeBadge = renderHypeBadgeHtml(item.user_rating);
+      const statusLabel = showStatusLabel(s.status);
+      const statusGroup = showStatusGroup(s.status) || "other";
+      const statusBadge = statusLabel
+        ? `<p class="show-status-badge is-${escapeHtml(statusGroup)}">${escapeHtml(statusLabel)}</p>`
+        : "";
 
       return `
         <div
@@ -440,6 +472,7 @@ export function renderAllCollectionShows() {
           </div>
           <p class="discover-card-title">${title || "Untitled"}</p>
           <p class="discover-card-year">${year}</p>
+          ${statusBadge}
           <div class="collection-card-list-menu" hidden></div>
         </div>
       `;

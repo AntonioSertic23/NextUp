@@ -11,6 +11,8 @@ import {
   resolveBingeEpisodeIds,
 } from "../src/utils/tonightAndBinge.js";
 import { traktImageColumns, traktImagePath } from "../netlify/lib/traktImages.js";
+import { planEpisodeWrites } from "../netlify/lib/episodeWrites.js";
+import { showStatusGroup, showStatusLabel } from "../src/utils/showStatus.js";
 
 describe("traktImagePath", () => {
   it("reads a host path from a list and strips the scheme", () => {
@@ -38,6 +40,68 @@ describe("traktImagePath", () => {
       ]),
       { image_poster: "media.trakt.tv/p.jpg" },
     );
+  });
+});
+
+describe("planEpisodeWrites", () => {
+  it("updates an existing slot in place when Trakt sends a new id", () => {
+    const { upserts, retargets } = planEpisodeWrites(
+      [
+        {
+          trakt_id: 20,
+          season_number: 1,
+          episode_number: 1,
+          title: "New",
+        },
+      ],
+      [{ id: "row-1", trakt_id: 10, season_number: 1, episode_number: 1 }],
+    );
+
+    assert.equal(upserts.length, 0);
+    assert.equal(retargets[0].id, "row-1");
+    assert.equal(retargets[0].trakt_id, 20);
+  });
+
+  it("drops a repeated season/episode in the same payload", () => {
+    const { upserts } = planEpisodeWrites(
+      [
+        { trakt_id: 1, season_number: 2, episode_number: 3, title: "First" },
+        { trakt_id: 2, season_number: 2, episode_number: 3, title: "Second" },
+      ],
+      [],
+    );
+
+    assert.equal(upserts.length, 1);
+    assert.equal(upserts[0].title, "Second");
+  });
+
+  it("inserts an episode that is not stored yet", () => {
+    const { upserts, retargets } = planEpisodeWrites(
+      [{ trakt_id: 5, season_number: 3, episode_number: 1 }],
+      [],
+    );
+
+    assert.equal(retargets.length, 0);
+    assert.equal(upserts[0].trakt_id, 5);
+  });
+});
+
+describe("showStatusGroup", () => {
+  it("groups Trakt airing statuses", () => {
+    assert.equal(showStatusGroup("returning series"), "returning");
+    assert.equal(showStatusGroup("Continuing"), "returning");
+    assert.equal(showStatusGroup("ended"), "ended");
+    assert.equal(showStatusGroup("canceled"), "canceled");
+    assert.equal(showStatusGroup("cancelled"), "canceled");
+    assert.equal(showStatusGroup("planned"), "");
+    assert.equal(showStatusGroup(""), "");
+  });
+
+  it("labels known groups and keeps other statuses", () => {
+    assert.equal(showStatusLabel("returning series"), "Returning");
+    assert.equal(showStatusLabel("ended"), "Ended");
+    assert.equal(showStatusLabel("in production"), "in production");
+    assert.equal(showStatusLabel(null), "");
   });
 });
 

@@ -38,6 +38,52 @@ import {
   unsubscribeFromPushNotifications,
 } from "../pwa/pushNotifications.js";
 
+/**
+ * In-app result for Trakt sync and Sync New Episodes.
+ * @param {{ title: string, summary: string, details?: string[], failed?: boolean }} options
+ */
+function showSyncDialog({ title, summary, details = [], failed = false }) {
+  document.getElementById("sync-notice-dialog")?.remove();
+
+  const dialog = document.createElement("dialog");
+  dialog.id = "sync-notice-dialog";
+  dialog.className = "sync-dialog";
+  const lines = details.filter(Boolean);
+  const hasProblems = failed || lines.length > 0;
+
+  dialog.innerHTML = `
+    <div class="sync-dialog-card">
+      <h2 class="sync-dialog-title"></h2>
+      <p class="sync-dialog-summary"></p>
+      ${lines.length ? `<ul class="sync-dialog-list"></ul>` : ""}
+      <div class="sync-dialog-actions">
+        <button type="button" class="btn-secondary sync-dialog-close">OK</button>
+      </div>
+    </div>
+  `;
+
+  dialog.querySelector(".sync-dialog-title").textContent = title;
+  dialog.querySelector(".sync-dialog-summary").textContent = summary;
+  dialog.querySelector(".sync-dialog-card").classList.toggle("is-problem", hasProblems);
+
+  const list = dialog.querySelector(".sync-dialog-list");
+  for (const line of lines) {
+    const item = document.createElement("li");
+    item.textContent = line;
+    list.appendChild(item);
+  }
+
+  const close = () => dialog.close();
+  dialog.querySelector(".sync-dialog-close").addEventListener("click", close);
+  dialog.addEventListener("click", (event) => {
+    if (event.target === dialog) close();
+  });
+  dialog.addEventListener("close", () => dialog.remove());
+
+  document.body.appendChild(dialog);
+  dialog.showModal();
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -466,13 +512,17 @@ function setupProfileActions(container, traktConnected) {
       try {
         const result = await syncTraktAccount();
         resetLibraryPageCaches();
-        let msg = result?.message || "Sync completed";
-        if (result?.errors?.length) {
-          msg += "\n\nErrors:\n" + result.errors.join("\n");
-        }
-        alert(msg);
+        showSyncDialog({
+          title: "Trakt sync",
+          summary: result?.message || "Sync completed",
+          details: result?.errors || [],
+        });
       } catch (error) {
-        alert(error.message);
+        showSyncDialog({
+          title: "Trakt sync failed",
+          summary: error.message,
+          failed: true,
+        });
       } finally {
         syncBtn.disabled = false;
         label.textContent = origText;
@@ -490,22 +540,21 @@ function setupProfileActions(container, traktConnected) {
         const result = await syncNewEpisodes();
         const updated = result?.updated?.length ?? 0;
         const skipped = result?.skipped?.length ?? 0;
-        const errors = result?.errors ?? [];
+        const errors = (result?.errors ?? []).map((entry) =>
+          typeof entry === "string" ? entry : `${entry.show}: ${entry.error}`,
+        );
 
-        let msg = result?.message || "Episode sync completed";
-        msg += `\n\nUpdated: ${updated}\nSkipped: ${skipped}`;
-        if (errors.length) {
-          msg +=
-            "\n\nErrors:\n" +
-            errors
-              .map((e) =>
-                typeof e === "string" ? e : `${e.show}: ${e.error}`,
-              )
-              .join("\n");
-        }
-        alert(msg);
+        showSyncDialog({
+          title: "New episodes",
+          summary: `${result?.message || "Episode sync completed"}. Updated ${updated}, skipped ${skipped}.`,
+          details: errors,
+        });
       } catch (error) {
-        alert(error.message);
+        showSyncDialog({
+          title: "Episode sync failed",
+          summary: error.message,
+          failed: true,
+        });
       } finally {
         episodesBtn.disabled = false;
         label.textContent = origText;

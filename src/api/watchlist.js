@@ -18,6 +18,7 @@ const COLLECTION_SHOWS_SELECT = `
     slug_id,
     title,
     year,
+    status,
     image_poster,
     show_genres (
       genres (
