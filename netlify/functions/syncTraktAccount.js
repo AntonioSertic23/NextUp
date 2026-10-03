@@ -200,24 +200,32 @@ async function syncSingleShow(entry, index, total, traktToken, listId, userId) {
   const t0 = Date.now();
 
   try {
-    const result = await saveShow(entry.show, entry.last_watched_at);
+    // Watched-list payloads no longer include posters. Hydrate from the
+    // show summary, which still returns `images` with `extended=full`.
+    const showIdParam = entry.show.ids.trakt;
+    const headers = getTraktHeaders(traktToken);
+    const [showRes, seasonsRes] = await Promise.all([
+      fetch(`${TRAKT_BASE_URL}/shows/${showIdParam}?extended=full`, { headers }),
+      fetch(
+        `${TRAKT_BASE_URL}/shows/${showIdParam}/seasons?extended=full,episodes,images&specials=false&count_specials=false`,
+        { headers },
+      ),
+    ]);
+
+    const showPayload = showRes.ok ? await showRes.json() : entry.show;
+    const result = await saveShow(showPayload, entry.last_watched_at);
     if (!result) throw new Error("saveShow returned null");
 
     const { showId } = result;
 
-    if (entry.show.genres?.length) {
-      await saveShowGenres(showId, entry.show.genres);
+    const genres = showPayload.genres?.length ? showPayload.genres : entry.show.genres;
+    if (genres?.length) {
+      await saveShowGenres(showId, genres);
     }
 
-    // NOTE: `extended=full,episodes,images` is required so each episode
-    // includes `first_aired`, `overview`, `runtime`, etc. Using just
-    // `episodes,images` returns only the minimal episode shape (id,
-    // title, number), which leaves `first_aired` null in the DB and
-    // breaks Upcoming Episodes / shows 01/01/1970 in the UI.
-    const seasonsRes = await fetch(
-      `${TRAKT_BASE_URL}/shows/${entry.show.ids.trakt}/seasons?extended=full,episodes,images&specials=false&count_specials=false`,
-      { headers: getTraktHeaders(traktToken) },
-    );
+    // `extended=full,episodes` is required so each episode includes
+    // `first_aired`, `overview`, `runtime`, and images. A minimal episode
+    // shape leaves `first_aired` null and breaks Upcoming.
 
     if (!seasonsRes.ok) {
       throw new Error(`Trakt seasons API ${seasonsRes.status}`);

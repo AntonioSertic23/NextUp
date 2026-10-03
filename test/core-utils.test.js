@@ -10,6 +10,36 @@ import {
   pickTonightShows,
   resolveBingeEpisodeIds,
 } from "../src/utils/tonightAndBinge.js";
+import { traktImageColumns, traktImagePath } from "../netlify/lib/traktImages.js";
+
+describe("traktImagePath", () => {
+  it("reads a host path from a list and strips the scheme", () => {
+    assert.equal(
+      traktImagePath(
+        { poster: ["https://media.trakt.tv/images/poster.jpg.webp"] },
+        "poster",
+      ),
+      "media.trakt.tv/images/poster.jpg.webp",
+    );
+  });
+
+  it("reads object-shaped images", () => {
+    assert.equal(
+      traktImagePath({ poster: { medium: "media.trakt.tv/p.jpg" } }, "poster"),
+      "media.trakt.tv/p.jpg",
+    );
+  });
+
+  it("omits empty images so an upsert can keep the stored poster", () => {
+    assert.deepEqual(traktImageColumns({}, [["poster", "image_poster"]]), {});
+    assert.deepEqual(
+      traktImageColumns({ poster: ["media.trakt.tv/p.jpg"] }, [
+        ["poster", "image_poster"],
+      ]),
+      { image_poster: "media.trakt.tv/p.jpg" },
+    );
+  });
+});
 
 describe("hasEpisodeAired", () => {
   const now = Date.parse("2026-06-01T12:00:00Z");

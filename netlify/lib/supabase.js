@@ -7,6 +7,7 @@ import { refreshTraktAccessToken } from "./trakt.js";
 import {
   filterCountableEpisodes,
 } from "./episodeProgress.js";
+import { traktImageColumns } from "./traktImages.js";
 
 const SUPABASE = createClient(
   process.env.SUPABASE_URL,
@@ -192,12 +193,14 @@ export async function saveShow(show, lastWatchedAt) {
           genres: show.genres?.join(",") ?? null,
           subgenres: show.subgenres?.join(",") ?? null,
           aired_episodes: show.aired_episodes ?? null,
-          image_fanart: show.images?.fanart?.[0] ?? null,
-          image_poster: show.images?.poster?.[0] ?? null,
-          image_logo: show.images?.logo?.[0] ?? null,
-          image_clearart: show.images?.clearart?.[0] ?? null,
-          image_banner: show.images?.banner?.[0] ?? null,
-          image_thumb: show.images?.thumb?.[0] ?? null,
+          ...traktImageColumns(show.images, [
+            ["fanart", "image_fanart"],
+            ["poster", "image_poster"],
+            ["logo", "image_logo"],
+            ["clearart", "image_clearart"],
+            ["banner", "image_banner"],
+            ["thumb", "image_thumb"],
+          ]),
         },
         { onConflict: "trakt_id" },
       )
@@ -294,8 +297,10 @@ export async function saveShowSeasonsAndEpisodes(seasons, showId) {
       aired_episodes: season.aired_episodes ?? null,
       votes: season.votes ?? null,
       rating: season.rating ?? null,
-      image_thumb: season.images?.thumb?.[0] ?? null,
-      image_poster: season.images?.poster?.[0] ?? null,
+      ...traktImageColumns(season.images, [
+        ["thumb", "image_thumb"],
+        ["poster", "image_poster"],
+      ]),
       overview: season.overview ?? null,
       updated_at: season.updated_at ?? null,
       first_aired: season.first_aired ?? null,
@@ -335,7 +340,9 @@ export async function saveShowSeasonsAndEpisodes(seasons, showId) {
         tvdb_id: episode.ids?.tvdb ?? null,
         title: episode.title ?? null,
         votes: episode.votes ?? null,
-        image_screenshot: episode.images?.screenshot?.[0] ?? null,
+        ...traktImageColumns(episode.images, [
+          ["screenshot", "image_screenshot"],
+        ]),
         episode_number: episode.number,
         rating: episode.rating ?? null,
         season_number: episode.season,
