@@ -58,6 +58,10 @@ export async function getSupabaseClient() {
       storage: window.localStorage,
       autoRefreshToken: true,
       detectSessionInUrl: false,
+      // Implicit recovery links carry tokens in the URL hash, so the reset
+      // email works in any browser. PKCE codes only work in the browser that
+      // requested the reset, and `?code=` would collide with Trakt OAuth.
+      flowType: "implicit",
     },
   });
   return supabase;

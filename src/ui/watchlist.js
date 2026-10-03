@@ -13,6 +13,7 @@ const sortOptions = [
   { value: "year", label: "Year" },
   { value: "rating", label: "Top Rated" },
   { value: "last_watched_at", label: "Last Watched" },
+  { value: "last_aired_at", label: "Last aired" },
   { value: "episodes_left", label: "Episodes Left" },
 ];
 

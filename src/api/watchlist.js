@@ -1,6 +1,7 @@
 import { getSupabaseClient } from "../services/supabase.js";
 import { getUser } from "../stores/userStore.js";
 import { getCachedDefaultListId, resolveActiveListId } from "../stores/listsStore.js";
+import { pickLatestAiredByShow } from "../utils/aired.js";
 
 let cachedDefaultListId = null;
 let cachedDefaultListUserId = null;
@@ -96,11 +97,84 @@ export async function getWatchlistData(listIdParam, options = {}) {
     let { data, error } = await query;
 
     if (error) throw error;
-    return (data ?? []).filter((item) => item.shows);
+    const items = (data ?? []).filter((item) => item.shows);
+    return attachLastAiredAt(items);
   } catch (err) {
     console.error("getWatchlistData:", err);
     return [];
   }
+}
+
+const LAST_AIRED_CHUNK = 80;
+const LAST_AIRED_PAGE = 1000;
+
+/**
+ * Attaches `last_aired_at` — the newest episode that has already aired.
+ * Shows with no aired episode keep `last_aired_at: null` and sort last
+ * when order is descending.
+ *
+ * @param {Array<Object>} items
+ */
+async function attachLastAiredAt(items) {
+  const showIds = [
+    ...new Set(items.map((item) => item.shows?.id).filter(Boolean)),
+  ];
+  if (!showIds.length) return items;
+
+  try {
+    const latest = await fetchLatestAiredForShows(showIds);
+    return items.map((item) => ({
+      ...item,
+      last_aired_at: latest.get(item.shows?.id) ?? null,
+    }));
+  } catch (err) {
+    console.error("attachLastAiredAt:", err);
+    return items;
+  }
+}
+
+/**
+ * Newest already-aired episode per show. Pages until every show in the
+ * chunk has been seen or the result set ends.
+ *
+ * @param {string[]} showIds
+ * @returns {Promise<Map<string, string>>}
+ */
+async function fetchLatestAiredForShows(showIds) {
+  const SUPABASE = await getSupabaseClient();
+  const nowIso = new Date().toISOString();
+  /** @type {Array<{show_id: string, first_aired: string}>} */
+  const newestRows = [];
+
+  for (let i = 0; i < showIds.length; i += LAST_AIRED_CHUNK) {
+    const chunk = showIds.slice(i, i + LAST_AIRED_CHUNK);
+    const pending = new Set(chunk);
+    let from = 0;
+
+    while (pending.size > 0) {
+      const { data, error } = await SUPABASE.from("episodes")
+        .select("show_id, first_aired")
+        .in("show_id", chunk)
+        .not("first_aired", "is", null)
+        .lte("first_aired", nowIso)
+        .order("first_aired", { ascending: false })
+        .range(from, from + LAST_AIRED_PAGE - 1);
+
+      if (error) throw error;
+
+      const rows = data ?? [];
+      for (const row of rows) {
+        if (!pending.has(row.show_id)) continue;
+        newestRows.push(row);
+        pending.delete(row.show_id);
+      }
+
+      if (rows.length < LAST_AIRED_PAGE) break;
+      from += LAST_AIRED_PAGE;
+    }
+  }
+
+  return pickLatestAiredByShow(newestRows);
 }
 
 /**

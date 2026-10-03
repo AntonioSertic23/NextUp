@@ -1,3 +1,9 @@
+function airedTime(value) {
+  if (!value) return 0;
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? 0 : time;
+}
+
 /**
  * Compare two list-show (or collection) items for sorting.
  *
@@ -42,6 +48,12 @@ export function compareShows(a, b, sortBy, order = "desc") {
       const bv = b.last_watched_at
         ? new Date(b.last_watched_at).getTime()
         : 0;
+      return (av - bv) * direction;
+    }
+
+    case "last_aired_at": {
+      const av = airedTime(a.last_aired_at);
+      const bv = airedTime(b.last_aired_at);
       return (av - bv) * direction;
     }
 

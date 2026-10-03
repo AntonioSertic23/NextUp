@@ -10,7 +10,14 @@
  * - Password visibility toggle
  */
 
-import { login, register } from "./services/auth.js";
+import {
+  consumePasswordRecovery,
+  login,
+  logout,
+  register,
+  requestPasswordReset,
+  updatePassword,
+} from "./services/auth.js";
 import { getSupabaseClient } from "./services/supabase.js";
 import { registerServiceWorker } from "./pwa/registerServiceWorker.js";
 import { initTheme } from "./services/theme.js";
@@ -23,6 +30,23 @@ registerServiceWorker();
 // ————————————————————————————————————————————————————
 
 (async () => {
+  const recovery = await consumePasswordRecovery();
+  if (recovery.active) {
+    initLoginPage();
+    showAuthPanel("reset");
+    return;
+  }
+
+  if (recovery.error) {
+    initLoginPage();
+    showMessage(
+      document.getElementById("login-message"),
+      recovery.error,
+      "error",
+    );
+    return;
+  }
+
   try {
     const SUPABASE = await getSupabaseClient();
     const { data } = await SUPABASE.auth.getUser();
@@ -46,31 +70,43 @@ function initLoginPage() {
   initPasswordToggles();
   initLoginForm();
   initRegisterForm();
+  initForgotForm();
+  initResetForm();
 }
 
 // ————————————————————————————————————————————————————
 // Tab switching
 // ————————————————————————————————————————————————————
 
+const AUTH_PANELS = ["login", "register", "forgot", "reset"];
+
+function showAuthPanel(name) {
+  document.querySelectorAll(".auth-tab").forEach((tab) => {
+    tab.classList.toggle("active", tab.dataset.tab === name);
+  });
+
+  const tabs = document.querySelector(".auth-tabs");
+  if (tabs) tabs.hidden = name === "forgot" || name === "reset";
+
+  for (const panel of AUTH_PANELS) {
+    document
+      .getElementById(`${panel}-form`)
+      ?.classList.toggle("active-form", panel === name);
+  }
+
+  clearMessages();
+}
+
 function initTabs() {
   document.querySelectorAll(".auth-tab").forEach((tab) => {
     tab.addEventListener("click", () => {
-      document.querySelectorAll(".auth-tab").forEach((t) => t.classList.remove("active"));
-      tab.classList.add("active");
+      showAuthPanel(tab.dataset.tab);
+    });
+  });
 
-      const tabName = tab.dataset.tab;
-      const loginForm = document.getElementById("login-form");
-      const registerForm = document.getElementById("register-form");
-
-      if (tabName === "login") {
-        loginForm.classList.add("active-form");
-        registerForm.classList.remove("active-form");
-      } else {
-        loginForm.classList.remove("active-form");
-        registerForm.classList.add("active-form");
-      }
-
-      clearMessages();
+  document.querySelectorAll("[data-auth-panel]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      showAuthPanel(btn.dataset.authPanel);
     });
   });
 }
@@ -177,6 +213,96 @@ function initRegisterForm() {
     } else {
       showMessage(messageEl, result.error || "Registration failed. Please try again.", "error");
     }
+  });
+}
+
+// ————————————————————————————————————————————————————
+// Forgot password
+// ————————————————————————————————————————————————————
+
+function initForgotForm() {
+  document.getElementById("forgot-password-btn").addEventListener("click", () => {
+    const email = document.getElementById("login-email").value.trim();
+    if (email) document.getElementById("forgot-email").value = email;
+    showAuthPanel("forgot");
+  });
+
+  const form = document.getElementById("forgot-form");
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const email = document.getElementById("forgot-email").value.trim();
+    const messageEl = document.getElementById("forgot-message");
+
+    if (!email) {
+      showMessage(messageEl, "Please enter your email.", "error");
+      return;
+    }
+
+    setFormLoading(form, true);
+    clearMessages();
+
+    const result = await requestPasswordReset(email);
+    setFormLoading(form, false);
+
+    const unknownUser = /user not found|unable to find user/i.test(result.error || "");
+    if (result.success || unknownUser) {
+      showMessage(
+        messageEl,
+        "If an account exists for that email, we sent a reset link.",
+        "success",
+      );
+      return;
+    }
+
+    showMessage(messageEl, result.error || "Could not send reset email.", "error");
+  });
+}
+
+// ————————————————————————————————————————————————————
+// New password (opened from the email link)
+// ————————————————————————————————————————————————————
+
+function initResetForm() {
+  document.getElementById("reset-cancel").addEventListener("click", () => {
+    logout();
+  });
+
+  const form = document.getElementById("reset-form");
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const password = document.getElementById("reset-password").value;
+    const passwordConfirm = document.getElementById("reset-password-confirm").value;
+    const messageEl = document.getElementById("reset-message");
+
+    if (!password || !passwordConfirm) {
+      showMessage(messageEl, "Please fill in all fields.", "error");
+      return;
+    }
+
+    if (password.length < 6) {
+      showMessage(messageEl, "Password must be at least 6 characters.", "error");
+      return;
+    }
+
+    if (password !== passwordConfirm) {
+      showMessage(messageEl, "Passwords do not match.", "error");
+      return;
+    }
+
+    setFormLoading(form, true);
+    clearMessages();
+
+    const result = await updatePassword(password);
+    if (result.success) {
+      showMessage(messageEl, "Password updated. Redirecting...", "success");
+      window.location.replace("/");
+      return;
+    }
+
+    setFormLoading(form, false);
+    showMessage(messageEl, result.error || "Could not update password.", "error");
   });
 }
 

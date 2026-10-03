@@ -99,11 +99,102 @@
                   </svg>
                 </button>
               </div>
+              <button type="button" id="forgot-password-btn" class="auth-text-btn">
+                Forgot password?
+              </button>
               <button type="submit" class="auth-submit-btn">
                 <span class="btn-text">Login</span>
                 <span class="btn-spinner" style="display: none"></span>
               </button>
               <div id="login-message" class="auth-message"></div>
+            </form>
+
+            <!-- Forgot password -->
+            <form id="forgot-form" class="auth-form-content" novalidate>
+              <p class="auth-hint">
+                Enter your email and we'll send a link to reset your password.
+              </p>
+              <div class="input-group">
+                <input
+                  type="email"
+                  id="forgot-email"
+                  placeholder="Email"
+                  autocomplete="email"
+                  required
+                />
+              </div>
+              <button type="submit" class="auth-submit-btn">
+                <span class="btn-text">Send reset link</span>
+                <span class="btn-spinner" style="display: none"></span>
+              </button>
+              <button type="button" class="auth-text-btn" data-auth-panel="login">
+                Back to login
+              </button>
+              <div id="forgot-message" class="auth-message"></div>
+            </form>
+
+            <!-- Set a new password after opening the email link -->
+            <form id="reset-form" class="auth-form-content" novalidate>
+              <p class="auth-hint">Choose a new password for your account.</p>
+              <div class="input-group">
+                <input
+                  type="password"
+                  id="reset-password"
+                  placeholder="New password"
+                  autocomplete="new-password"
+                  required
+                />
+                <button
+                  type="button"
+                  class="password-toggle"
+                  aria-label="Show password"
+                >
+                  <svg
+                    class="eye-icon"
+                    viewBox="0 0 24 24"
+                    width="20"
+                    height="20"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                  <svg
+                    class="eye-off-icon"
+                    viewBox="0 0 24 24"
+                    width="20"
+                    height="20"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    style="display: none"
+                  >
+                    <path
+                      d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"
+                    />
+                    <line x1="1" y1="1" x2="23" y2="23" />
+                  </svg>
+                </button>
+              </div>
+              <div class="input-group">
+                <input
+                  type="password"
+                  id="reset-password-confirm"
+                  placeholder="Confirm password"
+                  autocomplete="new-password"
+                  required
+                />
+              </div>
+              <button type="submit" class="auth-submit-btn">
+                <span class="btn-text">Update password</span>
+                <span class="btn-spinner" style="display: none"></span>
+              </button>
+              <button type="button" id="reset-cancel" class="auth-text-btn">
+                Back to login
+              </button>
+              <div id="reset-message" class="auth-message"></div>
             </form>
 
             <!-- Register Form -->

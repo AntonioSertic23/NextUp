@@ -265,6 +265,34 @@ body:not(.login-page):not(.authenticated) footer {
   color: #50c878;
 }
 
+.auth-hint {
+  color: #aaa;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  margin: 0;
+  text-align: center;
+}
+
+.auth-text-btn {
+  align-self: center;
+  background: none;
+  border: none;
+  color: #8ab4f8;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0;
+}
+
+.auth-text-btn:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+#forgot-password-btn {
+  align-self: flex-end;
+  margin-top: -0.35rem;
+}
+
 /* ========================================================
    Navbar Styles
    ======================================================== */

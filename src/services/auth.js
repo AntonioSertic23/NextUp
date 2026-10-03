@@ -18,6 +18,9 @@ import {
 } from "../stores/listsStore.js";
 import { resetLibraryPageCaches } from "./libraryCache.js";
 import { unsubscribeFromPushNotifications } from "../pwa/pushNotifications.js";
+import { parseAuthCallback } from "../utils/authCallback.js";
+
+export { parseAuthCallback };
 
 /**
  * Retrieves the current user's Trakt OAuth token from the database.
@@ -90,6 +93,75 @@ export async function login(email, password) {
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Sends a password-reset email. The link returns to `/login.html`.
+ *
+ * @param {string} email
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export async function requestPasswordReset(email) {
+  try {
+    const SUPABASE = await getSupabaseClient();
+    const redirectTo = `${window.location.origin}/login.html`;
+    const { error } = await SUPABASE.auth.resetPasswordForEmail(email, {
+      redirectTo,
+    });
+
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Sets a new password for the current recovery session.
+ *
+ * @param {string} password
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export async function updatePassword(password) {
+  try {
+    const SUPABASE = await getSupabaseClient();
+    const { error } = await SUPABASE.auth.updateUser({ password });
+
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * If the page was opened from a reset link, establishes that session and
+ * strips the tokens from the address bar.
+ *
+ * @returns {Promise<{active: boolean, error?: string}>}
+ */
+export async function consumePasswordRecovery() {
+  const parsed = parseAuthCallback(window.location.href);
+  if (parsed.kind === "none") return { active: false };
+
+  try {
+    const SUPABASE = await getSupabaseClient();
+    const result =
+      parsed.kind === "recovery"
+        ? await SUPABASE.auth.setSession({
+            access_token: parsed.accessToken,
+            refresh_token: parsed.refreshToken,
+          })
+        : await SUPABASE.auth.exchangeCodeForSession(parsed.code);
+
+    window.history.replaceState({}, document.title, window.location.pathname);
+
+    if (result.error) return { active: false, error: result.error.message };
+    return { active: true };
+  } catch (error) {
+    window.history.replaceState({}, document.title, window.location.pathname);
+    return { active: false, error: error.message };
   }
 }
 

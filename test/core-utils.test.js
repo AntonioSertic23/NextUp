@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { hasEpisodeAired } from "../src/utils/aired.js";
+import { hasEpisodeAired, pickLatestAiredByShow } from "../src/utils/aired.js";
+import { parseAuthCallback } from "../src/utils/authCallback.js";
 import { computeListShowProgress } from "../src/utils/progress.js";
 import { compareShows, sortShowsCopy } from "../src/utils/sortShows.js";
 import { formatDate, formatEpisodeInfo, getTimeUntil } from "../src/utils/format.js";
@@ -34,6 +35,49 @@ describe("hasEpisodeAired", () => {
 
   it("returns false for invalid dates", () => {
     assert.equal(hasEpisodeAired({ first_aired: "not-a-date" }, now), false);
+  });
+});
+
+describe("pickLatestAiredByShow", () => {
+  const now = Date.parse("2026-06-01T12:00:00Z");
+
+  it("keeps the newest aired episode per show and skips future dates", () => {
+    const latest = pickLatestAiredByShow(
+      [
+        { show_id: "a", first_aired: "2026-01-01T00:00:00Z" },
+        { show_id: "a", first_aired: "2026-05-20T00:00:00Z" },
+        { show_id: "a", first_aired: "2026-07-01T00:00:00Z" },
+        { show_id: "b", first_aired: "2026-04-01T00:00:00Z" },
+        { show_id: "c", first_aired: null },
+      ],
+      now,
+    );
+
+    assert.equal(latest.get("a"), "2026-05-20T00:00:00Z");
+    assert.equal(latest.get("b"), "2026-04-01T00:00:00Z");
+    assert.equal(latest.has("c"), false);
+  });
+});
+
+describe("parseAuthCallback", () => {
+  it("reads an implicit recovery hash", () => {
+    const parsed = parseAuthCallback(
+      "https://nextup.app/login.html#access_token=abc&refresh_token=def&type=recovery",
+    );
+    assert.equal(parsed.kind, "recovery");
+    assert.equal(parsed.accessToken, "abc");
+    assert.equal(parsed.refreshToken, "def");
+  });
+
+  it("reads a recovery code only on the login page", () => {
+    assert.equal(
+      parseAuthCallback("https://nextup.app/login.html?code=xyz").kind,
+      "code",
+    );
+    assert.equal(
+      parseAuthCallback("https://nextup.app/?code=trakt").kind,
+      "none",
+    );
   });
 });
 
@@ -102,6 +146,16 @@ describe("compareShows / sortShowsCopy", () => {
   it("sorts by episodes_left asc", () => {
     const sorted = sortShowsCopy(items, "episodes_left", "asc");
     assert.equal(sorted[0].shows.title, "Alpha"); // 2 left
+  });
+
+  it("sorts by last_aired_at desc and sinks shows with no air date", () => {
+    const aired = [
+      { ...items[0], last_aired_at: "2026-06-01T00:00:00Z" },
+      { ...items[1], last_aired_at: null },
+    ];
+    const sorted = sortShowsCopy(aired, "last_aired_at", "desc");
+    assert.equal(sorted[0].shows.title, "Beta");
+    assert.equal(sorted[1].shows.title, "Alpha");
   });
 
   it("does not mutate the input array", () => {

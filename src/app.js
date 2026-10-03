@@ -29,6 +29,7 @@ import { syncPushSubscriptionIfEnabled } from "./pwa/pushNotifications.js";
 import { initTheme } from "./services/theme.js";
 import { initNavHistory, goBack, syncBackButton } from "./services/navHistory.js";
 import { renderUserStats } from "./pages/userStats.js";
+import { parseAuthCallback } from "./utils/authCallback.js";
 
 initTheme();
 registerServiceWorker();
@@ -51,27 +52,33 @@ const routes = {
 // Boot sequence (top-level await)
 // ————————————————————————————————————————————————————
 
-await initUserStore();
+const recoveryLink = parseAuthCallback(window.location.href);
 
-await handleTraktAuthRedirect();
-
-if (!isAuthenticated()) {
-  window.location.replace("/login.html");
+if (recoveryLink.kind === "recovery") {
+  window.location.replace(`/login.html${window.location.hash}`);
 } else {
-  setupAuthGuard();
+  await initUserStore();
 
-  initNavHistory();
-  initRouter();
-  loadComponent("header", "/components/header.html");
-  loadComponent("footer", "/components/footer.html");
+  await handleTraktAuthRedirect();
 
-  document.body.classList.add("authenticated");
-  syncPushSubscriptionIfEnabled();
-  fetchUserLists()
-    .then((lists) => {
-      if (lists?.length) setLists(lists);
-    })
-    .catch(() => {});
+  if (!isAuthenticated()) {
+    window.location.replace("/login.html");
+  } else {
+    setupAuthGuard();
+
+    initNavHistory();
+    initRouter();
+    loadComponent("header", "/components/header.html");
+    loadComponent("footer", "/components/footer.html");
+
+    document.body.classList.add("authenticated");
+    syncPushSubscriptionIfEnabled();
+    fetchUserLists()
+      .then((lists) => {
+        if (lists?.length) setLists(lists);
+      })
+      .catch(() => {});
+  }
 }
 
 async function router() {
