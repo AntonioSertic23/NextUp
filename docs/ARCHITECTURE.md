@@ -43,7 +43,17 @@
 └─────────────────────────────┘
 
 sw.js: push event → showNotification; notificationclick → open #show or #home
+       fetch → network-first cache for same-origin GETs (offline fallback)
 ```
+
+### Service worker caching
+
+- Precaches the app shell (`index.html`, `login.html`, `offline.html`, CSS, font, icons, header/footer).
+- Same-origin GET requests and the Supabase JS modules from jsDelivr: **network-first**, response stored in the cache, cache used only when the network fails. Statics are not served stale-first because the app ships unbundled ES modules; mixing cached and fresh modules after a deploy could break imports.
+- Never cached: non-GET requests, `/.netlify/functions/*`, Supabase REST/auth, Trakt images.
+- Cache name includes `SW_VERSION`; older caches are deleted on `activate`. Bump `SW_VERSION` on every release so the update banner appears.
+- Offline navigation without a cached page falls back to `offline.html`.
+- Home stores a per-user/per-list watchlist snapshot in `localStorage` and paints it before fresh data arrives; it is cleared on sign-out.
 
 ---
 

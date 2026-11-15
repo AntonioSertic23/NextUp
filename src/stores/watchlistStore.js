@@ -129,6 +129,59 @@ export function changeOrder(newOrder) {
   sortShows();
 }
 
+// ————————————————————————————————————————————————————
+// Snapshot: last watchlist shown, painted instantly on a cold start
+// (and offline) while fresh data loads.
+// ————————————————————————————————————————————————————
+
+const SNAPSHOT_KEY = "nextup_watchlist_snapshot";
+const SNAPSHOT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Saves the current watchlist for this user and list.
+ *
+ * @param {string|null} userId
+ * @param {string|null} listId
+ */
+export function saveWatchlistSnapshot(userId, listId) {
+  if (!userId) return;
+  try {
+    localStorage.setItem(
+      SNAPSHOT_KEY,
+      JSON.stringify({ userId, listId, savedAt: Date.now(), data: watchlist }),
+    );
+  } catch {
+    /* quota or storage disabled: snapshot is optional */
+  }
+}
+
+/**
+ * Returns the saved watchlist if it belongs to this user and list.
+ *
+ * @param {string|null} userId
+ * @param {string|null} listId
+ * @returns {Array<Object>|null}
+ */
+export function readWatchlistSnapshot(userId, listId) {
+  if (!userId) return null;
+  try {
+    const snap = JSON.parse(localStorage.getItem(SNAPSHOT_KEY) || "null");
+    if (!snap || snap.userId !== userId || snap.listId !== listId) return null;
+    if (Date.now() - snap.savedAt > SNAPSHOT_MAX_AGE_MS) return null;
+    return Array.isArray(snap.data) ? snap.data : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearWatchlistSnapshot() {
+  try {
+    localStorage.removeItem(SNAPSHOT_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 /**
  * Sorts the global watchlist in place based on selected criteria.
  */

@@ -7,19 +7,12 @@ import {
   generateAndSaveTonightPicks,
   mapPicksToWatchlist,
 } from "../api/tonight.js";
+import { escapeHtml, posterImg } from "../utils/html.js";
 
 let focusShowIds = new Set();
 
 export function getTonightFocusShowIds() {
   return focusShowIds;
-}
-
-function escapeHtml(text) {
-  return String(text ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
 }
 
 /**
@@ -89,7 +82,7 @@ export async function renderTonightSection(main) {
             : "";
           return `
             <button type="button" class="tonight-card" data-slug="${escapeHtml(item.shows.slug_id)}" data-show-id="${escapeHtml(item.shows.id)}">
-              <img class="tonight-poster" src="https://${escapeHtml(item.shows.image_poster)}" alt="" />
+              ${posterImg({ path: item.shows.image_poster, className: "tonight-poster" })}
               <span class="tonight-card-meta">
                 <span class="tonight-card-title">${escapeHtml(item.shows.title)}</span>
                 <span class="tonight-card-ep">${escapeHtml(epLabel)}</span>

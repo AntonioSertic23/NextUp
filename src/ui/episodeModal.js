@@ -12,6 +12,7 @@ import { MARK_ICON, UNMARK_ICON } from "../utils/icons.js";
 import { computeListShowProgress } from "../utils/progress.js";
 import { hasEpisodeAired } from "../utils/aired.js";
 import { resolveBingeEpisodeIds } from "../utils/tonightAndBinge.js";
+import { showToast, toastError } from "./toast.js";
 
 /**
  * Updates the mark/unmark button to reflect the watched state.
@@ -142,7 +143,7 @@ export function attachEpisodeInfoHandler(element, episode) {
     if (!episode) {
       const episodeId = element.getAttribute("data-episode");
       if (!episodeId) {
-        alert("Unable to show episode info: missing ID.");
+        toastError("Unable to show episode info: missing ID.");
         return;
       }
 
@@ -152,7 +153,7 @@ export function attachEpisodeInfoHandler(element, episode) {
     }
 
     if (!episodeData) {
-      alert("Episode information could not be retrieved.");
+      toastError("Episode information could not be retrieved.");
       return;
     }
 
@@ -309,7 +310,7 @@ function showEpisodeInfoModal(episode, updateUICallback, isWatched = false) {
       markBtn.removeAttribute("aria-busy");
       closeModal();
     } catch (err) {
-      alert("Failed to mark episode as watched. Please try again.");
+      toastError("Failed to mark episode as watched. Please try again.");
       markingInFlight = false;
       markBtn.disabled = !mark && !episodeAired;
       markBtn.classList.remove("is-busy");
@@ -341,7 +342,7 @@ function showEpisodeInfoModal(episode, updateUICallback, isWatched = false) {
         hasAired: hasEpisodeAired,
       });
       if (!ids.length) {
-        alert("No aired unwatched episodes to mark.");
+        showToast("No aired unwatched episodes to mark.");
         return;
       }
       await runMark(ids, true);

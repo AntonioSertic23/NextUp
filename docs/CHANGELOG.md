@@ -4,6 +4,36 @@ All notable changes to this project are documented here.
 
 ---
 
+## [2.11.0] — November 2026
+
+### Added
+
+- **Calendar** — new page with every episode from your collection by month (grid on desktop, agenda on phones)
+- **Daylight theme** — light theme; with no saved choice the app follows the system light/dark setting
+- **Offline support** — app shell and visited pages work offline, `offline.html` fallback, last watchlist shown instantly on start
+- **Skeleton loaders** on Home, My Shows, Discover, Show and Statistics
+- **Toasts** replace blocking `alert()` dialogs
+- **Page transitions** via the View Transitions API (respects reduced motion)
+
+### Changed
+
+- **Optimistic marking** on the show page — buttons and season progress update immediately and roll back if saving fails
+- **Theme variables** — hard-coded colours in `style.css` now use theme variables, so all themes apply consistently
+- **Images** — shared `posterImg` helper: lazy loading, placeholder for missing posters, fallback when a URL fails
+
+### Performance
+
+- **Icons** resized (936 KB each → 1–40 KB), maskable icon and favicon added, logo served as WebP
+- **Font** — 468 KB TTF → 98 KB WOFF2 subset with `font-display: swap` and preload
+- **Cache headers** for images, font and app code; `nosniff` and `Referrer-Policy` headers
+
+### Fixed
+
+- Trakt titles, overviews and errors are HTML-escaped everywhere they are rendered (one shared `escapeHtml`)
+- Show page no longer renders `https://null` or "null" text when Trakt omits fields
+
+---
+
 ## [2.10.0] — August 2026
 
 ### Fixed

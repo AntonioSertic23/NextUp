@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>NextUp — Offline</title>
+    <meta name="theme-color" content="#15161b" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png" />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #15161b;
+        --card: #1a1b22;
+        --border: #2a2b32;
+        --text: #ffffff;
+        --muted: #8a8b90;
+        --accent-1: #857aff;
+        --accent-2: #ef6bf3;
+      }
+      :root[data-light] {
+        color-scheme: light;
+        --bg: #f4f4f8;
+        --card: #ffffff;
+        --border: #dddde6;
+        --text: #17171d;
+        --muted: #62636d;
+        --accent-1: #6a4ff0;
+        --accent-2: #c43fd6;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+      }
+      body {
+        min-height: 100vh;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        padding: 1rem;
+        background: var(--bg);
+        color: var(--text);
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.5;
+      }
+      .card {
+        width: min(380px, 100%);
+        padding: 2rem 1.5rem;
+        text-align: center;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+      }
+      img {
+        width: 64px;
+        height: 64px;
+        border-radius: 14px;
+        margin-bottom: 1rem;
+      }
+      h1 {
+        font-size: 1.35rem;
+        margin-bottom: 0.5rem;
+      }
+      p {
+        color: var(--muted);
+        margin-bottom: 1.5rem;
+      }
+      button {
+        min-height: 44px;
+        padding: 0.6rem 1.5rem;
+        border: 0;
+        border-radius: 10px;
+        background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+        color: #fff;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+    </style>
+    <script>
+      (function () {
+        var stored = null;
+        try {
+          stored = localStorage.getItem("nextup_theme");
+        } catch (e) {}
+        var light =
+          stored === "daylight" ||
+          (!stored && window.matchMedia && matchMedia("(prefers-color-scheme: light)").matches);
+        if (light) document.documentElement.setAttribute("data-light", "");
+      })();
+    </script>
+  </head>
+  <body>
+    <main class="card">
+      <img src="/img/logo.webp" alt="" width="64" height="64" />
+      <h1>You're offline</h1>
+      <p>NextUp needs a connection to load this page. Check your network and try again.</p>
+      <button type="button" onclick="location.reload()">Try again</button>
+    </main>
+    <script>
+      window.addEventListener("online", function () {
+        location.reload();
+      });
+    </script>
+  </body>
+</html>

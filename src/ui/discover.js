@@ -9,6 +9,8 @@ import {
   removeRecentSearch,
 } from "../stores/recentSearchesStore.js";
 import { searchShows, getTraktShows } from "../api/shows.js";
+import { escapeHtml, posterImg } from "../utils/html.js";
+import { skeletonSections } from "./skeleton.js";
 
 function escapeAttr(value) {
   return String(value ?? "")
@@ -190,7 +192,7 @@ export async function renderDiscoverElements() {
 // ————————————————————————————————————————————————————
 
 async function loadBrowseSections(container) {
-  container.innerHTML = `<div class="discover-browse-loading"><p class="loading-text">Loading...</p></div>`;
+  container.innerHTML = `<div class="discover-browse-loading">${skeletonSections(3)}</div>`;
 
   try {
     const results = await Promise.all(
@@ -215,23 +217,19 @@ function renderBrowseSection(parent, title, shows) {
   section.className = "discover-section";
 
   section.innerHTML = `
-    <h2 class="discover-section-title">${title}</h2>
+    <h2 class="discover-section-title">${escapeHtml(title)}</h2>
     <div class="discover-slider-wrapper">
       <button class="slider-arrow slider-arrow-left" aria-label="Scroll left">&#8249;</button>
       <div class="discover-slider">
         ${shows
           .map((show) => {
-            const poster = show.images?.poster?.[0];
-            const posterSrc = poster
-              ? `https://${poster}`
-              : "";
             return `
-            <div class="discover-card" data-id="${show.ids?.slug || show.ids?.trakt || ""}">
+            <div class="discover-card" data-id="${escapeHtml(show.ids?.slug || show.ids?.trakt || "")}">
               <div class="discover-card-poster">
-                ${posterSrc ? `<img src="${posterSrc}" alt="${show.title}" loading="lazy" />` : ""}
+                ${posterImg({ path: show.images?.poster?.[0], alt: show.title })}
               </div>
-              <p class="discover-card-title">${show.title || ""}</p>
-              <p class="discover-card-year">${show.year || ""}</p>
+              <p class="discover-card-title">${escapeHtml(show.title)}</p>
+              <p class="discover-card-year">${escapeHtml(show.year)}</p>
             </div>
           `;
           })
@@ -298,7 +296,7 @@ async function performSearch(query, page, paginationDiv) {
     renderPagination(paginationDiv, query, data.pagination);
   } catch (error) {
     console.error("Search error:", error);
-    resultsDiv.innerHTML = `<p class='error-text'>Error searching shows: ${error.message}</p>`;
+    resultsDiv.innerHTML = `<p class='error-text'>Error searching shows: ${escapeHtml(error.message)}</p>`;
     paginationDiv.innerHTML = "";
   }
 }
@@ -317,15 +315,15 @@ function displaySearchResults(results) {
       const showId = show.show?.ids?.slug || show.show?.ids?.trakt || "";
 
       return `
-        <div class="search-result-card" data-id="${showId}">
+        <div class="search-result-card" data-id="${escapeHtml(showId)}">
           <div class="search-result-poster">
-            <img src="https://${show.show.images.poster[0]}" alt="${title}" />
+            ${posterImg({ path: show.show?.images?.poster?.[0], alt: title })}
           </div>
           <div class="search-result-info">
-            <h3 class="search-result-title">${title} ${show.show?.year}</h3>
+            <h3 class="search-result-title">${escapeHtml(title)} ${escapeHtml(show.show?.year)}</h3>
             ${
               show.show?.overview
-                ? `<p class="search-result-overview">${show.show.overview}</p>`
+                ? `<p class="search-result-overview">${escapeHtml(show.show.overview)}</p>`
                 : ""
             }
           </div>

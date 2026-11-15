@@ -17,6 +17,7 @@ import {
   invalidateListsCache,
 } from "../stores/listsStore.js";
 import { resetLibraryPageCaches } from "./libraryCache.js";
+import { clearWatchlistSnapshot } from "../stores/watchlistStore.js";
 import { unsubscribeFromPushNotifications } from "../pwa/pushNotifications.js";
 import { parseAuthCallback } from "../utils/authCallback.js";
 
@@ -181,6 +182,7 @@ export async function logout() {
   }
 
   clearUserStore();
+  clearWatchlistSnapshot();
   try {
     await unsubscribeFromPushNotifications();
   } catch {
@@ -211,6 +213,7 @@ export async function setupAuthGuard() {
   } = SUPABASE.auth.onAuthStateChange((event) => {
     if (event === "SIGNED_OUT") {
       clearUserStore();
+      clearWatchlistSnapshot();
       clearActiveListId();
       invalidateListsCache();
       resetLibraryPageCaches();

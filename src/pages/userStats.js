@@ -6,6 +6,7 @@ import {
 } from "../utils/stats.js";
 import { renderStatistics } from "../ui/statistics.js";
 import { setStats } from "../stores/statsStore.js";
+import { skeletonStats } from "../ui/skeleton.js";
 
 /**
  * View another user's statistics (must be following them).
@@ -13,7 +14,7 @@ import { setStats } from "../stores/statsStore.js";
 export async function renderUserStats(main, userId) {
   const container = document.createElement("div");
   container.id = "stats-container";
-  container.innerHTML = "<p class='loading-text'>Loading statistics...</p>";
+  container.innerHTML = skeletonStats();
   main.appendChild(container);
 
   if (!userId) {

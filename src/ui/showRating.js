@@ -2,17 +2,11 @@ import { setShowRating, clearShowRating } from "../api/ratings.js";
 import { invalidateWatchlistAndStats } from "../services/pageCache.js";
 import { patchShowUserRating } from "../stores/myShowsStore.js";
 import { HYPE_TIERS, getTierByScore } from "../utils/showRatings.js";
+import { escapeHtml } from "../utils/html.js";
+import { toastError } from "./toast.js";
 
 /** Unicode popcorn — filled state; empty slots use CSS grayscale on the same glyph. */
 const POPCORN_EMOJI = "🍿";
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
 
 function popcornEmojiHtml() {
   return `<span class="popcorn-emoji" aria-hidden="true">${POPCORN_EMOJI}</span>`;
@@ -87,7 +81,7 @@ export function bindPopcornRating(showId, initialScore, onChange) {
         refreshUi();
         onChange?.(null);
       } catch (err) {
-        alert(err.message || "Could not clear rating");
+        toastError(err.message || "Could not clear rating");
       } finally {
         root.querySelectorAll(".popcorn-btn").forEach((b) => {
           b.disabled = false;
@@ -108,7 +102,7 @@ export function bindPopcornRating(showId, initialScore, onChange) {
       refreshUi();
       onChange?.(current);
     } catch (err) {
-      alert(err.message || "Could not save rating");
+      toastError(err.message || "Could not save rating");
     } finally {
       root.querySelectorAll(".popcorn-btn").forEach((b) => {
         b.disabled = false;

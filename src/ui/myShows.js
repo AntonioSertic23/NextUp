@@ -45,14 +45,9 @@ import {
 } from "../stores/myShowsStore.js";
 import { getRatingsMapForShows } from "../api/ratings.js";
 import { invalidateWatchlistAndStats } from "../services/pageCache.js";
-
-function escapeHtml(text) {
-  return String(text ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
+import { escapeHtml, posterImg } from "../utils/html.js";
+import { skeletonGrid, skeletonRows } from "./skeleton.js";
+import { toastError } from "./toast.js";
 
 const COLLECTION_SORT_OPTIONS = [
   { value: "added_at", label: "Last added" },
@@ -112,22 +107,14 @@ export function renderUpcomingEpisodes() {
       const airDate = formatDate(episode.first_aired);
       const airDateSafe = escapeHtml(airDate);
       const countdown = escapeHtml(getTimeUntil(episode.first_aired));
-      const posterPath = episode.shows?.image_poster;
-      const posterSrc = posterPath ? `https://${posterPath}` : "";
 
       return `
         <div class="show-card upcoming-episode-row" data-id="${slugId}">
           <div class="upcoming-row-poster">
-            ${
-              posterSrc
-                ? `<img
-              class="upcoming-row-poster-img"
-              src="${posterSrc}"
-              alt=""
-              loading="lazy"
-            />`
-                : `<div class="upcoming-row-poster-placeholder"></div>`
-            }
+            ${posterImg({
+              path: episode.shows?.image_poster,
+              className: "upcoming-row-poster-img",
+            })}
           </div>
           <div class="upcoming-row-content">
             <p class="upcoming-row-series">${showTitle}</p>
@@ -162,8 +149,8 @@ export async function reloadMyShowsForList(listId) {
   const grid = document.getElementById("all_my_shows-container");
   const upcoming = document.getElementById("upcoming_episodes-container");
 
-  if (grid) grid.innerHTML = "<p class='loading-text'>Loading...</p>";
-  if (upcoming) upcoming.innerHTML = "<p class='loading-text'>Loading...</p>";
+  if (grid) grid.innerHTML = skeletonGrid(8);
+  if (upcoming) upcoming.innerHTML = skeletonRows(2);
 
   setCollectionGenreFilter("");
 
@@ -439,8 +426,6 @@ export function renderAllCollectionShows() {
       const title = escapeHtml(s.title);
       const year = s.year != null && s.year !== "" ? escapeHtml(String(s.year)) : "";
       const slugId = s.slug_id != null ? String(s.slug_id) : "";
-      const posterPath = s.image_poster;
-      const posterSrc = posterPath ? `https://${posterPath}` : "";
 
       const showId = s.id != null ? String(s.id) : "";
       const hypeBadge = renderHypeBadgeHtml(item.user_rating);
@@ -464,11 +449,7 @@ export function renderAllCollectionShows() {
           >⋮</button>
           ${hypeBadge ? `<div class="collection-card-hype">${hypeBadge}</div>` : ""}
           <div class="discover-card-poster">
-            ${
-              posterSrc
-                ? `<img src="${posterSrc}" alt="${title || "Show"} poster" loading="lazy" />`
-                : ""
-            }
+            ${posterImg({ path: s.image_poster, alt: `${s.title || "Show"} poster` })}
           </div>
           <p class="discover-card-title">${title || "Untitled"}</p>
           <p class="discover-card-year">${year}</p>
@@ -620,7 +601,7 @@ export function bindMyShowsClickHandler(main) {
           await openCollectionListMenu(card);
         }
       } catch (err) {
-        alert(err.message);
+        toastError(err.message || "Something went wrong.");
       } finally {
         menuItem.disabled = false;
       }
