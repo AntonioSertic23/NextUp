@@ -6,9 +6,23 @@
 
 import { runSyncNextEpisodes } from "../lib/syncNextEpisodesCore.js";
 
-export const handler = async () => {
+// Netlify's proxy drops responses that take ~26 s or more, so each call
+// works for a limited time and reports where to continue.
+const TIME_BUDGET_MS = 15_000;
+
+export const handler = async (event) => {
+  let offset = 0;
   try {
-    const results = await runSyncNextEpisodes();
+    offset = Number(JSON.parse(event.body || "{}").offset) || 0;
+  } catch {
+    /* no body: start from the beginning */
+  }
+
+  try {
+    const results = await runSyncNextEpisodes({
+      offset,
+      deadline: Date.now() + TIME_BUDGET_MS,
+    });
     return {
       statusCode: 200,
       body: JSON.stringify(results),

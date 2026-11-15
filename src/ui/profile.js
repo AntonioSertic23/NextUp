@@ -557,7 +557,13 @@ function setupProfileActions(container, traktConnected) {
       label.textContent = "Syncing…";
 
       try {
-        const result = await syncNewEpisodes();
+        const result = await syncNewEpisodes({
+          onProgress: (done, total) => {
+            label.textContent = total
+              ? `Syncing… ${done}/${total}`
+              : "Syncing…";
+          },
+        });
         const updated = [...(result?.updated || [])].sort((a, b) =>
           String(a).localeCompare(String(b)),
         );

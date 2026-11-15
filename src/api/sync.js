@@ -104,19 +104,13 @@ export async function syncTraktAccount() {
   return data;
 }
 
-/**
- * Trigger the backend "new episodes" sync for all tracked shows.
- *
- * Hits the HTTP handler (manual). The daily cron uses
- * `syncNextEpisodes-background` instead — Netlify scheduled functions
- * cannot share a public URL with the Profile button.
- *
- * @returns {Promise<{message: string, updated?: string[], skipped?: string[], errors?: Array<{show: string, error: string}>}>}
- * @throws {Error} If the request fails or the function returns a non-2xx status.
- */
-export async function syncNewEpisodes() {
+const MAX_SYNC_ROUNDS = 40;
+
+async function requestSyncChunk(offset) {
   const res = await fetch("/.netlify/functions/syncNextEpisodes", {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ offset }),
   });
 
   const raw = await res.text();
@@ -128,12 +122,49 @@ export async function syncNewEpisodes() {
   }
 
   if (!res.ok) {
-    const base =
+    // Proxy errors come back as HTML pages; don't show markup to the user.
+    const isHtml = /^\s*</.test(raw || "");
+    const message =
       data?.error ||
-      (raw && raw.length < 400 ? raw : null) ||
-      `Episode sync failed (${res.status})`;
-    throw new Error(base);
+      (!isHtml && raw && raw.length < 400 ? raw : null) ||
+      (res.status === 504 || /timeout/i.test(raw || "")
+        ? "The sync took too long to respond. Please try again; finished shows are skipped."
+        : `Episode sync failed (${res.status}).`);
+    throw new Error(message);
   }
 
-  return data;
+  return data ?? {};
+}
+
+/**
+ * Trigger the backend "new episodes" sync for all tracked shows.
+ *
+ * The HTTP handler works in time-limited chunks and returns `nextOffset`;
+ * this keeps calling it until every show is processed. The daily cron uses
+ * `syncNextEpisodes-background` instead — Netlify scheduled functions
+ * cannot share a public URL with the Profile button.
+ *
+ * @param {{ onProgress?: (done: number, total: number) => void }} [options]
+ * @returns {Promise<{message: string, updated: string[], skipped: string[], errors: Array<{show: string, error: string}>}>}
+ * @throws {Error} If a request fails or the function returns a non-2xx status.
+ */
+export async function syncNewEpisodes({ onProgress } = {}) {
+  const combined = { updated: [], skipped: [], errors: [] };
+  let offset = 0;
+
+  for (let round = 0; round < MAX_SYNC_ROUNDS; round++) {
+    const data = await requestSyncChunk(offset);
+    combined.updated.push(...(data.updated ?? []));
+    combined.skipped.push(...(data.skipped ?? []));
+    combined.errors.push(...(data.errors ?? []));
+
+    const next = data.nextOffset;
+    if (next == null || next <= offset) {
+      return { message: data.message || "Sync completed", ...combined };
+    }
+    offset = next;
+    onProgress?.(offset, data.total ?? 0);
+  }
+
+  return { message: "Sync stopped early; run it again to finish", ...combined };
 }
