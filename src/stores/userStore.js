@@ -24,6 +24,10 @@ export async function initUserStore() {
   } = await SUPABASE.auth.getUser();
 
   if (userError) {
+    if (isNetworkError(userError)) {
+      await useLocalSessionWhileOffline(SUPABASE);
+      return;
+    }
     console.error("Failed to get user:", userError);
     return;
   }
@@ -58,6 +62,39 @@ export async function initUserStore() {
       session = updatedSession;
     }
   });
+}
+
+function isNetworkError(error) {
+  return (
+    !navigator.onLine ||
+    error?.name === "AuthRetryableFetchError" ||
+    error?.status === 0
+  );
+}
+
+/**
+ * Offline fallback: show the app from the locally stored session. The
+ * server still enforces access (RLS), and the session is verified again
+ * with getUser() as soon as the connection returns.
+ */
+async function useLocalSessionWhileOffline(SUPABASE) {
+  const {
+    data: { session: localSession },
+  } = await SUPABASE.auth.getSession();
+  if (!localSession?.user) return;
+
+  user = localSession.user;
+  session = localSession;
+  claims = null;
+
+  window.addEventListener(
+    "online",
+    () => {
+      initialized = false;
+      initUserStore().catch(() => {});
+    },
+    { once: true },
+  );
 }
 
 /**

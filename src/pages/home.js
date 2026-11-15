@@ -6,7 +6,11 @@ import {
   setWatchlist,
   getWatchlist,
   getWatchlistListId,
+  saveWatchlistSnapshot,
+  readWatchlistSnapshot,
 } from "../stores/watchlistStore.js";
+import { getUserId } from "../stores/userStore.js";
+import { showToast } from "../ui/toast.js";
 import { resolveActiveListId } from "../stores/listsStore.js";
 import { consumeWatchlistStale } from "../services/pageCache.js";
 import { getSupabaseClient } from "../services/supabase.js";
@@ -33,6 +37,16 @@ export async function renderHome(main) {
   const clientWarm = getSupabaseClient();
   const listId = resolveActiveListId();
 
+  // Cold start: paint the last saved watchlist right away, then refresh.
+  const userId = getUserId();
+  const snapshot = getWatchlist().length
+    ? null
+    : readWatchlistSnapshot(userId, listId);
+  if (snapshot?.length) {
+    setWatchlist(snapshot, listId);
+    renderWatchlist();
+  }
+
   await Promise.all([
     clientWarm,
     ensureListsLoaded(),
@@ -44,15 +58,39 @@ export async function renderHome(main) {
   const cacheValid =
     !stale && getWatchlist().length && getWatchlistListId() === listId;
 
-  if (cacheValid) {
+  if (cacheValid && !snapshot) {
     await renderTonightSection(main);
     renderWatchlist();
     return;
   }
 
-  watchlistDiv.innerHTML = skeletonCards();
-  const data = await getWatchlistData(listId, { activeOnly: true });
+  if (!snapshot?.length) {
+    watchlistDiv.innerHTML = skeletonCards();
+  }
+
+  let data;
+  try {
+    data = await getWatchlistData(listId, {
+      activeOnly: true,
+      throwOnError: true,
+    });
+  } catch (err) {
+    console.error("Failed to load watchlist:", err);
+    if (snapshot?.length) {
+      showToast(
+        navigator.onLine
+          ? "Couldn't refresh your watchlist. Showing saved data."
+          : "You're offline. Showing your saved watchlist.",
+      );
+      return;
+    }
+    watchlistDiv.innerHTML =
+      "<p class='error-text'>Couldn't load your watchlist. Check your connection and try again.</p>";
+    return;
+  }
+
   setWatchlist(data, listId);
+  saveWatchlistSnapshot(userId, listId);
   await renderTonightSection(main);
   renderWatchlist();
 }

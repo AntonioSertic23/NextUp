@@ -77,10 +77,12 @@ const WATCHLIST_SELECT = `
 /**
  * Fetches watchlist rows for a list (direct Supabase — faster than Netlify hop).
  * @param {string} [listIdParam]
- * @param {{ activeOnly?: boolean }} [options] - activeOnly: hide completed (home default true)
+ * @param {{ activeOnly?: boolean, throwOnError?: boolean }} [options]
+ *   activeOnly: hide completed (home default true);
+ *   throwOnError: rethrow instead of returning [] (lets callers keep cached data)
  */
 export async function getWatchlistData(listIdParam, options = {}) {
-  const { activeOnly = true } = options;
+  const { activeOnly = true, throwOnError = false } = options;
   const listId = listIdParam ?? (await getDefaultListId());
   if (!listId) return [];
 
@@ -102,6 +104,7 @@ export async function getWatchlistData(listIdParam, options = {}) {
     return attachLastAiredAt(items);
   } catch (err) {
     console.error("getWatchlistData:", err);
+    if (throwOnError) throw err;
     return [];
   }
 }
