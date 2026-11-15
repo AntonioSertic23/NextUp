@@ -230,6 +230,53 @@ export async function getShowNextEpisode(showId, listIdParam) {
   }
 }
 
+const CALENDAR_EPISODE_LIMIT = 1000;
+
+async function fetchCalendarBatch(SUPABASE, showIds, fromISO, toISO) {
+  const { data, error } = await SUPABASE.from("episodes")
+    .select(UPCOMING_EPISODE_SELECT)
+    .in("show_id", showIds)
+    .gte("first_aired", fromISO)
+    .lt("first_aired", toISO)
+    .order("first_aired")
+    .limit(CALENDAR_EPISODE_LIMIT);
+  if (error) throw error;
+  return (data ?? []).filter((ep) => ep.shows);
+}
+
+/**
+ * All episodes airing in [fromISO, toISO) for shows in the user's
+ * default list (aired and upcoming).
+ *
+ * @param {string} fromISO
+ * @param {string} toISO
+ * @returns {Promise<Array<Object>>}
+ */
+export async function getCalendarEpisodes(fromISO, toISO) {
+  const listId = await getDefaultListId();
+  if (!listId) return [];
+
+  const SUPABASE = await getSupabaseClient();
+  const { data: rows, error } = await SUPABASE.from("list_shows")
+    .select("show_id")
+    .eq("list_id", listId);
+  if (error) throw error;
+
+  const showIds = (rows ?? []).map((r) => r.show_id);
+  if (!showIds.length) return [];
+
+  const batches = [];
+  for (let i = 0; i < showIds.length; i += UPCOMING_SHOW_ID_BATCH) {
+    batches.push(showIds.slice(i, i + UPCOMING_SHOW_ID_BATCH));
+  }
+  const results = await Promise.all(
+    batches.map((ids) => fetchCalendarBatch(SUPABASE, ids, fromISO, toISO)),
+  );
+  return results
+    .flat()
+    .sort((a, b) => new Date(a.first_aired) - new Date(b.first_aired));
+}
+
 /**
  * Fetches upcoming episodes for all shows in the user's default list.
  *

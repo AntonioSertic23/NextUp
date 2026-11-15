@@ -66,6 +66,17 @@ Click any poster to open **Show Details**.
 
 ---
 
+### Calendar
+
+Every episode from the shows in your collection, month by month.
+
+- **‹ / ›** switch months; **Today** jumps back to the current month
+- Desktop: month grid, up to three episodes per day, **+N more** for the rest
+- Phone: list of the days that have episodes, with poster and local air time
+- Tap an episode to open its show
+
+---
+
 ### Discover
 
 Find new shows to watch.
@@ -129,7 +140,7 @@ Overview of your watching habits.
 |---------|-----------------|
 | **Account** | Email, member since |
 | **Lists** | Create, rename, delete lists (default list cannot be deleted) |
-| **Themes** | Midnight, Ocean, Ember, Forest |
+| **Themes** | Midnight, Ocean, Ember, Forest, Daylight (light). Until you pick one, NextUp follows your system light/dark setting |
 | **Notes** | General profile note; list of your show notes |
 | **Following** | Follow by email; unfollow; open friend stats |
 | **Trakt** | Connect, full sync, sync new episodes |
@@ -206,6 +217,10 @@ Menu → **Install app** or **Add to Home Screen**
 Install icon in the address bar
 
 **Note:** Install and push need **HTTPS** (production deploy).
+
+### Offline
+
+The installed app opens without a connection: it shows your last loaded watchlist and pages you have already visited. Marking episodes, search and other live data need a connection; a short notice appears when NextUp is showing saved data.
 
 ---
 

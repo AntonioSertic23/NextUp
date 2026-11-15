@@ -39,6 +39,13 @@
       "icons": [{ "src": "/img/pwa-icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
+      "name": "Calendar",
+      "short_name": "Calendar",
+      "description": "Episodes airing this month",
+      "url": "/#calendar",
+      "icons": [{ "src": "/img/pwa-icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
       "name": "My shows",
       "short_name": "My shows",
       "description": "Upcoming and collection",
