@@ -6,6 +6,7 @@ import {
 import { computeListShowProgress } from "../utils/progress.js";
 import { attachEpisodeInfoHandler } from "./episodeModal.js";
 import { getTonightFocusShowIds } from "./tonight.js";
+import { escapeHtml, posterImg } from "../utils/html.js";
 
 const sortOptions = [
   { value: "added_at", label: "Last Added" },
@@ -16,14 +17,6 @@ const sortOptions = [
   { value: "last_aired_at", label: "Last aired" },
   { value: "episodes_left", label: "Episodes Left" },
 ];
-
-function escapeHtml(text) {
-  return String(text ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
 
 /**
  * Renders sorting controls and binds UI events that mutate
@@ -132,18 +125,18 @@ export async function renderWatchlist() {
         : "";
 
       return `
-        <div class="show-card${focusClass}" data-id="${show.shows.slug_id}">
+        <div class="show-card${focusClass}" data-id="${escapeHtml(show.shows.slug_id)}">
           <div class="poster-container">
-            <img
-              class="poster"
-              src="https://${show.shows.image_poster}"
-              alt="${show.shows.title} poster"
-            />
+            ${posterImg({
+              path: show.shows.image_poster,
+              alt: `${show.shows.title} poster`,
+              className: "poster",
+            })}
             ${focusBadge}
           </div>
 
           <div class="info-container">
-            <p class="title">${show.shows.title}</p>
+            <p class="title">${escapeHtml(show.shows.title)}</p>
             <p class="next_episode">${escapeHtml(nextEpisodeInfo)}</p>
             ${overviewBlock}
 

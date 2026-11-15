@@ -1,13 +1,6 @@
 import { getStats } from "../stores/statsStore.js";
 import { HYPE_TIERS } from "../utils/showRatings.js";
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
+import { escapeHtml } from "../utils/html.js";
 
 function formatMonth(monthStr) {
   const [year, month] = monthStr.split("-");

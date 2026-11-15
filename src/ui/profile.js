@@ -37,6 +37,7 @@ import {
   subscribeToPushNotifications,
   unsubscribeFromPushNotifications,
 } from "../pwa/pushNotifications.js";
+import { escapeHtml, posterImg } from "../utils/html.js";
 
 /**
  * In-app result for Trakt sync and Sync New Episodes.
@@ -109,14 +110,6 @@ function appendSyncList(parent, label, lines, className) {
   parent.appendChild(section);
 }
 
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
 function formatMemberSince(dateStr) {
   if (!dateStr) return "Unknown";
   const date = new Date(dateStr);
@@ -185,7 +178,7 @@ export async function renderProfile() {
         .map(
           (n) => `
       <a href="#show?traktIdentifier=${escapeHtml(n.shows.slug_id)}" class="profile-note-card">
-        <img src="https://${escapeHtml(n.shows.image_poster || "")}" alt="" class="profile-note-poster" />
+        ${posterImg({ path: n.shows.image_poster, className: "profile-note-poster" })}
         <div>
           <strong>${escapeHtml(n.shows.title)}</strong>
           <p class="profile-note-preview">${escapeHtml((n.content || "").slice(0, 120))}${(n.content || "").length > 120 ? "…" : ""}</p>

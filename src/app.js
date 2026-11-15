@@ -30,8 +30,10 @@ import { initTheme } from "./services/theme.js";
 import { initNavHistory, goBack, syncBackButton } from "./services/navHistory.js";
 import { renderUserStats } from "./pages/userStats.js";
 import { parseAuthCallback } from "./utils/authCallback.js";
+import { installImageFallback } from "./utils/html.js";
 
 initTheme();
+installImageFallback();
 registerServiceWorker();
 
 // ————————————————————————————————————————————————————

@@ -18,6 +18,7 @@ import {
   BOOKMARK_FILLED_ICON,
 } from "../utils/icons.js";
 import { renderPopcornRatingHtml, bindPopcornRating } from "./showRating.js";
+import { escapeHtml, posterImg } from "../utils/html.js";
 
 function computeSeasonProgress(episodes) {
   const total = episodes.length;
@@ -68,10 +69,10 @@ function renderSeasonEpisodes(episodes) {
             computeEpisodeProgress(ep);
 
           return `
-          <div class="episode" data-episode-id="${ep.id}">
+          <div class="episode" data-episode-id="${escapeHtml(ep.id)}">
             <div class="episode_info-container">
-              <p class="episode_title">${ep.title || "Untitled"}</p>
-              <p class="episode_info">${episodeInfo}</p>
+              <p class="episode_title">${escapeHtml(ep.title || "Untitled")}</p>
+              <p class="episode_info">${escapeHtml(episodeInfo)}</p>
             </div>
 
             <button
@@ -151,16 +152,21 @@ export function renderShowDetails(show) {
 
   showContainer.innerHTML = `
     <div class="show_banner-container">
-      <img class="show_banner-img" src="https://${show.image_fanart}">
+      ${posterImg({ path: show.image_fanart, className: "show_banner-img", eager: true })}
     </div>
     <div class="show_poster-container">
-      <img class="show_poster-img" src="https://${show.image_poster}">
+      ${posterImg({
+        path: show.image_poster,
+        alt: `${show.title} poster`,
+        className: "show_poster-img",
+        eager: true,
+      })}
       <div class="show-top-container">
         <div class="show-title-row">
-          <h2>${show.title} (${show.year})</h2>
+          <h2>${escapeHtml(show.title)}${show.year ? ` (${escapeHtml(show.year)})` : ""}</h2>
           ${renderPopcornRatingHtml(show.user_rating ?? null)}
         </div>
-        <p class="status">Status: ${show.status}</p>
+        ${show.status ? `<p class="status">Status: ${escapeHtml(show.status)}</p>` : ""}
       </div>
     </div>
     <button
@@ -172,18 +178,19 @@ export function renderShowDetails(show) {
       title="${collectionBtnAria}"
     >${collectionBtnIcon}</button>
     <div class="show_other_info-container">
-      <p class="tagline">${show.tagline}</p>
-      <br>
-      <p class="overview">${show.overview}</p>
-      <br>
+      ${show.tagline ? `<p class="tagline">${escapeHtml(show.tagline)}</p><br>` : ""}
+      ${show.overview ? `<p class="overview">${escapeHtml(show.overview)}</p><br>` : ""}
       <div class="more_info-row">
-        <p class="rating">⭐ ${parseFloat(show.rating).toFixed(1)}</p>
-        -
-        <p class="genres">${show.genres}</p>
-        -
-        <p class="runtime">${show.runtime} min</p>
-        -
-        <p class="network">${show.network}</p>
+        ${[
+          Number.isFinite(parseFloat(show.rating))
+            ? `<p class="rating">⭐ ${parseFloat(show.rating).toFixed(1)}</p>`
+            : "",
+          show.genres ? `<p class="genres">${escapeHtml(show.genres)}</p>` : "",
+          show.runtime ? `<p class="runtime">${escapeHtml(show.runtime)} min</p>` : "",
+          show.network ? `<p class="network">${escapeHtml(show.network)}</p>` : "",
+        ]
+          .filter(Boolean)
+          .join(" - ")}
       </div>
     </div>
     <div id="seasons"></div>
@@ -341,18 +348,16 @@ async function renderRecommendedShows(container, show) {
 
     const cardsHtml = filtered
       .map((s) => {
-        const poster = s.images?.poster?.[0];
-        const posterSrc = poster ? `https://${poster}` : "";
         const navId = s.ids?.slug ?? s.ids?.trakt ?? "";
-        const safeTitle = (s.title || "").replace(/</g, "&lt;");
+        const safeTitle = escapeHtml(s.title);
         const encNav = encodeURIComponent(String(navId));
         return `
           <div class="discover-card" data-nav-id="${encNav}">
             <div class="discover-card-poster">
-              ${posterSrc ? `<img src="${posterSrc}" alt="${safeTitle}" loading="lazy" />` : ""}
+              ${posterImg({ path: s.images?.poster?.[0], alt: s.title })}
             </div>
             <p class="discover-card-title">${safeTitle}</p>
-            <p class="discover-card-year">${s.year ?? ""}</p>
+            <p class="discover-card-year">${escapeHtml(s.year)}</p>
           </div>`;
       })
       .join("");
