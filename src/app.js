@@ -41,6 +41,10 @@ registerServiceWorker();
 // Route table (must be declared before boot sequence)
 // ————————————————————————————————————————————————————
 
+// Skip the page transition on the very first render. Declared before the
+// boot sequence below, which calls router() during module evaluation.
+let firstRoute = true;
+
 const routes = {
   home: renderHome,
   show: renderShow,
@@ -120,7 +124,6 @@ async function router() {
   await rendering;
 }
 
-let firstRoute = true;
 
 function canAnimatePageChange() {
   if (firstRoute) {
