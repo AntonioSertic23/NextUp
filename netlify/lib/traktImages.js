@@ -23,6 +23,16 @@ export function traktImagePath(images, key) {
   return path || null;
 }
 
+/** Trakt show image keys mapped to `shows` columns. */
+export const SHOW_IMAGE_KEYS = [
+  ["fanart", "image_fanart"],
+  ["poster", "image_poster"],
+  ["logo", "image_logo"],
+  ["clearart", "image_clearart"],
+  ["banner", "image_banner"],
+  ["thumb", "image_thumb"],
+];
+
 /**
  * Columns to include in an upsert. Empty values are omitted so a
  * payload without images does not wipe posters already in the database.

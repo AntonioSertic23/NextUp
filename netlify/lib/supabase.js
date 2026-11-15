@@ -7,7 +7,7 @@ import { refreshTraktAccessToken } from "./trakt.js";
 import {
   filterCountableEpisodes,
 } from "./episodeProgress.js";
-import { traktImageColumns } from "./traktImages.js";
+import { SHOW_IMAGE_KEYS, traktImageColumns } from "./traktImages.js";
 import { planEpisodeWrites } from "./episodeWrites.js";
 
 const SUPABASE = createClient(
@@ -194,14 +194,7 @@ export async function saveShow(show, lastWatchedAt) {
           genres: show.genres?.join(",") ?? null,
           subgenres: show.subgenres?.join(",") ?? null,
           aired_episodes: show.aired_episodes ?? null,
-          ...traktImageColumns(show.images, [
-            ["fanart", "image_fanart"],
-            ["poster", "image_poster"],
-            ["logo", "image_logo"],
-            ["clearart", "image_clearart"],
-            ["banner", "image_banner"],
-            ["thumb", "image_thumb"],
-          ]),
+          ...traktImageColumns(show.images, SHOW_IMAGE_KEYS),
         },
         { onConflict: "trakt_id" },
       )
@@ -883,7 +876,9 @@ export async function removeShowFromList(listId, showId) {
  */
 export async function getAllTrackedShows() {
   const { data, error } = await SUPABASE.from("shows")
-    .select("id, trakt_id, slug_id, title, aired_episodes, status")
+    .select(
+      `id, trakt_id, slug_id, title, aired_episodes, status, ${SHOW_IMAGE_KEYS.map(([, column]) => column).join(", ")}`,
+    )
     .order("title");
 
   if (error) {
