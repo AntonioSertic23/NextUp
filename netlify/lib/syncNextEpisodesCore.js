@@ -9,6 +9,7 @@ import {
   updateShowMetadata,
   refreshListShowsForShow,
 } from "./supabase.js";
+import { SHOW_IMAGE_KEYS, traktImageColumns } from "./traktImages.js";
 
 const BATCH_SIZE = 5;
 
@@ -26,6 +27,22 @@ async function fetchTraktJson(url) {
 }
 
 /**
+ * Image columns whose Trakt path differs from what is stored. Trakt
+ * changes its image URL scheme from time to time and old paths stop
+ * resolving, so stored paths have to follow the API.
+ *
+ * @param {Object} show - Row from `shows`
+ * @param {Object|null|undefined} images - Trakt `images` object
+ * @returns {Object<string, string>}
+ */
+function changedImageColumns(show, images) {
+  const fresh = traktImageColumns(images, SHOW_IMAGE_KEYS);
+  return Object.fromEntries(
+    Object.entries(fresh).filter(([column, path]) => show[column] !== path),
+  );
+}
+
+/**
  * Checks a single show for new episodes and updates the database.
  */
 async function processShow(show, results) {
@@ -35,12 +52,12 @@ async function processShow(show, results) {
     let showData;
     try {
       showData = await fetchTraktJson(
-        `${TRAKT_BASE_URL}/shows/${path}?extended=full`,
+        `${TRAKT_BASE_URL}/shows/${path}?extended=full,images`,
       );
     } catch (err) {
       if (show.slug_id && String(show.trakt_id) !== String(show.slug_id)) {
         showData = await fetchTraktJson(
-          `${TRAKT_BASE_URL}/shows/${encodeURIComponent(show.slug_id)}?extended=full`,
+          `${TRAKT_BASE_URL}/shows/${encodeURIComponent(show.slug_id)}?extended=full,images`,
         );
       } else {
         throw err;
@@ -50,7 +67,12 @@ async function processShow(show, results) {
     const traktAired = showData.aired_episodes || 0;
     const dbAired = show.aired_episodes || 0;
 
-    if (traktAired <= dbAired) {
+    const imageColumns = changedImageColumns(show, showData.images);
+    const imagesChanged = Object.keys(imageColumns).length > 0;
+
+    // Changed show images usually mean season/episode paths changed too,
+    // so re-save seasons in that case as well.
+    if (traktAired <= dbAired && !imagesChanged) {
       results.skipped.push(show.title);
       return;
     }
@@ -81,6 +103,7 @@ async function processShow(show, results) {
     await updateShowMetadata(show.id, {
       aired_episodes: traktAired,
       status: showData.status,
+      ...imageColumns,
     });
 
     if (showData.genres?.length) {
