@@ -23,6 +23,7 @@ import {
 import { getSupabaseClient } from "../services/supabase.js";
 import { ensureListsLoaded } from "../ui/listFilter.js";
 import { resolveActiveListId } from "../stores/listsStore.js";
+import { skeletonGrid, skeletonRows } from "../ui/skeleton.js";
 
 function collectionShowIds(collection) {
   return collection.map((item) => item.shows?.id).filter(Boolean);
@@ -65,11 +66,11 @@ function loadUpcomingEpisodesInBackground() {
 export async function renderMyShows(main) {
   const upcomingEpisodesDiv = document.createElement("div");
   upcomingEpisodesDiv.id = "upcoming_episodes-container";
-  upcomingEpisodesDiv.innerHTML = "<p class='loading-text'>Loading...</p>";
+  upcomingEpisodesDiv.innerHTML = skeletonRows(2);
 
   const allCollectionShowsDiv = document.createElement("div");
   allCollectionShowsDiv.id = "all_my_shows-container";
-  allCollectionShowsDiv.innerHTML = "<p class='loading-text'>Loading...</p>";
+  allCollectionShowsDiv.innerHTML = skeletonGrid(8);
 
   const upcomingSection = document.createElement("section");
   upcomingSection.className = "my-shows-section";

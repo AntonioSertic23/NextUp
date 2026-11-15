@@ -38,6 +38,7 @@ import {
   unsubscribeFromPushNotifications,
 } from "../pwa/pushNotifications.js";
 import { escapeHtml, posterImg } from "../utils/html.js";
+import { toastError, toastSuccess } from "./toast.js";
 
 /**
  * In-app result for Trakt sync and Sync New Episodes.
@@ -371,7 +372,7 @@ function setupListsSection(container) {
       invalidateStatsCachePersisted();
       await renderProfile();
     } catch (err) {
-      alert(err.message);
+      toastError(err.message || "Something went wrong.");
     }
   });
 
@@ -386,7 +387,7 @@ function setupListsSection(container) {
         invalidateListsCache();
         await renderProfile();
       } catch (err) {
-        alert(err.message);
+        toastError(err.message || "Something went wrong.");
       }
     });
   });
@@ -404,7 +405,7 @@ function setupListsSection(container) {
         invalidateStatsCachePersisted();
         await renderProfile();
       } catch (err) {
-        alert(err.message);
+        toastError(err.message || "Something went wrong.");
       }
     });
   });
@@ -415,9 +416,9 @@ function setupNotesSection(container) {
     const input = container.querySelector("#profile-note-input");
     try {
       await saveProfileNote(input?.value ?? "");
-      alert("Note saved");
+      toastSuccess("Note saved");
     } catch (err) {
-      alert(err.message);
+      toastError(err.message || "Something went wrong.");
     }
   });
 }
@@ -432,7 +433,7 @@ function setupFollowingSection(container) {
       input.value = "";
       await renderProfile();
     } catch (err) {
-      alert(err.message);
+      toastError(err.message || "Something went wrong.");
     }
   });
 
@@ -444,7 +445,7 @@ function setupFollowingSection(container) {
         await unfollowUser(userId);
         await renderProfile();
       } catch (err) {
-        alert(err.message);
+        toastError(err.message || "Something went wrong.");
       }
     });
   });

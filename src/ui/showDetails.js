@@ -19,6 +19,7 @@ import {
 } from "../utils/icons.js";
 import { renderPopcornRatingHtml, bindPopcornRating } from "./showRating.js";
 import { escapeHtml, posterImg } from "../utils/html.js";
+import { showToast, toastError } from "./toast.js";
 
 function computeSeasonProgress(episodes) {
   const total = episodes.length;
@@ -225,7 +226,7 @@ export function renderShowDetails(show) {
         collectionBtn.classList.toggle("in-collection", shouldAdd);
       } catch (error) {
         console.error("Failed to manage collection:", error);
-        alert("Failed to update collection.");
+        toastError("Failed to update collection.");
       } finally {
         collectionBtn.disabled = false;
       }
@@ -426,6 +427,40 @@ async function renderRecommendedShows(container, show) {
  * @param {Array} seasons - Show seasons
  * @param {string} showId - Internal show UUID.
  */
+/**
+ * Captures a season's mark buttons and progress so an optimistic
+ * update can be undone if the request fails.
+ *
+ * @param {HTMLElement|null} seasonDiv
+ * @returns {() => void} restore
+ */
+function snapshotSeason(seasonDiv) {
+  if (!seasonDiv) return () => {};
+  const buttons = [
+    ...seasonDiv.querySelectorAll(".season_mark_btn, .episode button"),
+  ].map((b) => ({
+    b,
+    className: b.className,
+    html: b.innerHTML,
+    title: b.getAttribute("title"),
+    aria: b.getAttribute("aria-label"),
+  }));
+  const fill = seasonDiv.querySelector(".progress-bar-fill");
+  const text = seasonDiv.querySelector(".progress_text");
+  const width = fill?.style.width;
+  const label = text?.textContent;
+  return () => {
+    for (const { b, className, html, title, aria } of buttons) {
+      b.className = className;
+      b.innerHTML = html;
+      if (title != null) b.setAttribute("title", title);
+      if (aria != null) b.setAttribute("aria-label", aria);
+    }
+    if (fill) fill.style.width = width;
+    if (text) text.textContent = label;
+  };
+}
+
 export function renderShowSeasons(container, seasons, showId) {
   const seasonsContainer = container.querySelector("#seasons");
   const seasonsTitle = document.createElement("p");
@@ -456,7 +491,7 @@ export function renderShowSeasons(container, seasons, showId) {
           hasAired: hasEpisodeAired,
         });
         if (!ids.length) {
-          alert("No aired unwatched episodes to mark.");
+          showToast("No aired unwatched episodes to mark.");
           return;
         }
         const result = await markEpisodes(showId, ids, true);
@@ -474,7 +509,7 @@ export function renderShowSeasons(container, seasons, showId) {
         }
       } catch (err) {
         console.error(err);
-        alert("Failed to mark episodes.");
+        toastError("Failed to mark episodes.");
       } finally {
         btn.disabled = false;
       }
@@ -507,20 +542,21 @@ export function renderShowSeasons(container, seasons, showId) {
         const episodeId = episodeDiv.dataset.episodeId;
         const markAsWatched = btn.classList.contains("mark-watched");
 
-        try {
-          const showUpdated = await markEpisodes(
-            showId,
-            [episodeId],
-            markAsWatched
-          );
+        // Optimistic: flip the button and season progress right away.
+        const restore = snapshotSeason(btn.closest(".season"));
+        updateSeasonProgress(btn, markAsWatched);
 
-          if (showUpdated) {
-            updateMarkButton(btn, markAsWatched);
-            updateSeasonProgress(btn, markAsWatched);
-          }
+        try {
+          const result = await markEpisodes(showId, [episodeId], markAsWatched);
+          if (result?.success === false) throw new Error("markEpisodes failed");
         } catch (err) {
-          console.log("err", err);
-          alert("Failed to mark episode as watched.");
+          console.error(err);
+          restore();
+          toastError(
+            markAsWatched
+              ? "Couldn't mark the episode as watched."
+              : "Couldn't unmark the episode.",
+          );
         } finally {
           btn.disabled = false;
         }
@@ -561,20 +597,21 @@ export function renderShowSeasons(container, seasons, showId) {
         return;
       }
 
-      try {
-        const showUpdated = await markEpisodes(
-          showId,
-          episodeIds,
-          markAsWatched
-        );
+      const restore = snapshotSeason(seasonDiv);
+      updateMarkButton(btn, markAsWatched);
+      updateSeasonProgress(btn, markAsWatched, true);
 
-        if (showUpdated) {
-          updateMarkButton(btn, markAsWatched);
-          updateSeasonProgress(btn, markAsWatched, true);
-        }
+      try {
+        const result = await markEpisodes(showId, episodeIds, markAsWatched);
+        if (result?.success === false) throw new Error("markEpisodes failed");
       } catch (err) {
-        console.log("err", err);
-        alert("Failed to mark episode as watched.");
+        console.error(err);
+        restore();
+        toastError(
+          markAsWatched
+            ? "Couldn't mark the season as watched."
+            : "Couldn't unmark the season.",
+        );
       } finally {
         btn.disabled = false;
       }

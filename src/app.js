@@ -97,15 +97,38 @@ async function router() {
   const traktIdentifier = params.get("traktIdentifier");
   const userId = params.get("userId");
 
-  main.innerHTML = "";
-
-  if (route === "user") {
-    await routes.user(main, userId);
-  } else if (routes[route]) {
-    await routes[route](main, traktIdentifier);
-  } else {
+  const render = () => {
+    main.innerHTML = "";
+    if (route === "user") return routes.user(main, userId);
+    if (routes[route]) return routes[route](main, traktIdentifier);
     main.innerHTML = "<p>404 - Page not found.</p>";
+    return undefined;
+  };
+
+  // Pages append their skeleton synchronously, so the transition captures
+  // that first frame instead of waiting for network data.
+  // The update callback runs even if the browser skips the animation.
+  const rendering = canAnimatePageChange()
+    ? new Promise((resolve) => {
+        document.startViewTransition(() => {
+          resolve(render());
+        });
+      })
+    : render();
+  await rendering;
+}
+
+let firstRoute = true;
+
+function canAnimatePageChange() {
+  if (firstRoute) {
+    firstRoute = false;
+    return false;
   }
+  return (
+    typeof document.startViewTransition === "function" &&
+    !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
 }
 
 function initRouter() {

@@ -11,6 +11,7 @@ import { setWatchlist } from "../stores/watchlistStore.js";
 import { renderWatchlist } from "./watchlist.js";
 import { invalidateWatchlistAndStats } from "../services/pageCache.js";
 import { escapeHtml } from "../utils/html.js";
+import { skeletonCards } from "./skeleton.js";
 
 export async function ensureListsLoaded() {
   if (!getLists().length) {
@@ -63,7 +64,7 @@ export async function renderListFilter(main) {
     invalidateWatchlistAndStats();
     const container = document.getElementById("watchlist-container");
     if (container) {
-      container.innerHTML = "<p class='loading-text'>Loading...</p>";
+      container.innerHTML = skeletonCards();
     }
     setWatchlist(await getWatchlistData(listId, { activeOnly: true }), listId);
     const { renderTonightSection } = await import("./tonight.js");

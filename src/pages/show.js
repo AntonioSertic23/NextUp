@@ -1,5 +1,6 @@
 import { getShowDetails } from "../api/shows.js";
 import { renderShowDetails } from "../ui/showDetails.js";
+import { skeletonShowPage } from "../ui/skeleton.js";
 
 /**
  * Render the single show details page.
@@ -10,7 +11,7 @@ import { renderShowDetails } from "../ui/showDetails.js";
 export async function renderShow(main, traktIdentifier) {
   const container = document.createElement("div");
   container.id = "show-container";
-  container.innerHTML = "<p class='loading-text'>Loading...</p>";
+  container.innerHTML = skeletonShowPage();
   main.appendChild(container);
 
   try {

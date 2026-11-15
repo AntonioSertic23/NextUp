@@ -12,6 +12,7 @@ import { renderStatistics } from "../ui/statistics.js";
 import { setStats, getStats } from "../stores/statsStore.js";
 import { consumeStatsStale } from "../services/pageCache.js";
 import { getSupabaseClient } from "../services/supabase.js";
+import { skeletonStats } from "../ui/skeleton.js";
 
 /**
  * Loads main-collection stats + multi-list overview (with Supabase cache).
@@ -82,7 +83,7 @@ async function loadStats() {
 export async function renderStats(main) {
   const statsDiv = document.createElement("div");
   statsDiv.id = "stats-container";
-  statsDiv.innerHTML = "<p class='loading-text'>Loading statistics...</p>";
+  statsDiv.innerHTML = skeletonStats();
   main.appendChild(statsDiv);
 
   await Promise.all([getSupabaseClient(), loadStats()]);

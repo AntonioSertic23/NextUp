@@ -46,6 +46,8 @@ import {
 import { getRatingsMapForShows } from "../api/ratings.js";
 import { invalidateWatchlistAndStats } from "../services/pageCache.js";
 import { escapeHtml, posterImg } from "../utils/html.js";
+import { skeletonGrid, skeletonRows } from "./skeleton.js";
+import { toastError } from "./toast.js";
 
 const COLLECTION_SORT_OPTIONS = [
   { value: "added_at", label: "Last added" },
@@ -147,8 +149,8 @@ export async function reloadMyShowsForList(listId) {
   const grid = document.getElementById("all_my_shows-container");
   const upcoming = document.getElementById("upcoming_episodes-container");
 
-  if (grid) grid.innerHTML = "<p class='loading-text'>Loading...</p>";
-  if (upcoming) upcoming.innerHTML = "<p class='loading-text'>Loading...</p>";
+  if (grid) grid.innerHTML = skeletonGrid(8);
+  if (upcoming) upcoming.innerHTML = skeletonRows(2);
 
   setCollectionGenreFilter("");
 
@@ -599,7 +601,7 @@ export function bindMyShowsClickHandler(main) {
           await openCollectionListMenu(card);
         }
       } catch (err) {
-        alert(err.message);
+        toastError(err.message || "Something went wrong.");
       } finally {
         menuItem.disabled = false;
       }

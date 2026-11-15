@@ -10,6 +10,7 @@ import {
 } from "../stores/recentSearchesStore.js";
 import { searchShows, getTraktShows } from "../api/shows.js";
 import { escapeHtml, posterImg } from "../utils/html.js";
+import { skeletonSections } from "./skeleton.js";
 
 function escapeAttr(value) {
   return String(value ?? "")
@@ -191,7 +192,7 @@ export async function renderDiscoverElements() {
 // ————————————————————————————————————————————————————
 
 async function loadBrowseSections(container) {
-  container.innerHTML = `<div class="discover-browse-loading"><p class="loading-text">Loading...</p></div>`;
+  container.innerHTML = `<div class="discover-browse-loading">${skeletonSections(3)}</div>`;
 
   try {
     const results = await Promise.all(

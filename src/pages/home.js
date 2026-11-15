@@ -10,6 +10,7 @@ import {
 import { resolveActiveListId } from "../stores/listsStore.js";
 import { consumeWatchlistStale } from "../services/pageCache.js";
 import { getSupabaseClient } from "../services/supabase.js";
+import { skeletonCards } from "../ui/skeleton.js";
 
 /**
  * Renders the Home page and initializes the watchlist state.
@@ -19,7 +20,7 @@ import { getSupabaseClient } from "../services/supabase.js";
 export async function renderHome(main) {
   const watchlistDiv = document.createElement("div");
   watchlistDiv.id = "watchlist-container";
-  watchlistDiv.innerHTML = "<p class='loading-text'>Loading...</p>";
+  watchlistDiv.innerHTML = skeletonCards();
   main.appendChild(watchlistDiv);
 
   watchlistDiv.addEventListener("click", (e) => {
@@ -49,7 +50,7 @@ export async function renderHome(main) {
     return;
   }
 
-  watchlistDiv.innerHTML = "<p class='loading-text'>Loading...</p>";
+  watchlistDiv.innerHTML = skeletonCards();
   const data = await getWatchlistData(listId, { activeOnly: true });
   setWatchlist(data, listId);
   await renderTonightSection(main);
