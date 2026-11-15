@@ -122,15 +122,29 @@ async function processShow(show, results) {
 }
 
 /**
- * Walks all tracked shows and syncs newly aired episodes from Trakt.
+ * Walks tracked shows (ordered by title) and syncs newly aired episodes
+ * from Trakt.
  *
- * @returns {Promise<{message: string, updated: string[], skipped: string[], errors: Array, notificationsSent: number}>}
+ * With `deadline`, stops starting new batches once that time has passed
+ * and returns `nextOffset` so the caller can continue from there. The
+ * manual HTTP trigger uses this to stay under the proxy's response
+ * timeout; the scheduled background job runs without a deadline.
+ *
+ * @param {{ offset?: number, deadline?: number|null }} [options]
+ * @returns {Promise<{message: string, updated: string[], skipped: string[], errors: Array, total: number, nextOffset: number|null}>}
  */
-export async function runSyncNextEpisodes() {
+export async function runSyncNextEpisodes({ offset = 0, deadline = null } = {}) {
   const shows = await getAllTrackedShows();
 
   if (!shows?.length) {
-    return { message: "No shows to sync", updated: [], skipped: [], errors: [] };
+    return {
+      message: "No shows to sync",
+      updated: [],
+      skipped: [],
+      errors: [],
+      total: 0,
+      nextOffset: null,
+    };
   }
 
   const results = {
@@ -139,12 +153,24 @@ export async function runSyncNextEpisodes() {
     errors: [],
   };
 
-  for (let i = 0; i < shows.length; i += BATCH_SIZE) {
+  const start = Math.max(0, Math.min(Number(offset) || 0, shows.length));
+  let nextOffset = null;
+
+  for (let i = start; i < shows.length; i += BATCH_SIZE) {
+    if (deadline != null && i > start && Date.now() >= deadline) {
+      nextOffset = i;
+      break;
+    }
     const batch = shows.slice(i, i + BATCH_SIZE);
     await Promise.all(batch.map((show) => processShow(show, results)));
   }
 
-  console.log("Sync completed:", JSON.stringify(results));
+  console.log("Sync completed:", JSON.stringify({ ...results, nextOffset }));
 
-  return { message: "Sync completed", ...results };
+  return {
+    message: nextOffset == null ? "Sync completed" : "Sync in progress",
+    ...results,
+    total: shows.length,
+    nextOffset,
+  };
 }
