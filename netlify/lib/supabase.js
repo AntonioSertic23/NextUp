@@ -97,7 +97,9 @@ export async function getValidTraktToken(userId) {
   }
 
   if (!user?.trakt_token) {
-    throw new Error("Trakt account not connected");
+    const err = new Error("Trakt account not connected");
+    err.code = "TRAKT_RECONNECT_REQUIRED";
+    throw err;
   }
 
   const now = new Date();
@@ -112,20 +114,31 @@ export async function getValidTraktToken(userId) {
 
   // Token expired or no expiry info — try to refresh
   if (!user.trakt_refresh_token) {
-    throw new Error(
+    const err = new Error(
       "Trakt token expired and no refresh token available. Please reconnect your Trakt account.",
     );
+    err.code = "TRAKT_RECONNECT_REQUIRED";
+    throw err;
   }
 
   console.log(`Trakt token expired for user ${userId}, refreshing...`);
 
-  const tokenData = await refreshTraktAccessToken(
-    user.trakt_refresh_token,
-    user.trakt_oauth_redirect_uri,
-  );
-  await saveTraktTokens(userId, tokenData);
-
-  return tokenData.access_token;
+  try {
+    const tokenData = await refreshTraktAccessToken(
+      user.trakt_refresh_token,
+      user.trakt_oauth_redirect_uri,
+    );
+    await saveTraktTokens(userId, tokenData);
+    return tokenData.access_token;
+  } catch (refreshErr) {
+    const err = new Error(
+      refreshErr.message ||
+        "Trakt token refresh failed. Please reconnect your Trakt account.",
+    );
+    err.code = "TRAKT_RECONNECT_REQUIRED";
+    err.cause = refreshErr;
+    throw err;
+  }
 }
 
 /**

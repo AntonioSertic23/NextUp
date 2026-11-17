@@ -5306,6 +5306,10 @@ body.modal-open {
   border-left-color: #34c77b;
 }
 
+.toast--warning {
+  border-left-color: #e6a23c;
+}
+
 .toast--error {
   border-left-color: #ef4f5f;
 }

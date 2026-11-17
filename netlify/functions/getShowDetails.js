@@ -74,9 +74,23 @@ export async function handler(event) {
     return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
 
-  // If not in DB, fallback to Trakt
+  // If not in DB, fallback to Trakt (public show endpoints work with client id only)
   try {
-    const traktToken = await getValidTraktToken(userId);
+    let traktToken;
+    let traktWarning = null;
+    try {
+      traktToken = await getValidTraktToken(userId);
+    } catch (err) {
+      // Same pattern as getTraktShows / getRelatedShows: browsing a show does
+      // not require a user OAuth token. Keep a warning so the client can nudge
+      // reconnect for sync features that do need a valid token.
+      traktWarning = err.message || "Trakt account needs reconnect";
+      console.warn(
+        "[getShowDetails] Trakt user token unavailable, using client id:",
+        traktWarning,
+      );
+    }
+
     const encodedId = encodeURIComponent(String(traktIdentifier).trim());
     const headers = getTraktHeaders(traktToken);
 
@@ -97,7 +111,11 @@ export async function handler(event) {
       const text = await showRes.text();
       return {
         statusCode: showRes.status,
-        body: JSON.stringify({ error: text }),
+        body: JSON.stringify({
+          error: text || `Trakt show lookup failed (${showRes.status})`,
+          code: showRes.status === 404 ? "SHOW_NOT_FOUND" : "TRAKT_ERROR",
+          ...(traktWarning ? { traktWarning } : {}),
+        }),
       };
     }
 
@@ -105,7 +123,11 @@ export async function handler(event) {
       const text = await seasonsRes.text();
       return {
         statusCode: seasonsRes.status,
-        body: JSON.stringify({ error: text }),
+        body: JSON.stringify({
+          error: text || `Trakt seasons lookup failed (${seasonsRes.status})`,
+          code: "TRAKT_ERROR",
+          ...(traktWarning ? { traktWarning } : {}),
+        }),
       };
     }
 
@@ -124,8 +146,33 @@ export async function handler(event) {
       newTraktIdentifier
     );
 
+    if (!result) {
+      return {
+        statusCode: 500,
+        body: JSON.stringify({
+          error: "Show was imported from Trakt but could not be loaded.",
+          code: "SHOW_LOAD_FAILED",
+        }),
+      };
+    }
+
+    if (traktWarning) {
+      result.traktWarning = traktWarning;
+      result.traktReconnectRequired = true;
+    }
+
     return { statusCode: 200, body: JSON.stringify(result) };
   } catch (err) {
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    const message = err.message || "Failed to load show details";
+    const reconnect = /trakt|reconnect|refresh token|not connected/i.test(
+      message,
+    );
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        error: message,
+        code: reconnect ? "TRAKT_RECONNECT_REQUIRED" : "SHOW_LOAD_FAILED",
+      }),
+    };
   }
 }
