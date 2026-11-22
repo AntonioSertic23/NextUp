@@ -7,7 +7,7 @@
  * API calls (Netlify functions, Supabase) and Trakt images are never cached.
  */
 
-const SW_VERSION = "nextup-pwa-v2.11.0";
+const SW_VERSION = "nextup-pwa-v2.11.1";
 const CACHE_NAME = `nextup-shell-${SW_VERSION}`;
 const OFFLINE_URL = "/offline.html";
 

@@ -32,7 +32,7 @@ export async function handler(event) {
     };
   }
 
-  const { code, redirectUri } = body;
+  const { code, redirectUri, codeVerifier } = body;
 
   if (!code || !redirectUri) {
     return {
@@ -52,7 +52,7 @@ export async function handler(event) {
   }
 
   try {
-    const tokenData = await exchangeTraktCode(code, redirectUri);
+    const tokenData = await exchangeTraktCode(code, redirectUri, codeVerifier);
     await saveTraktTokens(userId, tokenData, redirectUri);
 
     return {

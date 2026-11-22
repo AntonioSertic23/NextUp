@@ -27,9 +27,10 @@ const SUPABASE = createClient(
  * @param {string} [oauthRedirectUri] - Same redirect_uri as used for authorize/code exchange — stored for refresh_token grants
  */
 export async function saveTraktTokens(userId, tokenData, oauthRedirectUri) {
-  const expiresAt = new Date(
-    (tokenData.created_at + tokenData.expires_in) * 1000,
-  ).toISOString();
+  const createdAt =
+    Number(tokenData.created_at) || Math.floor(Date.now() / 1000);
+  const expiresIn = Number(tokenData.expires_in) || 7 * 24 * 60 * 60;
+  const expiresAt = new Date((createdAt + expiresIn) * 1000).toISOString();
 
   const baseRow = {
     trakt_token: tokenData.access_token,
@@ -107,8 +108,12 @@ export async function getValidTraktToken(userId) {
     ? new Date(user.trakt_token_expires_at)
     : null;
 
-  // Token still valid (with 5-minute buffer)
-  if (expiresAt && expiresAt.getTime() - 5 * 60 * 1000 > now.getTime()) {
+  // Token still valid (with 5-minute buffer). Invalid dates fall through to refresh.
+  const expiresMs = expiresAt?.getTime?.();
+  if (
+    Number.isFinite(expiresMs) &&
+    expiresMs - 5 * 60 * 1000 > now.getTime()
+  ) {
     return user.trakt_token;
   }
 

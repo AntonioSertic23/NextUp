@@ -61,28 +61,50 @@ export function getTraktHeaders(token) {
 /**
  * Exchanges a Trakt OAuth authorization code for access and refresh tokens.
  *
+ * Prefer PKCE (`code_verifier`): Trakt's authorize flow injects PKCE and
+ * the Client Secret path is deprecated for user sign-in.
+ * Fallback: legacy exchange with `client_secret` when no verifier is present.
+ *
  * @param {string} code - Authorization code from Trakt redirect
  * @param {string} redirectUri - Must match the redirect_uri used in the authorization request
+ * @param {string} [codeVerifier] - PKCE code_verifier from the authorize step
  * @returns {Promise<Object>} Token response: { access_token, refresh_token, expires_in, created_at, ... }
  * @throws {Error} If the exchange fails
  */
-export async function exchangeTraktCode(code, redirectUri) {
-  if (!process.env.TRAKT_CLIENT_ID || !process.env.TRAKT_CLIENT_SECRET) {
+export async function exchangeTraktCode(code, redirectUri, codeVerifier) {
+  if (!process.env.TRAKT_CLIENT_ID) {
+    throw new Error("Missing TRAKT_CLIENT_ID in environment.");
+  }
+
+  const usePkce =
+    typeof codeVerifier === "string" && codeVerifier.trim().length >= 43;
+
+  if (!usePkce && !process.env.TRAKT_CLIENT_SECRET) {
     throw new Error(
-      "Missing TRAKT_CLIENT_ID or TRAKT_CLIENT_SECRET in environment.",
+      "Missing TRAKT_CLIENT_SECRET (required when PKCE code_verifier is absent).",
     );
   }
+
+  const body = usePkce
+    ? {
+        code,
+        client_id: process.env.TRAKT_CLIENT_ID,
+        redirect_uri: redirectUri,
+        grant_type: "authorization_code",
+        code_verifier: codeVerifier.trim(),
+      }
+    : {
+        code,
+        client_id: process.env.TRAKT_CLIENT_ID,
+        client_secret: process.env.TRAKT_CLIENT_SECRET,
+        redirect_uri: redirectUri,
+        grant_type: "authorization_code",
+      };
 
   const res = await fetch(`${TRAKT_BASE_URL}/oauth/token`, {
     method: "POST",
     headers: getOauthHeaders(),
-    body: JSON.stringify({
-      code,
-      client_id: process.env.TRAKT_CLIENT_ID,
-      client_secret: process.env.TRAKT_CLIENT_SECRET,
-      redirect_uri: redirectUri,
-      grant_type: "authorization_code",
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {
@@ -90,6 +112,8 @@ export async function exchangeTraktCode(code, redirectUri) {
     console.error(
       "[exchangeTraktCode] Trakt /oauth/token error",
       res.status,
+      "pkce:",
+      usePkce,
       "redirect_uri:",
       redirectUri,
       "body[0..300]:",

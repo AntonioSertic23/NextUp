@@ -1,7 +1,16 @@
-import { getSession } from "../stores/userStore.js";
+import { getAccessToken, getSession } from "../stores/userStore.js";
+import { toastError, toastSuccess } from "../ui/toast.js";
+import {
+  createCodeChallenge,
+  createCodeVerifier,
+  storeCodeVerifier,
+  takeCodeVerifier,
+} from "../utils/pkce.js";
+
+const TRAKT_AUTHORIZE_URL = "https://auth.trakt.tv/oauth/authorize";
 
 /**
- * Handle Trakt OAuth redirect callback (authorization code flow).
+ * Handle Trakt OAuth redirect callback (authorization code + PKCE).
  *
  * After the user authorizes on Trakt, they are redirected back with
  * `?code=AUTH_CODE` in the query string. This function detects that code,
@@ -14,34 +23,67 @@ export async function handleTraktAuthRedirect() {
   const code = params.get("code");
   if (!code) return;
 
+  const oauthError = params.get("error");
+  const clearOauthParams = () => {
+    window.history.replaceState({}, document.title, window.location.pathname);
+  };
+
+  if (oauthError) {
+    clearOauthParams();
+    toastError(
+      `Trakt authorization failed: ${params.get("error_description") || oauthError}`,
+    );
+    return;
+  }
+
   try {
-    const { access_token } = getSession();
+    const accessToken = await getAccessToken();
+    if (!accessToken) {
+      throw new Error(
+        "You are not signed in to NextUp. Sign in, then use Reconnect Trakt again.",
+      );
+    }
+
     const redirectUri = window.location.origin;
+    const codeVerifier = takeCodeVerifier();
+    if (!codeVerifier) {
+      throw new Error(
+        "Trakt sign-in could not finish (missing PKCE verifier). Use Reconnect Trakt again from this same browser/app.",
+      );
+    }
 
     const res = await fetch("/.netlify/functions/traktAuth", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${access_token}`,
+        Authorization: `Bearer ${accessToken}`,
       },
-      body: JSON.stringify({ code, redirectUri }),
+      body: JSON.stringify({ code, redirectUri, codeVerifier }),
     });
 
     if (!res.ok) {
-      const { error } = await res.json();
-      throw new Error(error || `Token exchange failed (${res.status})`);
+      let message = `Token exchange failed (${res.status})`;
+      try {
+        const payload = await res.json();
+        if (payload?.error) message = payload.error;
+      } catch {
+        /* non-JSON */
+      }
+      throw new Error(message);
     }
 
+    clearOauthParams();
+    toastSuccess("Trakt connected. You can sync now.");
     console.info("Trakt account connected");
   } catch (err) {
+    clearOauthParams();
     console.error("Failed to exchange Trakt auth code:", err.message);
+    toastError(err.message || "Failed to connect Trakt");
   }
-
-  window.history.replaceState({}, document.title, window.location.pathname);
 }
 
 /**
- * Redirect the user to Trakt OAuth authorization page (code flow).
+ * Redirect the user to Trakt OAuth authorization page (code + PKCE flow).
  */
 export async function connectTraktAccount() {
   try {
@@ -49,17 +91,26 @@ export async function connectTraktAccount() {
     if (!res.ok) throw new Error("Failed to load Trakt client ID");
 
     const { clientId } = await res.json();
+    if (!clientId) throw new Error("Trakt client ID is not configured");
+
     const redirectUri = window.location.origin;
+    const verifier = createCodeVerifier();
+    const challenge = await createCodeChallenge(verifier);
+    storeCodeVerifier(verifier);
 
     const authUrl =
-      `https://trakt.tv/oauth/authorize` +
+      `${TRAKT_AUTHORIZE_URL}` +
       `?response_type=code` +
-      `&client_id=${clientId}` +
-      `&redirect_uri=${encodeURIComponent(redirectUri)}`;
+      `&client_id=${encodeURIComponent(clientId)}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&scope=${encodeURIComponent("public offline_access")}` +
+      `&code_challenge=${encodeURIComponent(challenge)}` +
+      `&code_challenge_method=S256`;
 
     window.location.assign(authUrl);
   } catch (err) {
     console.error("Trakt OAuth init failed:", err.message);
+    toastError(err.message || "Could not start Trakt sign-in");
   }
 }
 
@@ -71,12 +122,15 @@ export async function connectTraktAccount() {
  * @throws {Error} If the sync request fails
  */
 export async function syncTraktAccount() {
-  const { access_token } = getSession();
+  const accessToken = (await getAccessToken()) || getSession()?.access_token;
+  if (!accessToken) {
+    throw new Error("Not signed in");
+  }
 
   const res = await fetch("/.netlify/functions/syncTraktAccount", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${access_token}`,
+      Authorization: `Bearer ${accessToken}`,
     },
   });
 
