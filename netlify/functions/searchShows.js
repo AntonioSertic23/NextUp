@@ -59,7 +59,12 @@ export async function handler(event) {
   }
 
   try {
-    const traktToken = await getValidTraktToken(userId);
+    let traktToken;
+    try {
+      traktToken = await getValidTraktToken(userId);
+    } catch {
+      // Public search works with client id only
+    }
 
     const searchRes = await fetch(
       `${TRAKT_BASE_URL}/search/show?query=${encodeURIComponent(

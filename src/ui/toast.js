@@ -2,7 +2,7 @@
  * Short, non-blocking notifications (replaces window.alert).
  */
 
-const DURATION_MS = { info: 3500, success: 3000, error: 6000 };
+const DURATION_MS = { info: 3500, success: 3000, warning: 5000, error: 6000 };
 
 let region = null;
 
@@ -18,7 +18,7 @@ function getRegion() {
 
 /**
  * @param {string} message
- * @param {{ type?: "info"|"success"|"error", duration?: number }} [options]
+ * @param {{ type?: "info"|"success"|"warning"|"error", duration?: number }} [options]
  */
 export function showToast(message, { type = "info", duration } = {}) {
   if (!message) return;
@@ -53,3 +53,5 @@ export function showToast(message, { type = "info", duration } = {}) {
 
 export const toastError = (message) => showToast(message, { type: "error" });
 export const toastSuccess = (message) => showToast(message, { type: "success" });
+export const toastWarning = (message) =>
+  showToast(message, { type: "warning" });

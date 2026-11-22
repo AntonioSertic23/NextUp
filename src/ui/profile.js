@@ -245,6 +245,13 @@ export async function renderProfile() {
                   <span class="profile-action-label">Sync New Episodes</span>
                   <span class="profile-action-desc">Check for newly aired episodes across all shows</span>
                 </div>
+              </button>
+              <button type="button" class="profile-action-btn" id="profile-trakt-reconnect">
+                <span class="profile-action-icon">🔗</span>
+                <div class="profile-action-content">
+                  <span class="profile-action-label">Reconnect Trakt</span>
+                  <span class="profile-action-desc">Refresh your Trakt login if sync or new shows fail</span>
+                </div>
               </button>`
         }
       </div>
@@ -521,6 +528,10 @@ function setupProfileActions(container, traktConnected) {
       .querySelector("#profile-trakt-connect")
       ?.addEventListener("click", () => connectTraktAccount());
   } else {
+    container
+      .querySelector("#profile-trakt-reconnect")
+      ?.addEventListener("click", () => connectTraktAccount());
+
     const syncBtn = container.querySelector("#profile-trakt-sync");
     syncBtn?.addEventListener("click", async () => {
       syncBtn.disabled = true;
@@ -538,11 +549,22 @@ function setupProfileActions(container, traktConnected) {
           failedItems: result?.errors || [],
         });
       } catch (error) {
+        const needsReconnect =
+          /trakt account not connected|reconnect|refresh token|token refresh/i.test(
+            error.message || "",
+          );
         showSyncDialog({
           title: "Trakt sync failed",
-          summary: error.message,
+          summary: needsReconnect
+            ? `${error.message} Use “Reconnect Trakt” below, then try sync again.`
+            : error.message,
           failed: true,
         });
+        if (needsReconnect) {
+          toastError(
+            "Trakt connection expired. Use Reconnect Trakt, then try again.",
+          );
+        }
       } finally {
         syncBtn.disabled = false;
         label.textContent = origText;

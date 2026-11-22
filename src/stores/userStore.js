@@ -126,6 +126,39 @@ export function getSession() {
 }
 
 /**
+ * Replaces the cached session (e.g. after Supabase refreshes the JWT).
+ *
+ * @param {object|null} nextSession
+ */
+export function setSession(nextSession) {
+  session = nextSession;
+}
+
+/**
+ * Returns a usable access token, refreshing from Supabase when possible.
+ * Mobile PWAs often keep a stale in-memory JWT after backgrounding.
+ *
+ * @returns {Promise<string|null>}
+ */
+export async function getAccessToken() {
+  try {
+    const SUPABASE = await getSupabaseClient();
+    const {
+      data: { session: latest },
+    } = await SUPABASE.auth.getSession();
+    if (latest?.access_token) {
+      session = latest;
+      if (latest.user) user = latest.user;
+      return latest.access_token;
+    }
+  } catch (err) {
+    console.warn("getAccessToken: live session lookup failed:", err?.message);
+  }
+
+  return session?.access_token || null;
+}
+
+/**
  * Returns true if user is authenticated.
  */
 export function isAuthenticated() {
